@@ -1,0 +1,31 @@
+name: Python Lint
+on:
+  pull_request:
+  push:
+    branches:
+      - "main"
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  python-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-uv-
+      - name: Lint with ruff
+        run: pip install uv
+      - name: Check ruff
+        run: uvx ruff check .
+      # - name: Check mypy
+      #   run: uvx mypy .

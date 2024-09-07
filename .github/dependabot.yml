@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # python
+  - package-ecosystem: "pip"
+    directory: "src/"
+    schedule:
+      interval: "monthly"
+  # terraform
+  - package-ecosystem: "terraform"
+    directory: "terraform/"
+    schedule:
+      interval: "monthly"
+  # github actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
