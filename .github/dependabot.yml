@@ -1,13 +1,9 @@
 version: 2
 updates:
   # python
+  # uv is not supported by dependabot yet https://docs.astral.sh/uv/guides/integration/dependency-bots/#dependabot
   - package-ecosystem: "pip"
     directory: "src/"
-    schedule:
-      interval: "monthly"
-  # terraform
-  - package-ecosystem: "terraform"
-    directory: "terraform/"
     schedule:
       interval: "monthly"
   # github actions
