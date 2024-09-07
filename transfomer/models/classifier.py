@@ -91,7 +91,7 @@ class TransformerForSequenceClassification(L.LightningModule):
         out = self.classifier(enc)
         return out
 
-    def training_step(self, batch, batch_idx):
+    def training_step(self, batch, batch_idx) -> torch.Tensor:
         x, y = batch
         logits: torch.Tensor = self(x)
         logits = logits.squeeze(dim=1)
@@ -108,7 +108,7 @@ class TransformerForSequenceClassification(L.LightningModule):
 
         return loss
 
-    def validation_step(self, batch, batch_idx):
+    def validation_step(self, batch, batch_idx) -> torch.Tensor:
         x, y = batch
         logits: torch.Tensor = self(x)
         logits = logits.squeeze(dim=1)

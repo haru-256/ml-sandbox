@@ -44,12 +44,18 @@ class TransformerEncoderBlock(nn.Module):
             output tensor, shape (batch_size, seq_len, hidden_size)
         """
         # Apply attention with a skip connection
-        h = x + self.mha(
-            self.layer_norm_1(x),
+        h = self.layer_norm_1(x)
+        mha_out, _ = self.mha(
+            query=h,
+            key=h,
+            value=h,
             attn_mask=attn_mask,
             key_padding_mask=key_padding_mask,
             is_causal=True,
         )
+        h = x + mha_out
+        # if attn_mask or key_padding_mask is invalid, h will contain NaN
+        assert torch.isnan(h).sum() == 0, f"NaN detected in MultiheadAttention output, {h=}"
         # Apply feed-forward layer with a skip connection
         out = h + self.feed_forward(self.layer_norm_2(h))
         return out

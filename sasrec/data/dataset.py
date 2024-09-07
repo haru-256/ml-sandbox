@@ -223,6 +223,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         batch_size: int = 32,
         num_workers: int = 2,
         max_seq_len: int = 50,
+        neg_sample_size: int = 1,
     ):
         """IMDb data module
 
@@ -235,6 +236,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.max_seq_len = max_seq_len
+        self.neg_sample_size = neg_sample_size
 
     def prepare_data(self) -> None:
         train_path = self.save_dir / "train.avro"
@@ -281,14 +283,23 @@ class AmazonReviewsDataModule(L.LightningDataModule):
     def setup(self, stage: str) -> None:
         if stage == "fit":
             self.train_dataset = AmazonReviewsDataset(
-                self.train_df, self.item2index, neg_sample_size=5, max_seq_len=self.max_seq_len
+                self.train_df,
+                self.item2index,
+                neg_sample_size=self.neg_sample_size,
+                max_seq_len=self.max_seq_len,
             )
             self.val_dataset = AmazonReviewsDataset(
-                self.val_df, self.item2index, neg_sample_size=5, max_seq_len=self.max_seq_len
+                self.val_df,
+                self.item2index,
+                neg_sample_size=self.neg_sample_size,
+                max_seq_len=self.max_seq_len,
             )
         elif stage == "test":
             self.test_dataset = AmazonReviewsDataset(
-                self.test_df, self.item2index, neg_sample_size=5, max_seq_len=self.max_seq_len
+                self.test_df,
+                self.item2index,
+                neg_sample_size=self.neg_sample_size,
+                max_seq_len=self.max_seq_len,
             )
         else:
             raise NotImplementedError(f"Invalid stage: {stage}")
