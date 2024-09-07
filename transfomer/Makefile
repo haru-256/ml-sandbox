@@ -1,4 +1,4 @@
-.PHONY: lint fmt help
+.PHONY: lint fmt help setup test lock train
 .DEFAULT_GOAL := help
 
 lint: ## Run Linter
