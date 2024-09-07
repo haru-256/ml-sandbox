@@ -3,7 +3,7 @@ updates:
   # python
   # uv is not supported by dependabot yet https://docs.astral.sh/uv/guides/integration/dependency-bots/#dependabot
   - package-ecosystem: "pip"
-    directory: "src/"
+    directory: "/"
     schedule:
       interval: "monthly"
   # github actions
