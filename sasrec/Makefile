@@ -1,4 +1,4 @@
-.PHONY: lint fmt help
+.PHONY: lint fmt help test lock setup train
 .DEFAULT_GOAL := help
 
 lint: ## Run Linter
@@ -18,6 +18,9 @@ lock: ## Lock dependencies
 setup: ## Setup the project
 	uv sync
 	uv tool install ruff@0.6.3
+
+train: ## Train the model
+	uv run python train.py
 
 help: ## Show options
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \

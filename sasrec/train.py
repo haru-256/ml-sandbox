@@ -20,10 +20,12 @@ def main():
     max_seq_len = 50
     embedding_dim = 128
     num_heads = 1
-    num_blocks = 1
+    num_blocks = 2
     pos_sample_size = 1
     neg_sample_size = 1
     save_dir = pathlib.Path("data/data")
+    debug = False
+    accelerator = "cpu"
 
     datamodule = AmazonReviewsDataModule(
         save_dir=save_dir,
@@ -66,12 +68,13 @@ def main():
 
     trainer = L.Trainer(
         max_epochs=10,
-        accelerator="cpu",
+        accelerator=accelerator,
         callbacks=[
             RichProgressBar(leave=True),
             EarlyStopping(monitor="val_loss", mode="min", patience=3),
         ],
         detect_anomaly=True,
+        fast_dev_run=10 if debug else False,
     )
     trainer.fit(model=module, datamodule=datamodule)
 

@@ -20,7 +20,7 @@ class TransformerEmbeddings(nn.Module):
         self.dropout = nn.Dropout(p=0.5)
 
     def lookup_id_embedding(self, x: torch.Tensor) -> torch.Tensor:
-        return self.id_embedding(x)
+        return self.id_embeddings(x)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass for embedding layer

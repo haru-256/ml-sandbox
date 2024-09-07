@@ -71,7 +71,6 @@ class SASRec(nn.Module):
 
         # shape (batch_size, seq_len, hidden_size)
         h = self.transformer_embeddings(item_history)
-
         for block in self.transformer_encoder_blocks:
             # shape (batch_size, seq_len, hidden_size)
             h = block(h, attn_mask=attn_mask, key_padding_mask=padding_mask)
@@ -148,14 +147,14 @@ class SASRecModule(L.LightningModule):
         return self.model(item_history, pos_item, neg_item)
 
     def training_step(self, batch, batch_idx) -> torch.Tensor:
-        item_history, pos_item, neg_item = batch
+        _, item_history, pos_item, neg_item = batch
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
-        # extract the last hidden state, shape (batch_size, hidden_size)
-        out = out[:, -1, :]
+        # extract the last hidden state, shape (batch_size, 1, hidden_size)
+        out = out[:, -1, :].unsqueeze(1)
 
-        # shape (batch_size, pos_sample_size)
+        # shape (batch_size, hidden_size, pos_sample_size)
         pos_logits = torch.bmm(out, pos_item_emb.transpose(1, 2))
-        # shape (batch_size, neg_sample_size)
+        # shape (batch_size, hidden_size, neg_sample_size)
         neg_logits = torch.bmm(out, neg_item_emb.transpose(1, 2))
         logits = torch.cat([pos_logits, neg_logits], dim=1)
         labels = torch.cat([torch.ones_like(pos_logits), torch.zeros_like(neg_logits)], dim=1)
@@ -174,10 +173,10 @@ class SASRecModule(L.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx) -> torch.Tensor:
-        item_history, pos_item, neg_item = batch
+        _, item_history, pos_item, neg_item = batch
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
-        # extract the last hidden state, shape (batch_size, hidden_size)
-        out = out[:, -1, :]
+        # extract the last hidden state, shape (batch_size, 1, hidden_size)
+        out = out[:, -1, :].unsqueeze(1)
 
         # shape (batch_size, pos_sample_size)
         pos_logits = torch.bmm(out, pos_item_emb.transpose(1, 2))
