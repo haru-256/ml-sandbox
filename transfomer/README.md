@@ -2,6 +2,8 @@
 
 ## Description
 
+This repository contains code for training and evaluating a Transformer model for sentiment classification using the [IMDB Dataset](https://huggingface.co/datasets/stanfordnlp/imdb). The dataset consists of 25,000 movie reviews labeled as either positive or negative. The Transformer Encoder model is used for sequence classification, with a summary of its architecture provided. The model achieves high accuracy, ranging from 0.85 to 0.86, even with arbitrary hyperparameter selection. The repository also includes a visualization of the accuracy results. The performance of the model is comparable to DistlliBERT. For more details, refer to the [Kaggle notebook](https://www.kaggle.com/code/omarallam22/movie-sentiment-analysis#Modeling).
+
 ## Dataset
 
 Transfomer is trained by [IMDB Dataset](https://huggingface.co/datasets/stanfordnlp/imdb).
@@ -58,3 +60,13 @@ Despite selecting hyperparameters somewhat arbitrarily, the accuracy was very hi
 This accuracy is close to DistlliBERT.
 
 - <https://www.kaggle.com/code/omarallam22/movie-sentiment-analysis#Modeling>
+
+## References
+
+Here are some references that you may find helpful:
+
+1. [IMDB Dataset](https://huggingface.co/datasets/stanfordnlp/imdb) - The dataset used for training the Transformer model for sentiment classification.
+
+2. [Kaggle Notebook](https://www.kaggle.com/code/omarallam22/movie-sentiment-analysis#Modeling) - A Kaggle notebook that provides more details on the movie sentiment analysis using the Transformer model.
+
+3. [DistlliBERT](https://arxiv.org/abs/1910.01108) - A reference to the DistlliBERT model, which has comparable performance to the Transformer model in sentiment classification.

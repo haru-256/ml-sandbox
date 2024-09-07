@@ -1,16 +1,13 @@
 [project]
-name = "transformer"
+name = "sasrec"
 version = "0.1.0"
-description = "Full-scratch Transformer implementation with PyTorch"
+description = "SASRec: Self-Attentive Sequential Recommendation"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 dependencies = [
   "lightning~=2.4.0",
   "torchmetrics~=1.4.1",
-  "bertviz~=1.2.0",
-  "transformers[torch,onnxruntime,optuna,sentencepiece,sklearn,vision]~=4.16.2",
   "datasets~=2.21.0",
-  "spacy[apple]~=3.7.6",
   "numpy~=1.26.4",
   "polars~=1.6.0",
   "rich~=13.8.0",
@@ -24,20 +21,21 @@ dev-dependencies = [
   "pytest~=8.3.2",
   "mypy~=1.11.2",
   "ipywidgets>=8.1.5",
+  "ruff~=0.6.3",
 ]
 
 [tool.ruff]
-target-version = "py39"
+target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]
 extend-select = ["I"]
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.12"
 exclude = [".venv"]
 disable_error_code = ["import-untyped"]
 
 [[tool.mypy.overrides]]
-module = ["transformers", "torch.*"]
+module = ["torch.*"]
 ignore_missing_imports = true
