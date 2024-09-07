@@ -13,6 +13,38 @@ Transfomer is trained by [IMDB Dataset](https://huggingface.co/datasets/stanford
 This dataset label is binary 0/1,  0: negative and 1: positive.
 Because this dataset is not imbalance, random model accuracy has 50%.
 
+## Usage
+
+To train the model, follow these steps:
+
+1. Clone the repository:
+
+```sh
+git clone https://github.com/haru-256/ml-sandbox.git
+```
+
+2. Navigate to the Transformer directory:
+
+```sh
+cd ml-sandbox/transfomer
+```
+
+3. Install the required dependencies:
+
+```sh
+uv sync
+```
+
+4. Run the training command:
+
+```sh
+make train
+```
+
+This command will initiate the training process and start training the Transformer model using the IMDB Dataset. The training progress and accuracy will be displayed in the console.
+
+Note: Make sure you have [uv](https://github.com/astral-sh/uv) and Make installed on your system before running the above commands.
+
 ## Model
 
 We use Transfomer Encoder. Model Summary is the following.
