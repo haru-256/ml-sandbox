@@ -33,7 +33,7 @@ class TransformerEmbeddings(nn.Module):
         """
         # Create position IDs for input sequence
         seq_length = x.size(1)
-        position_ids = torch.arange(seq_length, dtype=torch.long).unsqueeze(0)
+        position_ids = torch.arange(seq_length, dtype=torch.long).unsqueeze(0).to(x.device)
         # Create token and position embeddings
         id_embeddings = self.id_embeddings(x)
         position_embeddings = self.position_embeddings(position_ids)
