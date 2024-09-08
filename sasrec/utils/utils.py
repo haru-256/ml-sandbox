@@ -33,7 +33,7 @@ def create_attn_padding_mask(
     # to prevent this, we set padding_mask to minimum value of float
     # https://github.com/pytorch/pytorch/issues/24816
     padding_mask = torch.masked_fill(
-        torch.zeros(batch_size, seq_len).to(device),
+        torch.zeros_like(x),
         padding_mask_bool,
         torch.finfo(torch.float16 if float16 else torch.float32).min,
     )
