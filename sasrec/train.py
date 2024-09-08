@@ -17,15 +17,15 @@ logger = logging.getLogger(__name__)
 
 def main():
     # TODO: configure hyperparameters by hydra
-    batch_size = 1024
+    batch_size = 10
     max_seq_len = 50
     embedding_dim = 128
-    num_heads = 2
-    num_blocks = 3
+    num_heads = 1
+    num_blocks = 1
     pos_sample_size = 1
     neg_sample_size = 1
     save_dir = pathlib.Path("data/data")
-    debug = False
+    debug = True
     accelerator = "gpu" if torch.cuda.is_available() else "cpu"
     device_no = 0
 
@@ -76,7 +76,7 @@ def main():
     trainer = L.Trainer(
         max_epochs=10,
         accelerator=accelerator,
-        devices=[device_no],
+        devices=[device_no] if accelerator == "gpu" else "auto",
         callbacks=[
             RichProgressBar(leave=True),
             EarlyStopping(monitor="val_loss", mode="min", patience=3),
