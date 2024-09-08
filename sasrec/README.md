@@ -82,7 +82,7 @@ Here are the loss and accuracy plots for the training and validation sets:
 
 todo
 
-- []: Eval ranking metrics (e.g. NDCG, MRR) for validation.
+- [ ]: Eval ranking metrics (e.g. NDCG, MRR) for validation.
 
 ## Usage
 
