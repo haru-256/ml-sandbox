@@ -1,11 +1,13 @@
 [project]
 name = "sasrec"
 version = "0.1.0"
-description = "SASRec: Self-Attentive Sequential Recommendation"
+description = "SASRec: self-attentive sequential recommendation"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
   "lightning~=2.4.0",
+  "torch==2.4.1+cu121; sys_platform == 'linux'",
+  "torch==2.4.1; sys_platform == 'darwin'",
   "torchmetrics~=1.4.1",
   "datasets~=2.21.0",
   "numpy~=1.26.4",
@@ -23,6 +25,7 @@ dev-dependencies = [
   "ipywidgets>=8.1.5",
   "ruff~=0.6.3",
 ]
+find-links = ["https://download.pytorch.org/whl/cu121/torch"]
 
 [tool.ruff]
 target-version = "py312"
