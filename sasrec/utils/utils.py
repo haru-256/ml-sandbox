@@ -19,8 +19,11 @@ def create_attn_padding_mask(
         attn_mask: attention mask, shape (seq_len, seq_len)
         padding_mask: padding mask, shape (batch_size, seq_len)
     """
-    batch_size, seq_len = x.size()
+    assert x.dim() == 2, f"Input tensor must have 2 dimensions, got {x.dim()=}"
+
+    seq_len = x.size(1)
     device = x.device
+    float_type = torch.float16 if float16 else torch.float32
 
     if is_causal:
         attn_mask = nn.Transformer.generate_square_subsequent_mask(seq_len)
@@ -33,9 +36,9 @@ def create_attn_padding_mask(
     # to prevent this, we set padding_mask to minimum value of float
     # https://github.com/pytorch/pytorch/issues/24816
     padding_mask = torch.masked_fill(
-        torch.zeros_like(x),
+        torch.zeros_like(x, dtype=float_type),
         padding_mask_bool,
-        torch.finfo(torch.float16 if float16 else torch.float32).min,
+        torch.finfo(float_type).min,
     )
 
     return attn_mask, padding_mask
