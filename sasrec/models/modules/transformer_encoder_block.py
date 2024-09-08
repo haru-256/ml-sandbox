@@ -53,9 +53,13 @@ class TransformerEncoderBlock(nn.Module):
             key_padding_mask=key_padding_mask,
             is_causal=True,
         )
-        h = x + mha_out
         # if attn_mask or key_padding_mask is invalid, h will contain NaN
-        assert torch.isnan(h).sum() == 0, f"NaN detected in MultiheadAttention output, {h=}"
+        # for example, if key_padding_mask is all True, h will contain NaN
+        # https://github.com/pytorch/pytorch/issues/24816
+        assert (
+            torch.isnan(mha_out).sum() == 0
+        ), f"NaN detected in MultiheadAttention output, {mha_out=}"
+        h = x + mha_out
         # Apply feed-forward layer with a skip connection
         out = h + self.feed_forward(self.layer_norm_2(h))
         return out

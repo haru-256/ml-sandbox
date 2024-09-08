@@ -20,7 +20,7 @@ class TransformerEmbeddings(nn.Module):
         self.dropout = nn.Dropout(p=0.5)
 
     def lookup_id_embedding(self, x: torch.Tensor) -> torch.Tensor:
-        return self.id_embedding(x)
+        return self.id_embeddings(x)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass for embedding layer
@@ -33,7 +33,7 @@ class TransformerEmbeddings(nn.Module):
         """
         # Create position IDs for input sequence
         seq_length = x.size(1)
-        position_ids = torch.arange(seq_length, dtype=torch.long).unsqueeze(0)
+        position_ids = torch.arange(seq_length, dtype=torch.long).unsqueeze(0).to(x.device)
         # Create token and position embeddings
         id_embeddings = self.id_embeddings(x)
         position_embeddings = self.position_embeddings(position_ids)
