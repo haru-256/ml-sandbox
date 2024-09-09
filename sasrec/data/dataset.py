@@ -19,6 +19,10 @@ class SpecialIndex(IntEnum):
     UNK = 1
 
 
+# 評価時のネガティブサンプル数
+EVAL_NEGATIVE_SAMPLE_SIZE = 100
+
+
 def fetch_dataset(domain: str = "Video_Games") -> D.DatasetDict:
     """Fetch Amazon Reviews 2023 dataset from the datasets library.
 
@@ -62,7 +66,6 @@ def preprocess_dataset(
     test_df: pl.DataFrame = dataset_dict["test"].to_polars(schema_overrides=schema_overrides)  # type: ignore
 
     # assign unique ID to users and items
-    SpecialIndex.numerator
     user2index: dict[str, int] = {
         user_id: idx
         for idx, user_id in enumerate(
@@ -242,8 +245,8 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         train_path = self.save_dir / "train.avro"
         val_path = self.save_dir / "val.avro"
         test_path = self.save_dir / "test.avro"
-        user2index_path = self.save_dir / "user2index.avro"
-        item2index_path = self.save_dir / "item2index.avro"
+        user2index_path = self.save_dir / "user2index.pkl"
+        item2index_path = self.save_dir / "item2index.pkl"
 
         if (
             train_path.exists()
@@ -288,17 +291,19 @@ class AmazonReviewsDataModule(L.LightningDataModule):
                 neg_sample_size=self.neg_sample_size,
                 max_seq_len=self.max_seq_len,
             )
+            # NOTE: For ranking metrics, we need to sample more negative items.
             self.val_dataset = AmazonReviewsDataset(
                 self.val_df,
                 self.item2index,
-                neg_sample_size=self.neg_sample_size,
+                neg_sample_size=EVAL_NEGATIVE_SAMPLE_SIZE,
                 max_seq_len=self.max_seq_len,
             )
         elif stage == "test":
+            # NOTE: For ranking metrics, we need to sample more negative items.
             self.test_dataset = AmazonReviewsDataset(
                 self.test_df,
                 self.item2index,
-                neg_sample_size=self.neg_sample_size,
+                neg_sample_size=EVAL_NEGATIVE_SAMPLE_SIZE,
                 max_seq_len=self.max_seq_len,
             )
         else:
@@ -314,17 +319,19 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         )
 
     def val_dataloader(self):
+        # NOTE: For ranking metrics, we have more negative samples. So, to avoid OOM, we need to reduce the batch size.
         return DataLoader(
             self.val_dataset,
-            batch_size=self.batch_size,
+            batch_size=10,
             num_workers=self.num_workers,
             persistent_workers=True,
         )
 
     def test_dataloader(self):
+        # NOTE: For ranking metrics, we have more negative samples. So, to avoid OOM, we need to reduce the batch size.
         return DataLoader(
             self.test_dataset,
-            batch_size=self.batch_size,
+            batch_size=10,
             num_workers=self.num_workers,
             persistent_workers=True,
         )

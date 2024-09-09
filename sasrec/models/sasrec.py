@@ -2,7 +2,10 @@ import lightning as L
 import torch
 from torch import nn
 from torchmetrics.classification import BinaryAccuracy
+from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
+from data.dataset import EVAL_NEGATIVE_SAMPLE_SIZE
+from utils.metrics import create_classification_inputs, create_retrieval_inputs
 from utils.utils import create_attn_padding_mask
 
 from .modules.transformer_embedding import TransformerEmbeddings
@@ -100,6 +103,7 @@ class SASRecModule(L.LightningModule):
         pad_idx: int,
         learning_rate: float,
         float16: bool = False,
+        top_k: int = 10,
     ):
         """SASRec model module
 
@@ -114,6 +118,7 @@ class SASRecModule(L.LightningModule):
             pad_idx: padding index
             learning_rate: learning rate for optimizer
             float16: whether to use float16
+            top_k: top k for hit rate and nDCG
         """
         super().__init__()
         self.save_hyperparameters()
@@ -131,9 +136,8 @@ class SASRecModule(L.LightningModule):
         )
         self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
         self.accuracy = BinaryAccuracy(threshold=0.5)
-
-        self.training_step_outputs = []
-        self.validation_step_outputs = []
+        self.hit_rate = RetrievalHitRate(top_k=top_k)
+        self.ndcg = RetrievalNormalizedDCG(top_k=top_k)
 
     def forward(
         self, item_history: torch.Tensor, pos_item: torch.Tensor, neg_item: torch.Tensor
@@ -152,56 +156,89 @@ class SASRecModule(L.LightningModule):
         """
         return self.model(item_history, pos_item, neg_item)
 
-    def training_step(self, batch, batch_idx) -> torch.Tensor:
-        _, item_history, pos_item, neg_item = batch
-        out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
-        # extract the last hidden state, shape (batch_size, 1, hidden_size)
-        out = out[:, -1, :].unsqueeze(1)
+    @staticmethod
+    def calc_logits(
+        out: torch.Tensor, pos_item_emb: torch.Tensor, neg_item_emb: torch.Tensor
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Calculate logits
 
-        # shape (batch_size, hidden_size, pos_sample_size)
-        pos_logits = torch.bmm(out, pos_item_emb.transpose(1, 2))
-        # shape (batch_size, hidden_size, neg_sample_size)
-        neg_logits = torch.bmm(out, neg_item_emb.transpose(1, 2))
-        logits = torch.cat([pos_logits, neg_logits], dim=1)
-        labels = torch.cat([torch.ones_like(pos_logits), torch.zeros_like(neg_logits)], dim=1)
+        Args:
+            out: output tensor of SASRec, shape (batch_size, seq_len, hidden_size)
+            pos_item_emb: positive item embedding, shape (batch_size, pos_sample_size, hidden_size)
+            neg_item_emb: negative item embedding, shape (batch_size, neg_sample_size, hidden_size)
 
-        loss: torch.Tensor = self.loss_fn(logits, labels)
-        accuracy: torch.Tensor = self.accuracy(logits, labels)
-
-        self.log_dict(
-            {"train_loss": loss, "train_logits": logits.mean(), "train_accuracy": accuracy},
-            on_step=True,
-            on_epoch=True,
-            prog_bar=True,
-        )
-        self.training_step_outputs.append(loss)
-
-        return loss
-
-    def validation_step(self, batch, batch_idx) -> torch.Tensor:
-        _, item_history, pos_item, neg_item = batch
-        out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
+        Returns:
+            pos_logits: positive logits, shape (batch_size, pos_sample_size)
+            neg_logits: negative logits, shape (batch_size, neg_sample_size)
+        """
         # extract the last hidden state, shape (batch_size, 1, hidden_size)
         out = out[:, -1, :].unsqueeze(1)
 
         # shape (batch_size, pos_sample_size)
-        pos_logits = torch.bmm(out, pos_item_emb.transpose(1, 2))
+        pos_logits = torch.bmm(out, pos_item_emb.transpose(1, 2)).squeeze(1)
         # shape (batch_size, neg_sample_size)
-        neg_logits = torch.bmm(out, neg_item_emb.transpose(1, 2))
-        logits = torch.cat([pos_logits, neg_logits], dim=1)
-        labels = torch.cat([torch.ones_like(pos_logits), torch.zeros_like(neg_logits)], dim=1)
+        neg_logits = torch.bmm(out, neg_item_emb.transpose(1, 2)).squeeze(1)
 
+        return pos_logits, neg_logits
+
+    def training_step(self, batch, batch_idx) -> torch.Tensor:
+        _, item_history, pos_item, neg_item = batch
+        out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
+
+        pos_logits, neg_logits = SASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)
+
+        logits, labels = create_classification_inputs(pos_logits, neg_logits)
         loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         self.log_dict(
-            {"train_loss": loss, "val_logits": logits.mean(), "val_accuracy": accuracy},
+            {
+                "train_loss": loss,
+                "train_pos_logits": pos_logits.mean(),
+                "train_neg_logits": neg_logits.mean(),
+                "train_accuracy": accuracy,
+            },
             on_step=True,
             on_epoch=True,
             prog_bar=True,
         )
-        self.training_step_outputs.append(loss)
-        # TODO: add nDCG metric, hit_rate@k, mrr@k
+
+        return loss
+
+    def validation_step(self, batch, batch_idx) -> torch.Tensor:
+        _, item_history, pos_items, neg_items = batch
+        # shape (batch_size, seq_len, hidden_size), (batch_size, pos_sample_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
+        out, pos_item_emb, neg_item_emb = self(item_history, pos_items, neg_items)
+        assert pos_item_emb.size(1) == 1 and neg_item_emb.size(1) == EVAL_NEGATIVE_SAMPLE_SIZE
+
+        pos_logits, neg_logits = SASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)
+        assert pos_logits.size(1) == 1 and neg_logits.size(1) == EVAL_NEGATIVE_SAMPLE_SIZE
+
+        # calc loss, accuracy
+        # extract the first item logits, shape (batch_size, 1)
+        _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
+        logits, labels = create_classification_inputs(_pos_logits, _neg_logits)
+        loss: torch.Tensor = self.loss_fn(logits, labels)
+        accuracy: torch.Tensor = self.accuracy(logits, labels)
+
+        # calc ranking metrics
+        logits, target, indexes = create_retrieval_inputs(pos_logits, neg_logits)
+        hit_rate: torch.Tensor = self.hit_rate(logits, target, indexes)
+        ndcg: torch.Tensor = self.ndcg(logits, target, indexes)
+
+        self.log_dict(
+            {
+                "val_loss": loss,
+                "val_pos_logits": _pos_logits.mean(),
+                "val_neg_logits": _neg_logits.mean(),
+                "val_accuracy": accuracy,
+                "val_hit_rate": hit_rate,
+                "val_ndcg": ndcg,
+            },
+            on_step=True,
+            on_epoch=True,
+            prog_bar=True,
+        )
 
         return loss
 
