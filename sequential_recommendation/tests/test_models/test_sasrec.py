@@ -1,5 +1,6 @@
 import pytest
 import torch
+
 from models.sasrec import SASRecModule
 
 
@@ -31,9 +32,7 @@ class TestSASRecModule:
         out = torch.rand(bath_size, seq_len, hidden_size)
         pos_item_emb = torch.rand(bath_size, pos_item_num, hidden_size)
         neg_item_emb = torch.rand(bath_size, neg_item_num, hidden_size)
-        pos_logits, neg_logits = SASRecModule.calc_logits(
-            out, pos_item_emb, neg_item_emb
-        )
+        pos_logits, neg_logits = SASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)
 
         assert pos_logits.size() == (bath_size, pos_item_num)
         assert neg_logits.size() == (bath_size, neg_item_num)
