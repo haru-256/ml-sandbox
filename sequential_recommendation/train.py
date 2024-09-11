@@ -3,13 +3,14 @@ import pathlib
 
 import lightning as L
 import torch
+from config.const import SpecialIndex
+from data.dataset import AmazonReviewsDataModule
 from lightning.pytorch.callbacks import EarlyStopping, RichProgressBar
-from sequential_recommendation.models.sasrec import SASRecModule
 from torchinfo import summary
-
-from data.dataset import AmazonReviewsDataModule, SpecialIndex
 from utils.logging import setup_logger
 from utils.utils import cpu_count
+
+from sequential_recommendation.models.sasrec import SASRecModule
 
 setup_logger()
 logger = logging.getLogger(__name__)

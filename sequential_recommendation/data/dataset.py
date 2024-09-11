@@ -1,7 +1,6 @@
 import logging
 import pathlib
 import pickle
-from enum import IntEnum
 
 import datasets as D
 import lightning as L
@@ -10,17 +9,9 @@ import polars as pl
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
+from config.const import SpecialIndex, EVAL_NEGATIVE_SAMPLE_SIZE
 
 logger = logging.getLogger(__name__)
-
-
-class SpecialIndex(IntEnum):
-    PAD = 0
-    UNK = 1
-
-
-# 評価時のネガティブサンプル数
-EVAL_NEGATIVE_SAMPLE_SIZE = 100
 
 
 def fetch_dataset(domain: str = "Video_Games") -> D.DatasetDict:
@@ -33,7 +24,9 @@ def fetch_dataset(domain: str = "Video_Games") -> D.DatasetDict:
     # NOTE: According to the benchmark script, last_out is widely used in research. But, it is not realistic.
     # https://github.com/hyp1231/AmazonReviews2023/tree/main/benchmark_scripts#rating_only---timestamp
     dataset_dict: D.DatasetDict = D.load_dataset(
-        "McAuley-Lab/Amazon-Reviews-2023", f"0core_last_out_w_his_{domain}", trust_remote_code=True
+        "McAuley-Lab/Amazon-Reviews-2023",
+        f"0core_last_out_w_his_{domain}",
+        trust_remote_code=True,
     )  # type: ignore
     return dataset_dict
 
@@ -61,9 +54,15 @@ def preprocess_dataset(
         "timestamp": pl.Int64,
         "history": pl.String,
     }
-    train_df: pl.DataFrame = dataset_dict["train"].to_polars(schema_overrides=schema_overrides)  # type: ignore
-    val_df: pl.DataFrame = dataset_dict["valid"].to_polars(schema_overrides=schema_overrides)  # type: ignore
-    test_df: pl.DataFrame = dataset_dict["test"].to_polars(schema_overrides=schema_overrides)  # type: ignore
+    train_df: pl.DataFrame = dataset_dict["train"].to_polars(
+        schema_overrides=schema_overrides
+    )  # type: ignore
+    val_df: pl.DataFrame = dataset_dict["valid"].to_polars(
+        schema_overrides=schema_overrides
+    )  # type: ignore
+    test_df: pl.DataFrame = dataset_dict["test"].to_polars(
+        schema_overrides=schema_overrides
+    )  # type: ignore
 
     # assign unique ID to users and items
     user2index: dict[str, int] = {
@@ -85,7 +84,10 @@ def preprocess_dataset(
     }
     item2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
     item2index_df = pl.from_dict(
-        {"parent_asin": list(item2index.keys()), "item_index": list(item2index.values())}
+        {
+            "parent_asin": list(item2index.keys()),
+            "item_index": list(item2index.values()),
+        }
     )
 
     # preprocess
@@ -114,7 +116,9 @@ def preprocess_dataset(
         df = df.with_columns(
             pl.col("history")
             .map_elements(
-                lambda history: [item2index.get(item, SpecialIndex.UNK) for item in history],
+                lambda history: [
+                    item2index.get(item, SpecialIndex.UNK) for item in history
+                ],
                 return_dtype=pl.List(pl.Int64),
             )
             .alias("history_index")
@@ -165,14 +169,18 @@ class AmazonReviewsDataset(Dataset):
         self.neg_sample_size = neg_sample_size
         self.max_seq_len = max_seq_len
         self.item_indexes = {
-            item_index for item_index in item2index.values() if item_index not in SpecialIndex
+            item_index
+            for item_index in item2index.values()
+            if item_index not in SpecialIndex
         }
         self.rng = np.random.default_rng(seed)
 
     def __len__(self):
         return len(self.df)
 
-    def negative_sampling(self, pos_item_index: int, neg_sample_size: int) -> torch.Tensor:
+    def negative_sampling(
+        self, pos_item_index: int, neg_sample_size: int
+    ) -> torch.Tensor:
         """Negative sampling
 
         Args:
@@ -188,7 +196,9 @@ class AmazonReviewsDataset(Dataset):
         )
         return torch.tensor(sampled_neg_item_indexes, dtype=torch.long)
 
-    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(
+        self, idx
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Get item
 
         Args:
@@ -208,7 +218,9 @@ class AmazonReviewsDataset(Dataset):
         if len(item_history) > self.max_seq_len:
             item_history = item_history[: self.max_seq_len]
         else:
-            item_history = F.pad(item_history, (self.max_seq_len - len(item_history), 0))
+            item_history = F.pad(
+                item_history, (self.max_seq_len - len(item_history), 0)
+            )
         # shape: (1,)
         pos_item_index = torch.tensor(row["item_index"], dtype=torch.long).unsqueeze(0)
         # shape: (neg_sample_size,)
