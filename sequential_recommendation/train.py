@@ -4,10 +4,10 @@ import pathlib
 import lightning as L
 import torch
 from lightning.pytorch.callbacks import EarlyStopping, RichProgressBar
+from sequential_recommendation.models.sasrec import SASRecModule
 from torchinfo import summary
 
 from data.dataset import AmazonReviewsDataModule, SpecialIndex
-from models.sasrec import SASRecModule
 from utils.logging import setup_logger
 from utils.utils import cpu_count
 
@@ -59,13 +59,22 @@ def main():
         module,
         input_data={
             "item_history": torch.randint(
-                0, len(datamodule.item2index), (batch_size, max_seq_len), dtype=torch.long
+                0,
+                len(datamodule.item2index),
+                (batch_size, max_seq_len),
+                dtype=torch.long,
             ),
             "pos_item": torch.randint(
-                0, len(datamodule.item2index), (batch_size, pos_sample_size), dtype=torch.long
+                0,
+                len(datamodule.item2index),
+                (batch_size, pos_sample_size),
+                dtype=torch.long,
             ),
             "neg_item": torch.randint(
-                0, len(datamodule.item2index), (batch_size, neg_sample_size), dtype=torch.long
+                0,
+                len(datamodule.item2index),
+                (batch_size, neg_sample_size),
+                dtype=torch.long,
             ),
         },
         depth=4,

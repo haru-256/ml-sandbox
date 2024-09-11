@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from .base.point_wise_feed_forward import PointwiseFeedForward
+from .basic.point_wise_feed_forward import PointwiseFeedForward
 
 
 class TransformerEncoderBlock(nn.Module):

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from .base.id_embedding import IdEmbeddings
+from .basic.id_embedding import IdEmbeddings
 
 
 class TransformerEmbeddings(nn.Module):
