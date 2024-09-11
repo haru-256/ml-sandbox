@@ -1,7 +1,6 @@
 import logging
 import pathlib
 import pickle
-from enum import IntEnum
 
 import datasets as D
 import lightning as L
@@ -11,16 +10,9 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 
+from config.const import EVAL_NEGATIVE_SAMPLE_SIZE, SpecialIndex
+
 logger = logging.getLogger(__name__)
-
-
-class SpecialIndex(IntEnum):
-    PAD = 0
-    UNK = 1
-
-
-# 評価時のネガティブサンプル数
-EVAL_NEGATIVE_SAMPLE_SIZE = 100
 
 
 def fetch_dataset(domain: str = "Video_Games") -> D.DatasetDict:
@@ -33,7 +25,9 @@ def fetch_dataset(domain: str = "Video_Games") -> D.DatasetDict:
     # NOTE: According to the benchmark script, last_out is widely used in research. But, it is not realistic.
     # https://github.com/hyp1231/AmazonReviews2023/tree/main/benchmark_scripts#rating_only---timestamp
     dataset_dict: D.DatasetDict = D.load_dataset(
-        "McAuley-Lab/Amazon-Reviews-2023", f"0core_last_out_w_his_{domain}", trust_remote_code=True
+        "McAuley-Lab/Amazon-Reviews-2023",
+        f"0core_last_out_w_his_{domain}",
+        trust_remote_code=True,
     )  # type: ignore
     return dataset_dict
 
@@ -85,7 +79,10 @@ def preprocess_dataset(
     }
     item2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
     item2index_df = pl.from_dict(
-        {"parent_asin": list(item2index.keys()), "item_index": list(item2index.values())}
+        {
+            "parent_asin": list(item2index.keys()),
+            "item_index": list(item2index.values()),
+        }
     )
 
     # preprocess

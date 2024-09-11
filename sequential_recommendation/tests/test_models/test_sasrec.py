@@ -1,6 +1,7 @@
 import pytest
 import torch
-from sequential_recommendation.models.sasrec import SASRecModule
+
+from models.sasrec import SASRecModule
 
 
 @pytest.fixture(scope="module")
