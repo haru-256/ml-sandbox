@@ -260,25 +260,28 @@ class AmazonReviewsDataModule(L.LightningDataModule):
                 self.user2index: dict[str, int] = pickle.load(f)
             with open(item2index_path, "rb") as f:
                 self.item2index: dict[str, int] = pickle.load(f)
-            return
+        else:
+            if not self.save_dir.exists():
+                self.save_dir.mkdir(parents=True)
 
-        if not self.save_dir.exists():
-            self.save_dir.mkdir(parents=True)
+            logger.info("Preprocessed dataset not found")
+            dataset_dict = fetch_dataset()
+            self.train_df, self.val_df, self.test_df, self.user2index, self.item2index = (
+                preprocess_dataset(dataset_dict)
+            )
 
-        logger.info("Preprocessed dataset not found")
-        dataset_dict = fetch_dataset()
-        self.train_df, self.val_df, self.test_df, self.user2index, self.item2index = (
-            preprocess_dataset(dataset_dict)
-        )
+            # save
+            self.train_df.write_avro(train_path)
+            self.val_df.write_avro(val_path)
+            self.test_df.write_avro(test_path)
+            with open(user2index_path, "wb") as f:
+                pickle.dump(self.user2index, f)
+            with open(item2index_path, "wb") as f:
+                pickle.dump(self.item2index, f)
 
-        # save
-        self.train_df.write_avro(train_path)
-        self.val_df.write_avro(val_path)
-        self.test_df.write_avro(test_path)
-        with open(user2index_path, "wb") as f:
-            pickle.dump(self.user2index, f)
-        with open(item2index_path, "wb") as f:
-            pickle.dump(self.item2index, f)
+        # validation and test dataset has too many samples, so we need to reduce the size
+        self.val_df = self.val_df.sample(n=100000, seed=1027)
+        self.test_df = self.test_df.sample(n=100000, seed=1028)
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
@@ -319,7 +322,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         # NOTE: For ranking metrics, we have more negative samples. So, to avoid OOM, we need to reduce the batch size.
         return DataLoader(
             self.val_dataset,
-            batch_size=10,
+            batch_size=self.batch_size,
             num_workers=self.num_workers,
             persistent_workers=True,
         )
@@ -328,7 +331,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         # NOTE: For ranking metrics, we have more negative samples. So, to avoid OOM, we need to reduce the batch size.
         return DataLoader(
             self.test_dataset,
-            batch_size=10,
+            batch_size=self.batch_size,
             num_workers=self.num_workers,
             persistent_workers=True,
         )
