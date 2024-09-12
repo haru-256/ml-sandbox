@@ -28,7 +28,7 @@ This repository has the following models.
 - SASRec: [Self-Attentive Sequential Recommendation](<https://arxiv.org/abs/1808.09781>)
 - gSASRec: [gSASRec: Reducing Overconfidence in Sequential Recommendation Trained with Negative Sampling](https://arxiv.org/abs/2308.07192)
 
-For more information on Sequential Recommendation, please refer to the [sequential_recommendation directory](https://github.com/haru-256/ml-sandbox/tree/main/sasrec).
+For more information on Sequential Recommendation, please refer to the [sequential_recommendation directory](https://github.com/haru-256/ml-sandbox/tree/main/sequential_recommendation).
 
 ### Sentiment Analysis
 
