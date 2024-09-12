@@ -4,11 +4,11 @@ import pathlib
 import lightning as L
 import torch
 from lightning.pytorch.callbacks import EarlyStopping, RichProgressBar
-from sequential_recommendation.models.sasrec import SASRecModule
 from torchinfo import summary
 
 from config.const import SpecialIndex
 from data.dataset import AmazonReviewsDataModule
+from models.sasrec import SASRecModule
 from utils.logging import setup_logger
 from utils.utils import cpu_count
 
@@ -22,7 +22,7 @@ def main():
     max_seq_len = 50
     embedding_dim = 128
     num_heads = 1
-    num_blocks = 1
+    num_blocks = 2
     pos_sample_size = 1
     neg_sample_size = 1
     save_dir = pathlib.Path("data/data")
