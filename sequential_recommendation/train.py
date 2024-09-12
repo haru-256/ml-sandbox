@@ -8,6 +8,7 @@ from torchinfo import summary
 
 from config.const import SpecialIndex
 from data.dataset import AmazonReviewsDataModule
+from models.gsasrec import gSASRecModule
 from models.sasrec import SASRecModule
 from utils.logging import setup_logger
 from utils.utils import cpu_count
@@ -18,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 def main():
     # TODO: configure hyperparameters by hydra
+    model_type = "gsasrec"
+
     batch_size = 10
     max_seq_len = 50
     embedding_dim = 128
@@ -42,18 +45,36 @@ def main():
     )
     datamodule.prepare_data()
 
-    module = SASRecModule(
-        num_items=len(datamodule.item2index),
-        embedding_dim=embedding_dim,
-        num_heads=num_heads,
-        num_blocks=num_blocks,
-        max_seq_len=max_seq_len,
-        attn_dropout_prob=0.0,
-        ff_dropout_prob=0.1,
-        pad_idx=SpecialIndex.PAD,
-        learning_rate=1e-3,
-        float16=accelerator == "gpu",
-    )
+    if model_type == "sasrec":
+        module = SASRecModule(
+            num_items=len(datamodule.item2index),
+            embedding_dim=embedding_dim,
+            num_heads=num_heads,
+            num_blocks=num_blocks,
+            max_seq_len=max_seq_len,
+            attn_dropout_prob=0.0,
+            ff_dropout_prob=0.1,
+            pad_idx=SpecialIndex.PAD,
+            learning_rate=1e-3,
+            float16=accelerator == "gpu",
+        )
+    elif model_type == "gsasrec":
+        module = gSASRecModule(
+            num_items=len(datamodule.item2index),
+            embedding_dim=embedding_dim,
+            num_heads=num_heads,
+            num_blocks=num_blocks,
+            max_seq_len=max_seq_len,
+            attn_dropout_prob=0.0,
+            ff_dropout_prob=0.1,
+            neg_sample_size=neg_sample_size,
+            t=0.75,
+            pad_idx=SpecialIndex.PAD,
+            learning_rate=1e-3,
+            float16=accelerator == "gpu",
+        )
+    else:
+        return NotImplementedError(f"{model_type=} is not supported")
 
     # print model summary
     summary(

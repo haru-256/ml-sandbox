@@ -10,6 +10,61 @@ from utils.metrics import create_classification_inputs, create_retrieval_inputs
 from .sasrec import SASRec
 
 
+class gSASRecLoss(nn.Module):
+    def __init__(self, neg_sample_size: int, num_items: int, t: float, eps: float = 1e-10):
+        """gSASRec loss, see https://github.com/asash/gSASRec-pytorch
+
+        Args:
+            neg_sample_size: negative sample size per positive sample
+            num_items: number of items
+            t: calibration parameter
+            eps: epsilon for numerical stability
+        """
+        super().__init__()
+        assert t
+        self.neg_sample_size = neg_sample_size
+        self.num_items = num_items
+        self.alpha = self.neg_sample_size / (self.num_items - 1)
+        self.t = t
+        self.beta = self.alpha * ((1 - 1 / self.alpha) * self.t + 1 / self.alpha)
+        self.eps = eps
+        self.bce = nn.BCEWithLogitsLoss(reduction="mean")
+
+    def forward(self, positive_logits: torch.Tensor, negative_logits: torch.Tensor):
+        """Forward pass for gSASRec loss, see https://github.com/asash/gSASRec-pytorch/blob/main/train_gsasrec.py#L63-L71
+
+        Args:
+            positive_logits: positive logits, shape (batch_size, 1)
+            negative_logits: negative logits, shape (batch_size, neg_sample_size)
+
+        Returns:
+            loss: gSASRec loss
+        """
+        # use float64 to increase numerical stability
+        assert (
+            positive_logits.size(1) == 1
+        ), f"positive sample size should be one, Got {positive_logits.size()=}"
+
+        positive_logits = positive_logits.to(torch.float64)
+        negative_logits = negative_logits.to(torch.float64)
+
+        positive_probs = torch.clamp(torch.sigmoid(positive_logits), self.eps, 1 - self.eps)
+        positive_probs_adjusted = torch.clamp(
+            positive_probs.pow(-self.beta), 1 + self.eps, torch.finfo(torch.float64).max
+        )
+        to_log = torch.clamp(
+            torch.div(1.0, (positive_probs_adjusted - 1)), self.eps, torch.finfo(torch.float64).max
+        )
+        positive_logits_transformed = to_log.log()
+
+        logits = torch.cat([positive_logits_transformed, negative_logits], -1)
+        labels = torch.cat(
+            [torch.ones_like(positive_logits), torch.zeros_like(negative_logits)], -1
+        )
+        loss = self.bce(logits, labels)
+        return loss
+
+
 class gSASRecModule(L.LightningModule):
     def __init__(
         self,
@@ -20,6 +75,8 @@ class gSASRecModule(L.LightningModule):
         max_seq_len: int,
         attn_dropout_prob: float,
         ff_dropout_prob: float,
+        neg_sample_size: int,
+        t: float,
         pad_idx: int,
         learning_rate: float,
         float16: bool = False,
@@ -35,6 +92,8 @@ class gSASRecModule(L.LightningModule):
             max_seq_len: maximum sequence length
             attn_dropout_prob: dropout probability for attention weights
             ff_dropout_prob: dropout probability for point-wise feed-forward layer
+            neg_sample_size: negative sample size per positive sample
+            t: calibration parameter for gSASRec loss
             pad_idx: padding index
             learning_rate: learning rate for optimizer
             float16: whether to use float16
@@ -54,7 +113,7 @@ class gSASRecModule(L.LightningModule):
             pad_idx=pad_idx,
             float16=float16,
         )
-        self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
+        self.loss_fn = gSASRecLoss(neg_sample_size=neg_sample_size, num_items=num_items, t=t)
         self.accuracy = BinaryAccuracy(threshold=0.5)
         self.hit_rate = RetrievalHitRate(top_k=top_k)
         self.ndcg = RetrievalNormalizedDCG(top_k=top_k)
@@ -106,9 +165,9 @@ class gSASRecModule(L.LightningModule):
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
 
         pos_logits, neg_logits = gSASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)
+        loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
-        loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         self.log_dict(
@@ -137,8 +196,8 @@ class gSASRecModule(L.LightningModule):
         # calc loss, accuracy
         # extract the first item logits, shape (batch_size, 1)
         _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
+        loss: torch.Tensor = self.loss_fn(_pos_logits, _neg_logits)
         logits, labels = create_classification_inputs(_pos_logits, _neg_logits)
-        loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         # calc ranking metrics

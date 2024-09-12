@@ -21,7 +21,7 @@ def sasrec_module() -> SASRecModule:
     return module
 
 
-class TestSASRecModule:
+class Test_SASRecModule:
     def test_calc_logits(self):
         bath_size = 16
         seq_len = 10
