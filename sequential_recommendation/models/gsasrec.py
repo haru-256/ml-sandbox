@@ -21,7 +21,12 @@ class gSASRecLoss(nn.Module):
             eps: epsilon for numerical stability
         """
         super().__init__()
-        assert t
+
+        if neg_sample_size >= num_items or neg_sample_size < 1:
+            raise ValueError(f"Invalid negative sample size, Got {neg_sample_size=}, {num_items=}")
+        if t < 0 or t > 1:
+            raise ValueError(f"t should be in [0, 1], Got {t=}")
+
         self.neg_sample_size = neg_sample_size
         self.num_items = num_items
         self.alpha = self.neg_sample_size / (self.num_items - 1)
@@ -46,7 +51,7 @@ class gSASRecLoss(nn.Module):
         ), f"positive sample size should be one, Got {positive_logits.size()=}"
 
         positive_logits = positive_logits.to(torch.float64)
-        negative_logits = negative_logits.to(torch.float64)
+        negative_logits = negative_logits.to(positive_logits.dtype)
 
         positive_probs = torch.clamp(torch.sigmoid(positive_logits), self.eps, 1 - self.eps)
         positive_probs_adjusted = torch.clamp(
@@ -57,9 +62,9 @@ class gSASRecLoss(nn.Module):
         )
         positive_logits_transformed = to_log.log()
 
-        logits = torch.cat([positive_logits_transformed, negative_logits], -1)
+        logits = torch.cat([positive_logits_transformed, negative_logits], dim=0)
         labels = torch.cat(
-            [torch.ones_like(positive_logits), torch.zeros_like(negative_logits)], -1
+            [torch.ones_like(positive_logits), torch.zeros_like(negative_logits)], dim=0
         )
         loss = self.bce(logits, labels)
         return loss
