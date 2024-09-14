@@ -21,7 +21,7 @@ def fetch_dataset(domain: str = "Video_Games") -> D.DatasetDict:
     Returns:
         datasets.DatasetDict, keys: ["train", "test", "unsupervised"]
     """
-    logger.info("Fetching IMDb dataset")
+    logger.info("Fetching Amazon Reviews 2023 dataset")
     # NOTE: According to the benchmark script, last_out is widely used in research. But, it is not realistic.
     # https://github.com/hyp1231/AmazonReviews2023/tree/main/benchmark_scripts#rating_only---timestamp
     dataset_dict: D.DatasetDict = D.load_dataset(
@@ -32,21 +32,36 @@ def fetch_dataset(domain: str = "Video_Games") -> D.DatasetDict:
     return dataset_dict
 
 
+def fetch_metadata(domain: str = "Video_Games") -> D.Dataset:
+    logger.info("Fetching Amazon Reviews 2023 dataset metadata")
+    metadata: D.Dataset = D.load_dataset(
+        "McAuley-Lab/Amazon-Reviews-2023",
+        f"raw_meta_{domain}",
+        split="full",
+        trust_remote_code=True,
+    )  # type: ignore
+    return metadata
+
+
 # TODO: implement padding and truncation
 def preprocess_dataset(
-    dataset_dict: D.DatasetDict,
-) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame, dict[str, int], dict[str, int]]:
+    dataset_dict: D.DatasetDict, metadata: D.Dataset
+) -> tuple[
+    pl.DataFrame, pl.DataFrame, pl.DataFrame, dict[str, int], dict[str, int], dict[str, int]
+]:
     """preprocess the dataset
 
     Args:
         dataset: dataset from the datasets library(transformers)
-        max_vocab_size: maximum size of the vocabulary
-        max_seq_len: maximum sequence length
+        metadata: metadata dataset from the datasets library(transformers)
 
     Returns:
-        train_df: preprocessed train dataset, schema: ["text", "label", "normed_text", "inputs_seq"]
-        test_df: preprocessed test dataset, schema: ["text", "label", "normed_text", "inputs_seq"]
-        vocab: vocabulary dictionary
+        train_df: train dataset
+        val_df: validation dataset
+        test_df: test dataset
+        user2index: user to index dictionary
+        item2index: item to index dictionary
+        category2index: category to index dictionary
     """
     schema_overrides = {
         "user_id": pl.String,
@@ -58,8 +73,18 @@ def preprocess_dataset(
     train_df: pl.DataFrame = dataset_dict["train"].to_polars(schema_overrides=schema_overrides)  # type: ignore
     val_df: pl.DataFrame = dataset_dict["valid"].to_polars(schema_overrides=schema_overrides)  # type: ignore
     test_df: pl.DataFrame = dataset_dict["test"].to_polars(schema_overrides=schema_overrides)  # type: ignore
+    meta_df: pl.DataFrame = metadata.to_polars()  # type: ignore
 
-    # assign unique ID to users and items
+    # extract category
+    meta_df = meta_df[["parent_asin", "categories"]].with_columns(
+        pl.when(pl.col("categories").list.len() > 0)
+        .then(pl.col("categories").list.join("/"))
+        .otherwise(None)
+        .alias("category")
+    )[["parent_asin", "category"]]
+
+    # assign unique ID to users, items and categories
+    # user
     user2index: dict[str, int] = {
         user_id: idx
         for idx, user_id in enumerate(
@@ -71,6 +96,8 @@ def preprocess_dataset(
     user2index_df = pl.from_dict(
         {"user_id": list(user2index.keys()), "user_index": list(user2index.values())}
     )
+    assert user2index.get("", -1) == -1, "Empty user should not be in the user2index"
+    # item
     item2index: dict[str, int] = {
         item_id: idx
         for idx, item_id in enumerate(
@@ -84,6 +111,24 @@ def preprocess_dataset(
             "item_index": list(item2index.values()),
         }
     )
+    assert item2index.get("", -1) == -1, "Empty item should not be in the item2index"
+    # category
+    category2index: dict[str, int] = {
+        category: idx
+        for idx, category in enumerate(
+            meta_df.filter(pl.col("category").is_not_null())["category"].unique().sort(),
+            start=len(SpecialIndex),
+        )
+    }
+    category2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
+    category2index_df = pl.from_dict(
+        {
+            "category": list(category2index.keys()),
+            "category_index": list(category2index.values()),
+        }
+    )
+    meta_df = meta_df.join(category2index_df, on="category", how="left", validate="m:1")
+    assert category2index.get("", -1) == -1, "Empty category should not be in the category2index"
 
     # preprocess
     def _preprocess(df: pl.DataFrame) -> pl.DataFrame:
@@ -99,6 +144,9 @@ def preprocess_dataset(
         # add index columns
         df = df.join(user2index_df, on="user_id", how="left", validate="m:1")
         df = df.join(item2index_df, on="parent_asin", how="left", validate="m:1")
+        # add metadata
+        df = df.join(meta_df, on="parent_asin", how="left", validate="m:1")
+
         # fill null values
         if df["user_index"].null_count() > 0:
             df = df.with_columns(
@@ -107,6 +155,10 @@ def preprocess_dataset(
         if df["item_index"].null_count() > 0:
             df = df.with_columns(
                 pl.col("item_index").fill_null(SpecialIndex.UNK).alias("item_index")
+            )
+        if df["category_index"].null_count() > 0:
+            df = df.with_columns(
+                pl.col("category_index").fill_null(SpecialIndex.UNK).alias("category_index")
             )
         df = df.with_columns(
             pl.col("history")
@@ -122,6 +174,8 @@ def preprocess_dataset(
                 "user_index",
                 "parent_asin",
                 "item_index",
+                "category",
+                "category_index",
                 "rating",
                 "timestamp",
                 "history",
@@ -137,7 +191,7 @@ def preprocess_dataset(
     logger.info("Preprocessing the test dataset")
     test_df = _preprocess(test_df)
 
-    return train_df, val_df, test_df, user2index, item2index
+    return train_df, val_df, test_df, user2index, item2index, category2index
 
 
 class AmazonReviewsDataset(Dataset):
@@ -208,6 +262,7 @@ class AmazonReviewsDataset(Dataset):
             item_history = F.pad(item_history, (self.max_seq_len - len(item_history), 0))
         # shape: (1,)
         pos_item_index = torch.tensor(row["item_index"], dtype=torch.long).unsqueeze(0)
+        pos_category_index = torch.tensor(row["category_index"], dtype=torch.long)
         # shape: (neg_sample_size,)
         neg_item_indexes = self.negative_sampling(
             int(pos_item_index.item()), neg_sample_size=self.neg_sample_size
@@ -244,6 +299,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         test_path = self.save_dir / "test.avro"
         user2index_path = self.save_dir / "user2index.pkl"
         item2index_path = self.save_dir / "item2index.pkl"
+        category2index_path = self.save_dir / "category2index.pkl"
 
         if (
             train_path.exists()
@@ -251,6 +307,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
             and test_path.exists()
             and user2index_path.exists()
             and item2index_path.exists()
+            and category2index_path.exists()
         ):
             logger.info("Loading preprocessed dataset")
             self.train_df = pl.read_avro(train_path)
@@ -260,15 +317,23 @@ class AmazonReviewsDataModule(L.LightningDataModule):
                 self.user2index: dict[str, int] = pickle.load(f)
             with open(item2index_path, "rb") as f:
                 self.item2index: dict[str, int] = pickle.load(f)
+            with open(category2index_path, "rb") as f:
+                self.category2index: dict[str, int] = pickle.load(f)
         else:
             if not self.save_dir.exists():
                 self.save_dir.mkdir(parents=True)
 
             logger.info("Preprocessed dataset not found")
             dataset_dict = fetch_dataset()
-            self.train_df, self.val_df, self.test_df, self.user2index, self.item2index = (
-                preprocess_dataset(dataset_dict)
-            )
+            metadata = fetch_metadata()
+            (
+                self.train_df,
+                self.val_df,
+                self.test_df,
+                self.user2index,
+                self.item2index,
+                self.category2index,
+            ) = preprocess_dataset(dataset_dict, metadata)
 
             # save
             self.train_df.write_avro(train_path)
@@ -278,6 +343,8 @@ class AmazonReviewsDataModule(L.LightningDataModule):
                 pickle.dump(self.user2index, f)
             with open(item2index_path, "wb") as f:
                 pickle.dump(self.item2index, f)
+            with open(category2index_path, "wb") as f:
+                pickle.dump(self.category2index, f)
 
         # validation and test dataset has too many samples, so we need to reduce the size
         self.val_df = self.val_df.sample(n=100000, seed=1027)
