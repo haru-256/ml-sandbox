@@ -71,5 +71,5 @@ Here are the loss and accuracy plots for the training and validation sets:
 
 | metrics | train  | val |
 | ------------- | ------------- | ------------- |
-| loss | ![train_loss](./img/train_loss.png) | ![val_loss](./img/val_loss.png) |
-| accuracy | ![train_accuracy](./img/train_accuracy.png) | ![val_accuracy](./img/val_accuracy.png) |
+| loss | ![train_loss](../img/train_loss.png) | ![val_loss](../img/val_loss.png) |
+| accuracy | ![train_accuracy](../img/train_accuracy.png) | ![val_accuracy](../img/val_accuracy.png) |
