@@ -62,9 +62,9 @@ class gSASRecLoss(nn.Module):
         )
         positive_logits_transformed = to_log.log()
 
-        logits = torch.cat([positive_logits_transformed, negative_logits], dim=0)
+        logits = torch.cat([positive_logits_transformed, negative_logits], dim=1)
         labels = torch.cat(
-            [torch.ones_like(positive_logits), torch.zeros_like(negative_logits)], dim=0
+            [torch.ones_like(positive_logits), torch.zeros_like(negative_logits)], dim=1
         )
         loss = self.bce(logits, labels)
         return loss
@@ -166,7 +166,7 @@ class gSASRecModule(L.LightningModule):
         return pos_logits, neg_logits
 
     def training_step(self, batch, batch_idx) -> torch.Tensor:
-        _, item_history, pos_item, neg_item = batch
+        _, item_history, pos_item, _, neg_item, _ = batch
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
 
         pos_logits, neg_logits = gSASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)
@@ -190,9 +190,9 @@ class gSASRecModule(L.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx) -> torch.Tensor:
-        _, item_history, pos_items, neg_items = batch
+        _, item_history, pos_item, _, neg_item, _ = batch
         # shape (batch_size, seq_len, hidden_size), (batch_size, pos_sample_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        out, pos_item_emb, neg_item_emb = self(item_history, pos_items, neg_items)
+        out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
         assert pos_item_emb.size(1) == 1 and neg_item_emb.size(1) == EVAL_NEGATIVE_SAMPLE_SIZE
 
         pos_logits, neg_logits = gSASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)

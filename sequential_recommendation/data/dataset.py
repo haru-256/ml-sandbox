@@ -33,7 +33,7 @@ def fetch_dataset(domain: str = "Video_Games") -> D.DatasetDict:
 
 
 def fetch_metadata(domain: str = "Video_Games") -> D.Dataset:
-    logger.info("Fetching Amazon Reviews 2023 dataset metadata")
+    logger.info("Fetching Amazon Reviews 2023 metadata")
     metadata: D.Dataset = D.load_dataset(
         "McAuley-Lab/Amazon-Reviews-2023",
         f"raw_meta_{domain}",
@@ -47,7 +47,13 @@ def fetch_metadata(domain: str = "Video_Games") -> D.Dataset:
 def preprocess_dataset(
     dataset_dict: D.DatasetDict, metadata: D.Dataset
 ) -> tuple[
-    pl.DataFrame, pl.DataFrame, pl.DataFrame, dict[str, int], dict[str, int], dict[str, int]
+    pl.DataFrame,
+    pl.DataFrame,
+    pl.DataFrame,
+    dict[str, int],
+    dict[str, int],
+    dict[str, int],
+    dict[int, int],
 ]:
     """preprocess the dataset
 
@@ -74,14 +80,23 @@ def preprocess_dataset(
     val_df: pl.DataFrame = dataset_dict["valid"].to_polars(schema_overrides=schema_overrides)  # type: ignore
     test_df: pl.DataFrame = dataset_dict["test"].to_polars(schema_overrides=schema_overrides)  # type: ignore
     meta_df: pl.DataFrame = metadata.to_polars()  # type: ignore
-
-    # extract category
     meta_df = meta_df[["parent_asin", "categories"]].with_columns(
         pl.when(pl.col("categories").list.len() > 0)
         .then(pl.col("categories").list.join("/"))
         .otherwise(None)
         .alias("category")
     )[["parent_asin", "category"]]
+
+    # join metadata
+    train_df = train_df.join(meta_df, on="parent_asin", how="left", validate="m:1")
+    val_df = val_df.join(meta_df, on="parent_asin", how="left", validate="m:1")
+    test_df = test_df.join(meta_df, on="parent_asin", how="left", validate="m:1")
+
+    # filter out empty history
+    # NOTE: we should use data which dose not have history.
+    train_df = train_df.filter(pl.col("history") != "")
+    val_df = val_df.filter(pl.col("history") != "")
+    test_df = test_df.filter(pl.col("history") != "")
 
     # assign unique ID to users, items and categories
     # user
@@ -99,9 +114,16 @@ def preprocess_dataset(
     assert user2index.get("", -1) == -1, "Empty user should not be in the user2index"
     # item
     item2index: dict[str, int] = {
-        item_id: idx
-        for idx, item_id in enumerate(
-            train_df["parent_asin"].unique().sort(), start=len(SpecialIndex)
+        parent_asin: idx
+        for idx, parent_asin in enumerate(
+            # history has item which is not in the parent_asin
+            pl.concat(
+                [train_df["parent_asin"], train_df["history"].str.split(" ").explode()],
+                how="vertical",
+            )
+            .unique()
+            .sort(),
+            start=len(SpecialIndex),
         )
     }
     item2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
@@ -116,7 +138,7 @@ def preprocess_dataset(
     category2index: dict[str, int] = {
         category: idx
         for idx, category in enumerate(
-            meta_df.filter(pl.col("category").is_not_null())["category"].unique().sort(),
+            train_df.filter(pl.col("category").is_not_null())["category"].unique().sort(),
             start=len(SpecialIndex),
         )
     }
@@ -127,8 +149,25 @@ def preprocess_dataset(
             "category_index": list(category2index.values()),
         }
     )
-    meta_df = meta_df.join(category2index_df, on="category", how="left", validate="m:1")
     assert category2index.get("", -1) == -1, "Empty category should not be in the category2index"
+    # item index to category index
+    item_index_2_category_index_df = item2index_df.join(
+        meta_df, on="parent_asin", how="left", validate="1:1"
+    ).join(category2index_df, on="category", how="left", validate="m:1")
+    item_index_2_category_index_df = item_index_2_category_index_df.with_columns(
+        pl.when(pl.col("item_index") == SpecialIndex.PAD)
+        .then(SpecialIndex.PAD)
+        .when(pl.col("category_index").is_null())
+        .then(SpecialIndex.UNK)
+        .otherwise(pl.col("category_index"))
+        .alias("category_index")
+    )
+    item_index_2_category_index = {
+        item_index: category_index
+        for item_index, category_index in item_index_2_category_index_df[
+            ["item_index", "category_index"]
+        ].iter_rows()
+    }
 
     # preprocess
     def _preprocess(df: pl.DataFrame) -> pl.DataFrame:
@@ -138,28 +177,18 @@ def preprocess_dataset(
             .otherwise([])
             .alias("history")
         )
-        # filter out empty history
-        # NOTE: we should use data which dose not have history.
-        df = df.filter(pl.col("history").list.len() > 0)
         # add index columns
         df = df.join(user2index_df, on="user_id", how="left", validate="m:1")
         df = df.join(item2index_df, on="parent_asin", how="left", validate="m:1")
         # add metadata
-        df = df.join(meta_df, on="parent_asin", how="left", validate="m:1")
+        df = df.join(category2index_df, on="category", how="left", validate="m:1")
 
         # fill null values
-        if df["user_index"].null_count() > 0:
-            df = df.with_columns(
-                pl.col("user_index").fill_null(SpecialIndex.UNK).alias("user_index")
-            )
-        if df["item_index"].null_count() > 0:
-            df = df.with_columns(
-                pl.col("item_index").fill_null(SpecialIndex.UNK).alias("item_index")
-            )
-        if df["category_index"].null_count() > 0:
-            df = df.with_columns(
-                pl.col("category_index").fill_null(SpecialIndex.UNK).alias("category_index")
-            )
+        df = df.with_columns(pl.col("user_index").fill_null(SpecialIndex.UNK).alias("user_index"))
+        df = df.with_columns(pl.col("item_index").fill_null(SpecialIndex.UNK).alias("item_index"))
+        df = df.with_columns(
+            pl.col("category_index").fill_null(SpecialIndex.UNK).alias("category_index")
+        )
         df = df.with_columns(
             pl.col("history")
             .map_elements(
@@ -191,14 +220,22 @@ def preprocess_dataset(
     logger.info("Preprocessing the test dataset")
     test_df = _preprocess(test_df)
 
-    return train_df, val_df, test_df, user2index, item2index, category2index
+    return (
+        train_df,
+        val_df,
+        test_df,
+        user2index,
+        item2index,
+        category2index,
+        item_index_2_category_index,
+    )
 
 
 class AmazonReviewsDataset(Dataset):
     def __init__(
         self,
         df: pl.DataFrame,
-        item2index: dict[str, int],
+        random_neg_sampling_pool: pl.DataFrame,
         neg_sample_size: int,
         max_seq_len: int,
         seed: int = 1026,
@@ -207,23 +244,23 @@ class AmazonReviewsDataset(Dataset):
 
         Args:
             df: dataframe, schema: ["user_index", "history_index", "item_index"]
-            item2index: item to index dictionary
+            random_neg_sampling_pool: random negative sampling pool
             neg_sample_size: negative sample size
             max_seq_len: maximum sequence length
             seed: random seed. Defaults to 1026.
         """
         self.df = df
         self.neg_sample_size = neg_sample_size
+        self.random_neg_sampling_pool = random_neg_sampling_pool
         self.max_seq_len = max_seq_len
-        self.item_indexes = {
-            item_index for item_index in item2index.values() if item_index not in SpecialIndex
-        }
         self.rng = np.random.default_rng(seed)
 
     def __len__(self):
         return len(self.df)
 
-    def negative_sampling(self, pos_item_index: int, neg_sample_size: int) -> torch.Tensor:
+    def negative_sampling(
+        self, pos_item_index: int, neg_sample_size: int
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         """Negative sampling
 
         Args:
@@ -233,13 +270,17 @@ class AmazonReviewsDataset(Dataset):
         Returns:
             negative item indexes, shape: (neg_sample_size,)
         """
-        neg_item_indexes = list(self.item_indexes - {pos_item_index})
-        sampled_neg_item_indexes = self.rng.choice(
-            neg_item_indexes, size=neg_sample_size, replace=False
-        )
-        return torch.tensor(sampled_neg_item_indexes, dtype=torch.long)
+        pool_df = self.random_neg_sampling_pool.filter(pl.col("item_index") != pos_item_index)
+        sampled_indexes = self.rng.choice(len(pool_df), size=neg_sample_size, replace=False)
+        sampled_df = pool_df[sampled_indexes]
+        sampled_neg_item_indexes = torch.tensor(sampled_df["item_index"], dtype=torch.long)
+        sampled_neg_category_indexes = torch.tensor(sampled_df["category_index"], dtype=torch.long)
+        assert len(sampled_neg_item_indexes) == neg_sample_size == len(sampled_neg_category_indexes)
+        return sampled_neg_item_indexes, sampled_neg_category_indexes
 
-    def __getitem__(self, idx) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(
+        self, idx
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Get item
 
         Args:
@@ -249,7 +290,9 @@ class AmazonReviewsDataset(Dataset):
             user_index: user index, shape: ()
             item_history: item history, shape: (self.max_seq_len,)
             pos_item_index: positive item index, shape: ()
+            pos_category_index: positive category index, shape: ()
             neg_item_indexes: negative item indexes, shape: (neg_sample_size,)
+            neg_category_indexes: negative category indexes, shape: (neg_sample_size,)
         """
         row = self.df.row(idx, named=True)
         user_index = torch.tensor(row["user_index"], dtype=torch.long)
@@ -264,11 +307,18 @@ class AmazonReviewsDataset(Dataset):
         pos_item_index = torch.tensor(row["item_index"], dtype=torch.long).unsqueeze(0)
         pos_category_index = torch.tensor(row["category_index"], dtype=torch.long)
         # shape: (neg_sample_size,)
-        neg_item_indexes = self.negative_sampling(
+        neg_item_indexes, neg_category_indexes = self.negative_sampling(
             int(pos_item_index.item()), neg_sample_size=self.neg_sample_size
         )
 
-        return user_index, item_history, pos_item_index, neg_item_indexes
+        return (
+            user_index,
+            item_history,
+            pos_item_index,
+            pos_category_index,
+            neg_item_indexes,
+            neg_category_indexes,
+        )
 
 
 class AmazonReviewsDataModule(L.LightningDataModule):
@@ -279,6 +329,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         num_workers: int = 2,
         max_seq_len: int = 50,
         neg_sample_size: int = 1,
+        sampling_val_test: bool = False,
     ):
         """IMDb data module
 
@@ -292,6 +343,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         self.num_workers = num_workers
         self.max_seq_len = max_seq_len
         self.neg_sample_size = neg_sample_size
+        self.sampling_val_test = sampling_val_test
 
     def prepare_data(self) -> None:
         train_path = self.save_dir / "train.avro"
@@ -300,6 +352,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         user2index_path = self.save_dir / "user2index.pkl"
         item2index_path = self.save_dir / "item2index.pkl"
         category2index_path = self.save_dir / "category2index.pkl"
+        item_index_2_category_index_path = self.save_dir / "item_index_2_category_index.pkl"
 
         if (
             train_path.exists()
@@ -308,6 +361,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
             and user2index_path.exists()
             and item2index_path.exists()
             and category2index_path.exists()
+            and item_index_2_category_index_path.exists()
         ):
             logger.info("Loading preprocessed dataset")
             self.train_df = pl.read_avro(train_path)
@@ -319,6 +373,8 @@ class AmazonReviewsDataModule(L.LightningDataModule):
                 self.item2index: dict[str, int] = pickle.load(f)
             with open(category2index_path, "rb") as f:
                 self.category2index: dict[str, int] = pickle.load(f)
+            with open(item_index_2_category_index_path, "rb") as f:
+                self.item_index_2_category_index: dict[int, int] = pickle.load(f)
         else:
             if not self.save_dir.exists():
                 self.save_dir.mkdir(parents=True)
@@ -333,6 +389,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
                 self.user2index,
                 self.item2index,
                 self.category2index,
+                self.item_index_2_category_index,
             ) = preprocess_dataset(dataset_dict, metadata)
 
             # save
@@ -347,21 +404,28 @@ class AmazonReviewsDataModule(L.LightningDataModule):
                 pickle.dump(self.category2index, f)
 
         # validation and test dataset has too many samples, so we need to reduce the size
-        self.val_df = self.val_df.sample(n=100000, seed=1027)
-        self.test_df = self.test_df.sample(n=100000, seed=1028)
+        if self.sampling_val_test:
+            self.val_df = self.val_df.sample(n=100000, seed=1027)
+            self.test_df = self.test_df.sample(n=100000, seed=1028)
+        self.random_neg_sampling_pool = pl.from_dict(
+            {
+                "item_index": list(self.item_index_2_category_index.keys()),
+                "category_index": list(self.item_index_2_category_index.values()),
+            }
+        )
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
             self.train_dataset = AmazonReviewsDataset(
                 self.train_df,
-                self.item2index,
+                random_neg_sampling_pool=self.random_neg_sampling_pool,
                 neg_sample_size=self.neg_sample_size,
                 max_seq_len=self.max_seq_len,
             )
             # NOTE: For ranking metrics, we need to sample more negative items.
             self.val_dataset = AmazonReviewsDataset(
                 self.val_df,
-                self.item2index,
+                random_neg_sampling_pool=self.random_neg_sampling_pool,
                 neg_sample_size=EVAL_NEGATIVE_SAMPLE_SIZE,
                 max_seq_len=self.max_seq_len,
             )
@@ -369,7 +433,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
             # NOTE: For ranking metrics, we need to sample more negative items.
             self.test_dataset = AmazonReviewsDataset(
                 self.test_df,
-                self.item2index,
+                random_neg_sampling_pool=self.random_neg_sampling_pool,
                 neg_sample_size=EVAL_NEGATIVE_SAMPLE_SIZE,
                 max_seq_len=self.max_seq_len,
             )

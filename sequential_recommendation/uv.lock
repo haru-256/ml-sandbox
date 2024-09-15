@@ -1766,6 +1766,7 @@ dev = [
     { name = "notebook" },
     { name = "pytest" },
     { name = "ruff" },
+    { name = "tqdm" },
 ]
 
 [package.metadata]
@@ -1789,6 +1790,7 @@ dev = [
     { name = "notebook", specifier = "~=7.2.2" },
     { name = "pytest", specifier = "~=8.3.2" },
     { name = "ruff", specifier = "~=0.6.3" },
+    { name = "tqdm", specifier = "~=4.66.5" },
 ]
 
 [[package]]

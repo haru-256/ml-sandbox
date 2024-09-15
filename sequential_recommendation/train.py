@@ -21,7 +21,7 @@ def main():
     # TODO: configure hyperparameters by hydra
     model_type = "gsasrec"
 
-    batch_size = 10
+    batch_size = 1024
     max_seq_len = 50
     embedding_dim = 128
     num_heads = 1
@@ -41,7 +41,7 @@ def main():
         batch_size=batch_size,
         max_seq_len=max_seq_len,
         neg_sample_size=neg_sample_size,
-        num_workers=cpu_count(),
+        num_workers=cpu_count() - 1,
     )
     datamodule.prepare_data()
 
