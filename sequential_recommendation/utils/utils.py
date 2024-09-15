@@ -29,14 +29,14 @@ def create_attn_padding_mask(
         attn_mask = nn.Transformer.generate_square_subsequent_mask(seq_len)
     else:
         attn_mask = torch.zeros(seq_len, seq_len)
-    attn_mask = attn_mask.to(device)
+    attn_mask = attn_mask.to(device).float()
 
     padding_mask_bool = x == pad_idx  # shape (batch_size, seq_len)
     # for example, if all elements in the rows of lower triangular matrix is equal to pad_idx, nn.MultiheadAttention will return NaN
     # to prevent this, we set padding_mask to minimum value of float
     # https://github.com/pytorch/pytorch/issues/24816
     padding_mask = torch.masked_fill(
-        torch.zeros_like(x, dtype=float_type),
+        torch.zeros_like(x, dtype=torch.float),
         padding_mask_bool,
         torch.finfo(float_type).min,
     )
