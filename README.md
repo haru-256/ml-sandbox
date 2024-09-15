@@ -40,4 +40,4 @@ This repository has the following models.
 
 - Transformer: [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
 
-For more information on Sentiment Analysis, please refer to the [transfomer directory](https://github.com/haru-256/ml-sandbox/tree/main/transfomer).
+For more information on Sentiment Analysis, please refer to the [sentiment_analysis directory](https://github.com/haru-256/ml-sandbox/tree/main/sentiment_analysis).
