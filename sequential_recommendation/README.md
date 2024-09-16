@@ -8,8 +8,9 @@ The dataset used in this project is the [Amazon Reviews 2023, Video Games](https
 
 This repository provides the following mddels.
 
-1. SASRec: [Self-Attentive Sequential Recommendation](<https://arxiv.org/abs/1808.09781>)
+1. SASRec: [Self-Attentive Sequential Recommendation](https://arxiv.org/abs/1808.09781)
 1. gSASRec: [gSASRec: Reducing Overconfidence in Sequential Recommendation Trained with Negative Sampling](https://arxiv.org/abs/2308.07192)
+1. CAFE: [Coarse-to-Fine Sparse Sequential Recommendation](https://arxiv.org/abs/2204.01839)
 
 The concrete model architecture is [here](https://github.com/haru-256/ml-sandbox/tree/main/sequential_recommendation/models)
 
@@ -26,7 +27,7 @@ git clone https://github.com/haru-256/ml-sandbox.git
 2. Navigate to the Transformer directory:
 
 ```sh
-cd ml-sandbox/transfomer
+cd ml-sandbox/sequential_recommendation
 ```
 
 3. Install the required dependencies:
