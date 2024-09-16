@@ -4,10 +4,10 @@ import pathlib
 import lightning as L
 import torch
 from lightning.pytorch.callbacks import EarlyStopping, RichProgressBar
-from torchinfo import summary
 
 from config.const import SpecialIndex
 from data.dataset import AmazonReviewsDataModule
+from models.cafe import CAFEModule
 from models.gsasrec import gSASRecModule
 from models.sasrec import SASRecModule
 from utils.logging import setup_logger
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 def main():
     # TODO: configure hyperparameters by hydra
-    model_type = "gsasrec"
+    model_type = "cafe"
 
     batch_size = 1024
     max_seq_len = 50
@@ -73,35 +73,26 @@ def main():
             learning_rate=1e-3,
             float16=accelerator == "gpu",
         )
+    elif model_type == "cafe":
+        module = CAFEModule(
+            num_items=len(datamodule.item2index),
+            num_categories=len(datamodule.category2index),
+            embedding_dim=embedding_dim,
+            num_heads=num_heads,
+            num_blocks=num_blocks,
+            max_seq_len=max_seq_len,
+            attn_dropout_prob=0.0,
+            ff_dropout_prob=0.1,
+            pad_idx=SpecialIndex.PAD,
+            learning_rate=1e-3,
+            float16=accelerator == "gpu",
+        )
     else:
         return NotImplementedError(f"{model_type=} is not supported")
 
     # print model summary
-    summary(
-        module,
-        input_data={
-            "item_history": torch.randint(
-                0,
-                len(datamodule.item2index),
-                (batch_size, max_seq_len),
-                dtype=torch.long,
-            ),
-            "pos_item": torch.randint(
-                0,
-                len(datamodule.item2index),
-                (batch_size, pos_sample_size),
-                dtype=torch.long,
-            ),
-            "neg_item": torch.randint(
-                0,
-                len(datamodule.item2index),
-                (batch_size, neg_sample_size),
-                dtype=torch.long,
-            ),
-        },
-        depth=4,
-        verbose=1,
-        device="cpu",
+    module.summary(
+        batch_size=batch_size, pos_sample_size=pos_sample_size, neg_sample_size=neg_sample_size
     )
 
     trainer = L.Trainer(

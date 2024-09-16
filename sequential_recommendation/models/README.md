@@ -2,6 +2,8 @@
 
 ## SASRec
 
+- unofficial reoisitory: https://github.com/pmixer/SASRec.pytorch
+
 ### Description
 
 SASRec is a self-attentive sequential recommendation model proposed in the paper [Self-Attentive Sequential Recommendation](https://arxiv.org/abs/1808.09781). It is designed to effectively capture sequential patterns in recommendation tasks.
@@ -55,6 +57,14 @@ Params size (MB): 44.43
 Estimated Total Size (MB): 1252.87
 ====================================================================================================
 ```
+
+### gSASRec
+
+- official repository: https://github.com/asash/gSASRec-pytorch
+
+### CAFE
+
+- official repository: https://github.com/JiachengLi1995/CAFE
 
 ## Results
 

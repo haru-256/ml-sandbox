@@ -1,6 +1,7 @@
 import lightning as L
 import torch
 from torch import nn
+from torchinfo import summary
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
@@ -122,6 +123,8 @@ class SASRecModule(L.LightningModule):
         """
         super().__init__()
         self.save_hyperparameters()
+        self.num_items = num_items
+        self.max_seq_len = max_seq_len
         self.learning_rate = learning_rate
         self.model = SASRec(
             num_items=num_items,
@@ -182,7 +185,7 @@ class SASRecModule(L.LightningModule):
         return pos_logits, neg_logits
 
     def training_step(self, batch, batch_idx) -> torch.Tensor:
-        _, item_history, pos_item, _, neg_item, _ = batch
+        _, item_history, _, pos_item, _, neg_item, _ = batch
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
 
         pos_logits, neg_logits = SASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)
@@ -206,7 +209,7 @@ class SASRecModule(L.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx) -> torch.Tensor:
-        _, item_history, pos_item, _, neg_item, _ = batch
+        _, item_history, _, pos_item, _, neg_item, _ = batch
         # shape (batch_size, seq_len, hidden_size), (batch_size, pos_sample_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
         assert pos_item_emb.size(1) == 1 and neg_item_emb.size(1) == EVAL_NEGATIVE_SAMPLE_SIZE
@@ -245,3 +248,36 @@ class SASRecModule(L.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.learning_rate)
         return optimizer
+
+    def summary(
+        self,
+        batch_size: int,
+        neg_sample_size: int,
+        pos_sample_size: int = 1,
+        depth: int = 4,
+        verbose: int = 1,
+    ):
+        """Print model summary
+
+        Args:
+            batch_size: batch size
+            neg_sample_size: negative sample size
+            pos_sample_size: positive sample size
+            depth: depth. Defaults to 4.
+            verbose: verbose. Defaults to 1.
+        """
+        item_history = torch.randint(
+            0,
+            self.num_items,
+            (batch_size, self.max_seq_len),
+            dtype=torch.long,
+        )
+        item_pos = torch.randint(0, self.num_items, (batch_size, pos_sample_size), dtype=torch.long)
+        item_neg = torch.randint(0, self.num_items, (batch_size, neg_sample_size), dtype=torch.long)
+        summary(
+            self.model,
+            input_data={"item_history": item_history, "pos_item": item_pos, "neg_item": item_neg},
+            depth=depth,
+            verbose=verbose,
+            device="cpu",
+        )

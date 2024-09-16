@@ -171,31 +171,64 @@ def preprocess_dataset(
 
     # preprocess
     def _preprocess(df: pl.DataFrame) -> pl.DataFrame:
+        # create history and add id columns
         df = df.with_columns(
             pl.when(pl.col("history") != "")
             .then(pl.col("history").str.split(" "))
             .otherwise([])
-            .alias("history")
+            .alias("history"),
+            pl.int_range(pl.len(), dtype=pl.UInt64).alias("id"),
         )
+        main_df = df.select(["id", "user_id", "parent_asin", "category", "rating", "timestamp"])
+        # TODO: add category history by joining metadata
         # add index columns
-        df = df.join(user2index_df, on="user_id", how="left", validate="m:1")
-        df = df.join(item2index_df, on="parent_asin", how="left", validate="m:1")
+        main_df = main_df.join(user2index_df, on="user_id", how="left", validate="m:1")
+        main_df = main_df.join(item2index_df, on="parent_asin", how="left", validate="m:1")
         # add metadata
-        df = df.join(category2index_df, on="category", how="left", validate="m:1")
+        main_df = main_df.join(category2index_df, on="category", how="left", validate="m:1")
 
-        # fill null values
-        df = df.with_columns(pl.col("user_index").fill_null(SpecialIndex.UNK).alias("user_index"))
-        df = df.with_columns(pl.col("item_index").fill_null(SpecialIndex.UNK).alias("item_index"))
-        df = df.with_columns(
-            pl.col("category_index").fill_null(SpecialIndex.UNK).alias("category_index")
+        # create history dataframe
+        history_df = (
+            df.explode("history")
+            .drop_nulls("history")
+            .with_columns(pl.arange(0, pl.len()).over("id").alias("idx"))
+            .select(["id", "history", "idx"])
         )
-        df = df.with_columns(
-            pl.col("history")
-            .map_elements(
-                lambda history: [item2index.get(item, SpecialIndex.UNK) for item in history],
-                return_dtype=pl.List(pl.Int64),
+        history_df = (
+            history_df.join(
+                item2index_df, left_on="history", right_on="parent_asin", how="left", validate="m:1"
+            )  # add item index
+            .join(
+                meta_df, left_on="history", right_on="parent_asin", how="left", validate="m:1"
+            )  # add category
+            .join(
+                category2index_df, on="category", how="left", validate="m:1"
+            )  # add category index
+            .select(["id", "idx", "history", "item_index", "category", "category_index"])
+            .with_columns(
+                pl.col("item_index").fill_null(SpecialIndex.UNK).alias("item_index"),
+                pl.col("category").fill_null("#UNK").alias("category"),
+                pl.col("category_index").fill_null(SpecialIndex.UNK).alias("category_index"),
             )
-            .alias("history_index")
+        )
+        history_df = history_df.group_by("id").agg(
+            pl.col("history").sort_by("idx").alias("history"),
+            pl.col("item_index").sort_by("idx").alias("history_index"),
+            pl.col("category").sort_by("idx").alias("history_category"),
+            pl.col("category_index").sort_by("idx").alias("history_category_index"),
+        )
+        # add history to the main dataframe
+        df = main_df.join(history_df, on="id", how="left", validate="1:1")
+        # fill null values
+        df = df.with_columns(
+            pl.col("user_index").fill_null(SpecialIndex.UNK).alias("user_index"),
+            pl.col("item_index").fill_null(SpecialIndex.UNK).alias("item_index"),
+            pl.col("category").fill_null("#UNK").alias("category"),
+            pl.col("category_index").fill_null(SpecialIndex.UNK).alias("category_index"),
+            pl.col("history").fill_null([]).alias("history"),
+            pl.col("history_index").fill_null([]).alias("history_index"),
+            pl.col("history_category").fill_null([]).alias("history_category"),
+            pl.col("history_category_index").fill_null([]).alias("history_category_index"),
         )
         df = df.select(
             [
@@ -209,6 +242,8 @@ def preprocess_dataset(
                 "timestamp",
                 "history",
                 "history_index",
+                "history_category",
+                "history_category_index",
             ]
         )
         return df
@@ -278,9 +313,34 @@ class AmazonReviewsDataset(Dataset):
         assert len(sampled_neg_item_indexes) == neg_sample_size == len(sampled_neg_category_indexes)
         return sampled_neg_item_indexes, sampled_neg_category_indexes
 
+    @staticmethod
+    def trunc_and_pad(seq: torch.Tensor, max_seq_len: int) -> torch.Tensor:
+        """Truncate and pad sequence
+
+        Args:
+            seq: sequence tensor, shape: (seq_len,)
+            max_seq_len: maximum sequence length
+
+        Returns:
+            truncated and padded sequence, shape: (max_seq_len,)
+        """
+        assert seq.ndim == 1
+        if len(seq) > max_seq_len:
+            return seq[:max_seq_len]
+        else:
+            return F.pad(seq, (max_seq_len - len(seq), 0))
+
     def __getitem__(
         self, idx
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+        torch.Tensor,
+    ]:
         """Get item
 
         Args:
@@ -289,6 +349,7 @@ class AmazonReviewsDataset(Dataset):
         Returns:
             user_index: user index, shape: ()
             item_history: item history, shape: (self.max_seq_len,)
+            category_history: category history, shape: (self.max_seq_len,)
             pos_item_index: positive item index, shape: ()
             pos_category_index: positive category index, shape: ()
             neg_item_indexes: negative item indexes, shape: (neg_sample_size,)
@@ -297,15 +358,14 @@ class AmazonReviewsDataset(Dataset):
         row = self.df.row(idx, named=True)
         user_index = torch.tensor(row["user_index"], dtype=torch.long)
         item_history = torch.tensor(row["history_index"], dtype=torch.long)
+        category_history = torch.tensor(row["history_category_index"], dtype=torch.long)
         # truncate or pad
         # TODO: this operation is implemented in the preprocess_dataset function
-        if len(item_history) > self.max_seq_len:
-            item_history = item_history[: self.max_seq_len]
-        else:
-            item_history = F.pad(item_history, (self.max_seq_len - len(item_history), 0))
+        item_history = AmazonReviewsDataset.trunc_and_pad(item_history, self.max_seq_len)
+        category_history = AmazonReviewsDataset.trunc_and_pad(category_history, self.max_seq_len)
         # shape: (1,)
         pos_item_index = torch.tensor(row["item_index"], dtype=torch.long).unsqueeze(0)
-        pos_category_index = torch.tensor(row["category_index"], dtype=torch.long)
+        pos_category_index = torch.tensor(row["category_index"], dtype=torch.long).unsqueeze(0)
         # shape: (neg_sample_size,)
         neg_item_indexes, neg_category_indexes = self.negative_sampling(
             int(pos_item_index.item()), neg_sample_size=self.neg_sample_size
@@ -314,6 +374,7 @@ class AmazonReviewsDataset(Dataset):
         return (
             user_index,
             item_history,
+            category_history,
             pos_item_index,
             pos_category_index,
             neg_item_indexes,
