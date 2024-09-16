@@ -27,7 +27,7 @@ git clone https://github.com/haru-256/ml-sandbox.git
 2. Navigate to the Transformer directory:
 
 ```sh
-cd ml-sandbox/transfomer
+cd ml-sandbox/sequential_recommendation
 ```
 
 3. Install the required dependencies:
