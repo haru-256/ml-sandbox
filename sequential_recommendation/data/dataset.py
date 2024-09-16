@@ -217,6 +217,10 @@ def preprocess_dataset(
             pl.col("category").sort_by("idx").alias("history_category"),
             pl.col("category_index").sort_by("idx").alias("history_category_index"),
         )
+        if main_df.is_empty():
+            raise ValueError("Empty main dataframe")
+        if history_df.is_empty():
+            raise ValueError("Empty history dataframe")
         # add history to the main dataframe
         df = main_df.join(history_df, on="id", how="left", validate="1:1")
         # fill null values
@@ -324,7 +328,7 @@ class AmazonReviewsDataset(Dataset):
         Returns:
             truncated and padded sequence, shape: (max_seq_len,)
         """
-        assert seq.ndim == 1
+        assert seq.ndim == 1, f"Input tensor must be 1-dimensional, Got: {seq.ndim=}"
         if len(seq) > max_seq_len:
             return seq[:max_seq_len]
         else:
