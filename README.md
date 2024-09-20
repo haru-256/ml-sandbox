@@ -15,6 +15,7 @@ This repository provides implementations and experiments of various ML models.
 This repository deals with the following problem types:
 
 1. Sequential Recommendation
+1. Two-Tower Recommendation
 1. Sentiment Analysis
 
 ### Sequential Recommendation
@@ -29,6 +30,11 @@ This repository has the following models.
 - gSASRec: [gSASRec: Reducing Overconfidence in Sequential Recommendation Trained with Negative Sampling](https://arxiv.org/abs/2308.07192)
 
 For more information on Sequential Recommendation, please refer to the [sequential_recommendation directory](https://github.com/haru-256/ml-sandbox/tree/main/sequential_recommendation).
+
+### Two-Tower Recommendation
+
+
+
 
 ### Sentiment Analysis
 
