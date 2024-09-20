@@ -1,0 +1,45 @@
+[project]
+name = "sasrec"
+version = "0.1.0"
+description = "SASRec: self-attentive sequential recommendation"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "lightning~=2.4.0",
+  "torch==2.4.1+cu121; sys_platform == 'linux'",
+  "torch==2.4.1; sys_platform == 'darwin'",
+  "torchmetrics~=1.4.1",
+  "datasets~=2.21.0",
+  "numpy~=1.26.4",
+  "polars~=1.6.0",
+  "rich~=13.8.0",
+  "tensorboard~=2.17.1",
+  "torchinfo~=1.8.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+  "notebook~=7.2.2",
+  "pytest~=8.3.2",
+  "mypy~=1.11.2",
+  "ipywidgets>=8.1.5",
+  "ruff~=0.6.3",
+  "tqdm~=4.66.5",
+]
+find-links = ["https://download.pytorch.org/whl/cu121/torch"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.mypy]
+python_version = "3.12"
+exclude = [".venv"]
+disable_error_code = ["import-untyped"]
+
+[[tool.mypy.overrides]]
+module = ["torch.*"]
+ignore_missing_imports = true
