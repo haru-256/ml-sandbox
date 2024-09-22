@@ -1,7 +1,7 @@
 [project]
-name = "sasrec"
+name = "two_tower_recommendation"
 version = "0.1.0"
-description = "SASRec: self-attentive sequential recommendation"
+description = "Two Tower Recommendation System"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
