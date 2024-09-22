@@ -6,8 +6,9 @@ This repository provides implementations and experiments of various ML models.
 
 ```sh
 .
+├── sentiment__analysis/ # Sentiment Analysis
 ├── sequential_recommendation/ # Sequential Recommendation
-└── transfomer/ # Sentiment Analysis
+└── two_tower_recommendation/ # Sequential Recommendation
 ```
 
 ## Problem Types
