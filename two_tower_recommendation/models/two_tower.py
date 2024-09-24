@@ -239,7 +239,7 @@ class TwoTowerModule(L.LightningModule):
         item_feature_hidden_dim: Optional[int] = None,
         top_k: int = 10,
     ):
-        """SASRec model module
+        """Two-Tower model module
 
         Args:
             num_items: number of items
