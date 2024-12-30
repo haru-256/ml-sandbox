@@ -1,4 +1,5 @@
 import torch
+from torchmetrics import Metric
 from torchmetrics.functional.retrieval import retrieval_hit_rate, retrieval_reciprocal_rank
 
 
@@ -151,3 +152,49 @@ def hit_rate_v2(score: torch.Tensor, target: torch.Tensor, k: int = 10) -> torch
         dtype=torch.float32,
     )
     return values.mean()
+
+
+class MRR(Metric):
+    def __init__(self, k: int = 10):
+        """mean reciprocal rank at k
+
+        Args:
+            k: top k. Defaults to 10.
+        """
+        super().__init__()
+        self.k = k
+        self.add_state("mrr", default=[], dist_reduce_fx=None)
+        self.add_state("num_queries", default=[], dist_reduce_fx=None)
+
+    def update(self, score: torch.Tensor, target: torch.Tensor) -> None:
+        self.mrr.append(mrr(score, target, self.k))
+        self.num_queries.append(score.size(0))
+
+    def compute(self) -> torch.Tensor:
+        # mrrはqueryごとの平均なので、全体の平均値に変換
+        _mrr = torch.as_tensor(self.mrr, dtype=torch.float32)
+        _num_queries = torch.as_tensor(self.num_queries, dtype=torch.float32)
+        return (_mrr * _num_queries).sum() / _num_queries.sum()
+
+
+class HitRate(Metric):
+    def __init__(self, k: int = 10):
+        """hit rate at k
+
+        Args:
+            k: top k. Defaults to 10.
+        """
+        super().__init__()
+        self.k = k
+        self.add_state("hit_rate", default=[], dist_reduce_fx=None)
+        self.add_state("num_queries", default=[], dist_reduce_fx=None)
+
+    def update(self, score: torch.Tensor, target: torch.Tensor) -> None:
+        self.hit_rate.append(hit_rate(score, target, self.k))
+        self.num_queries.append(score.size(0))
+
+    def compute(self) -> torch.Tensor:
+        # hit_rateはqueryごとの平均なので、全体の平均値に変換
+        _hit_rate = torch.as_tensor(self.hit_rate, dtype=torch.float32)
+        _num_queries = torch.as_tensor(self.num_queries, dtype=torch.float32)
+        return (_hit_rate * _num_queries).sum() / _num_queries.sum()
