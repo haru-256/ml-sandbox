@@ -1,19 +1,22 @@
+from typing import Literal
+
 import lightning as L
 import torch
+from loguru import logger
 from torch import nn
 from torchinfo import summary
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
-from data.dataset import EVAL_NEGATIVE_SAMPLE_SIZE
-from utils.metrics import create_classification_inputs, create_retrieval_inputs
+from config.const import EVAL_NEGATIVE_SAMPLE_SIZE
+from utils.metrics import create_classification_inputs, create_retrieval_inputs, format_metrics_dict
 from utils.utils import create_attn_padding_mask
 
 from .modules.transformer_embedding import TransformerEmbeddings
 from .modules.transformer_encoder_block import TransformerEncoderBlock
 
 
-class Locker(nn.Module):
+class SASRec(nn.Module):
     def __init__(
         self,
         num_items: int,
@@ -26,7 +29,7 @@ class Locker(nn.Module):
         pad_idx: int = 0,
         float16: bool = False,
     ):
-        """Locker model: Locally Constrained Self-Attentive Sequential Recommendation, https://dl.acm.org/doi/abs/10.1145/3459637.3482136
+        """SASRec model
 
         Args:
             num_items: number of items
@@ -91,7 +94,7 @@ class Locker(nn.Module):
         return out, pos_item_emb, neg_item_emb
 
 
-class LockerModule(L.LightningModule):
+class SASRecModule(L.LightningModule):
     def __init__(
         self,
         num_items: int,
@@ -105,6 +108,7 @@ class LockerModule(L.LightningModule):
         learning_rate: float,
         float16: bool = False,
         top_k: int = 10,
+        n_steps_logging: int = 100,
     ):
         """SASRec model module
 
@@ -126,7 +130,7 @@ class LockerModule(L.LightningModule):
         self.num_items = num_items
         self.max_seq_len = max_seq_len
         self.learning_rate = learning_rate
-        self.model = Locker(
+        self.model = SASRec(
             num_items=num_items,
             embedding_dim=embedding_dim,
             num_heads=num_heads,
@@ -141,6 +145,7 @@ class LockerModule(L.LightningModule):
         self.accuracy = BinaryAccuracy(threshold=0.5)
         self.hit_rate = RetrievalHitRate(top_k=top_k)
         self.ndcg = RetrievalNormalizedDCG(top_k=top_k)
+        self.n_steps_logging = n_steps_logging
 
     def forward(
         self, item_history: torch.Tensor, pos_item: torch.Tensor, neg_item: torch.Tensor
@@ -184,11 +189,37 @@ class LockerModule(L.LightningModule):
 
         return pos_logits, neg_logits
 
+    def _is_step_logging(self, batch_idx: int) -> bool:
+        return batch_idx % self.n_steps_logging == 0
+
+    @property
+    def total_train_steps(self) -> int:
+        train_dataloader = self.trainer.train_dataloader
+        if train_dataloader is None:
+            return 0
+        return len(train_dataloader)
+
+    @property
+    def total_val_steps(self) -> int:
+        val_dataloader = self.trainer.val_dataloaders
+        if val_dataloader is None:
+            return 0
+        return len(val_dataloader)
+
+    def _logging_step(
+        self, batch_idx: int, metrics_dict: dict[str, float], stage: Literal["train", "val"]
+    ) -> None:
+        total_steps = self.total_train_steps if stage == "train" else self.total_val_steps
+        if self._is_step_logging(batch_idx):
+            logger.info(
+                f"{stage.upper()} | Epoch: {self.current_epoch}, Steps: {batch_idx}/{total_steps}, {format_metrics_dict(metrics_dict)}"
+            )
+
     def training_step(self, batch, batch_idx) -> torch.Tensor:
         _, item_history, _, pos_item, _, neg_item, _ = batch
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
 
-        pos_logits, neg_logits = LockerModule.calc_logits(out, pos_item_emb, neg_item_emb)
+        pos_logits, neg_logits = SASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
         loss: torch.Tensor = self.loss_fn(logits, labels)
@@ -203,7 +234,10 @@ class LockerModule(L.LightningModule):
             },
             on_step=True,
             on_epoch=True,
-            prog_bar=True,
+        )
+
+        self._logging_step(
+            batch_idx, {"train_loss": loss.item(), "train_accuracy": accuracy.item()}, stage="train"
         )
 
         return loss
@@ -214,7 +248,7 @@ class LockerModule(L.LightningModule):
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
         assert pos_item_emb.size(1) == 1 and neg_item_emb.size(1) == EVAL_NEGATIVE_SAMPLE_SIZE
 
-        pos_logits, neg_logits = LockerModule.calc_logits(out, pos_item_emb, neg_item_emb)
+        pos_logits, neg_logits = SASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)
         assert pos_logits.size(1) == 1 and neg_logits.size(1) == EVAL_NEGATIVE_SAMPLE_SIZE
 
         # calc loss, accuracy
@@ -238,9 +272,19 @@ class LockerModule(L.LightningModule):
                 "val_hit_rate": hit_rate,
                 "val_ndcg": ndcg,
             },
-            on_step=True,
+            on_step=False,
             on_epoch=True,
-            prog_bar=True,
+        )
+
+        self._logging_step(
+            batch_idx,
+            {
+                "val_loss": loss.item(),
+                "val_accuracy": accuracy.item(),
+                "val_hit_rate": hit_rate.item(),
+                "val_ndcg": ndcg.item(),
+            },
+            stage="val",
         )
 
         return loss

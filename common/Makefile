@@ -2,12 +2,12 @@
 .DEFAULT_GOAL := help
 
 lint: ## Run Linter
-	uvx ruff check .
+	uv run ruff check .
 	uv run mypy .
 
 fmt: ## Run formatter
-	uvx ruff check --fix .
-	uvx ruff format .
+	uv run ruff check --fix .
+	uv run ruff format .
 
 test: ## Run tests
 	uv run pytest .

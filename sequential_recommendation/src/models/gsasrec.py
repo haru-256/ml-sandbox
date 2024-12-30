@@ -5,7 +5,7 @@ from torchinfo import summary
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
-from data.dataset import EVAL_NEGATIVE_SAMPLE_SIZE
+from config.const import EVAL_NEGATIVE_SAMPLE_SIZE
 from utils.metrics import create_classification_inputs, create_retrieval_inputs
 
 from .sasrec import SASRec

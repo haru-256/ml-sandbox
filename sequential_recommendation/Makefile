@@ -2,12 +2,12 @@
 .DEFAULT_GOAL := help
 
 lint: ## Run Linter
-	uvx ruff check .
+	uv run ruff check .
 	uv run mypy .
 
 fmt: ## Run formatter
-	uvx ruff check --fix .
-	uvx ruff format .
+	uv run ruff check --fix .
+	uv run ruff format .
 
 test: ## Run tests
 	uv run pytest .
@@ -15,9 +15,8 @@ test: ## Run tests
 lock: ## Lock dependencies
 	uv lock
 
-setup: ## Setup the project
-	uv sync
-	uv tool install ruff@0.6.3
+install: ## Setup the project
+	uv sync --all-groups
 
 train: ## Train the model
 	uv run python train.py

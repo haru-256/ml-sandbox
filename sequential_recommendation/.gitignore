@@ -1,2 +1,2 @@
-data/data
-lightning_logs
+src/data/data
+src/lightning_logs

@@ -198,3 +198,20 @@ class HitRate(Metric):
         _hit_rate = torch.as_tensor(self.hit_rate, dtype=torch.float32)
         _num_queries = torch.as_tensor(self.num_queries, dtype=torch.float32)
         return (_hit_rate * _num_queries).sum() / _num_queries.sum()
+
+
+def format_metrics_dict(metrics_dict: dict[str, float | torch.Tensor | Metric]) -> str:
+    """format metrics dict to string
+
+    Args:
+        metrics_dict: metrics dict
+
+    Returns:
+        formatted string
+    """
+    return " ".join(
+        [
+            f"{k}: {v:.4f}" if isinstance(v, (float, torch.Tensor)) else f"{k}: {v.compute():.4f}"
+            for k, v in metrics_dict.items()
+        ]
+    )

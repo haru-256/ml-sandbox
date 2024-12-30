@@ -5,7 +5,7 @@ from torchinfo import summary
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
-from data.dataset import EVAL_NEGATIVE_SAMPLE_SIZE
+from config.const import EVAL_NEGATIVE_SAMPLE_SIZE
 from utils.metrics import create_classification_inputs, create_retrieval_inputs
 from utils.utils import create_attn_padding_mask
 
@@ -13,7 +13,7 @@ from .modules.transformer_embedding import TransformerEmbeddings
 from .modules.transformer_encoder_block import TransformerEncoderBlock
 
 
-class SASRec(nn.Module):
+class Locker(nn.Module):
     def __init__(
         self,
         num_items: int,
@@ -26,7 +26,7 @@ class SASRec(nn.Module):
         pad_idx: int = 0,
         float16: bool = False,
     ):
-        """SASRec model
+        """Locker model: Locally Constrained Self-Attentive Sequential Recommendation, https://dl.acm.org/doi/abs/10.1145/3459637.3482136
 
         Args:
             num_items: number of items
@@ -91,7 +91,7 @@ class SASRec(nn.Module):
         return out, pos_item_emb, neg_item_emb
 
 
-class SASRecModule(L.LightningModule):
+class LockerModule(L.LightningModule):
     def __init__(
         self,
         num_items: int,
@@ -126,7 +126,7 @@ class SASRecModule(L.LightningModule):
         self.num_items = num_items
         self.max_seq_len = max_seq_len
         self.learning_rate = learning_rate
-        self.model = SASRec(
+        self.model = Locker(
             num_items=num_items,
             embedding_dim=embedding_dim,
             num_heads=num_heads,
@@ -188,7 +188,7 @@ class SASRecModule(L.LightningModule):
         _, item_history, _, pos_item, _, neg_item, _ = batch
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
 
-        pos_logits, neg_logits = SASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)
+        pos_logits, neg_logits = LockerModule.calc_logits(out, pos_item_emb, neg_item_emb)
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
         loss: torch.Tensor = self.loss_fn(logits, labels)
@@ -214,7 +214,7 @@ class SASRecModule(L.LightningModule):
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
         assert pos_item_emb.size(1) == 1 and neg_item_emb.size(1) == EVAL_NEGATIVE_SAMPLE_SIZE
 
-        pos_logits, neg_logits = SASRecModule.calc_logits(out, pos_item_emb, neg_item_emb)
+        pos_logits, neg_logits = LockerModule.calc_logits(out, pos_item_emb, neg_item_emb)
         assert pos_logits.size(1) == 1 and neg_logits.size(1) == EVAL_NEGATIVE_SAMPLE_SIZE
 
         # calc loss, accuracy

@@ -1,6 +1,5 @@
 # TODO: this dataset.py is same as the one in the sequential recommendation. so, we need to refactor it.
 
-import logging
 import pathlib
 import pickle
 from enum import IntEnum
@@ -11,9 +10,8 @@ import numpy as np
 import polars as pl
 import torch
 import torch.nn.functional as F
+from loguru import logger
 from torch.utils.data import DataLoader, Dataset
-
-logger = logging.getLogger(__name__)
 
 
 class SpecialIndex(IntEnum):

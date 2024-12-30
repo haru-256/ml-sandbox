@@ -1,25 +1,21 @@
-import logging
 import pathlib
 
 import lightning as L
 import torch
-from lightning.pytorch.callbacks import EarlyStopping, RichProgressBar
+from lightning.pytorch.callbacks import EarlyStopping
+from lightning.pytorch.loggers import CSVLogger, TensorBoardLogger
+from loguru import logger
 
-from config.const import SpecialIndex
-from data.dataset import AmazonReviewsDataModule
+from data.dataset import AmazonReviewsDataModule, SpecialIndex
 from models.cafe import CAFEModule
 from models.gsasrec import gSASRecModule
 from models.sasrec import SASRecModule
-from utils.logging import setup_logger
 from utils.utils import cpu_count
-
-setup_logger()
-logger = logging.getLogger(__name__)
 
 
 def main():
     # TODO: configure hyperparameters by hydra
-    model_type = "cafe"
+    model_type = "sasrec"
 
     batch_size = 1024
     max_seq_len = 50
@@ -28,8 +24,8 @@ def main():
     num_blocks = 2
     pos_sample_size = 1
     neg_sample_size = 1
-    save_dir = pathlib.Path("data/data")
-    debug = True
+    data_dir = pathlib.Path("data/data")
+    debug = False
     accelerator = "gpu" if torch.cuda.is_available() else "cpu"
     device_no = 0
 
@@ -37,7 +33,7 @@ def main():
         torch.set_float32_matmul_precision("medium")
 
     datamodule = AmazonReviewsDataModule(
-        save_dir=save_dir,
+        save_dir=data_dir,
         batch_size=batch_size,
         max_seq_len=max_seq_len,
         neg_sample_size=neg_sample_size,
@@ -57,8 +53,10 @@ def main():
             pad_idx=SpecialIndex.PAD,
             learning_rate=1e-3,
             float16=accelerator == "gpu",
+            n_steps_logging=1,
         )
     elif model_type == "gsasrec":
+        # TODO: implement step logging as SASRecModule
         module = gSASRecModule(
             num_items=len(datamodule.item2index),
             embedding_dim=embedding_dim,
@@ -74,6 +72,7 @@ def main():
             float16=accelerator == "gpu",
         )
     elif model_type == "cafe":
+        # TODO: implement step logging as SASRecModule
         module = CAFEModule(
             num_items=len(datamodule.item2index),
             num_categories=len(datamodule.category2index),
@@ -95,16 +94,29 @@ def main():
         batch_size=batch_size, pos_sample_size=pos_sample_size, neg_sample_size=neg_sample_size
     )
 
+    logger.info(f"Start training {model_type} model")
+    save_dir = pathlib.Path("lightning_logs") / model_type
+    save_dir.mkdir(parents=True, exist_ok=True)
+    tensorboad_logger = TensorBoardLogger(save_dir=save_dir, name=None)
+    csv_logger = CSVLogger(
+        save_dir=save_dir,
+        name=None,
+        flush_logs_every_n_steps=100,
+        version=tensorboad_logger.version,
+    )
     trainer = L.Trainer(
         max_epochs=10,
         accelerator=accelerator,
         devices=[device_no] if accelerator == "gpu" else "auto",
-        callbacks=[
-            RichProgressBar(leave=True),
-            EarlyStopping(monitor="val_loss", mode="min", patience=3),
-        ],
+        callbacks=[EarlyStopping(monitor="val_loss", mode="min", patience=3)],
+        logger=[tensorboad_logger, csv_logger],
         detect_anomaly=True,
         fast_dev_run=10 if debug else False,
+        log_every_n_steps=1000,
+        limit_train_batches=10,
+        limit_val_batches=10,
+        enable_model_summary=False,
+        enable_progress_bar=False,
     )
     trainer.fit(model=module, datamodule=datamodule)
 
