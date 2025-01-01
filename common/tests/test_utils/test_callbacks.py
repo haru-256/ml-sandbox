@@ -1,19 +1,16 @@
 import pathlib
+from contextlib import contextmanager
 from copy import deepcopy
 from typing import Optional
-import json
 
 import lightning as L
-import torch
 import pytest
+import torch
 from deepdiff import DeepDiff
+from loguru import logger
 from pytest_mock import MockerFixture
-import time
-
 
 from utils.callbacks import CustomModelCheckpoint
-from contextlib import contextmanager
-from loguru import logger
 
 
 def _custom_model_checkpoint_factory(
