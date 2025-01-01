@@ -1,5 +1,4 @@
 {
-  "editor.formatOnSave": false,
   // pytest
   "python.testing.cwd": "${workspaceFolder}/tests",
   "python.testing.unittestEnabled": false,

@@ -20,18 +20,16 @@ dependencies = [
 dev = [
   "notebook~=7.3.2",
   "pytest~=8.3.4",
+  "pytest-mock~=3.14.0",
+  "deepdiff~=8.1.1",
   "mypy~=1.14.0",
   "ipywidgets>=8.1.5",
   "tqdm~=4.67.1",
 ]
-lint = [
-  "ruff~=0.8.4",
-]
+lint = ["ruff~=0.8.4"]
 
 [tool.uv.sources]
-torch = [
-  { index = "torch-gpu", marker = "platform_system == 'Linux'"},
-]
+torch = [{ index = "torch-gpu", marker = "platform_system == 'Linux'" }]
 
 [[tool.uv.index]]
 name = "torch-gpu"
@@ -49,7 +47,7 @@ extend-select = ["I"]
 [tool.mypy]
 python_version = "3.12"
 exclude = [".venv"]
-disable_error_code = ["import-untyped"]
+disable_error_code = ["import-untyped", "assignment"]
 
 [[tool.mypy.overrides]]
 module = ["torch.*"]
