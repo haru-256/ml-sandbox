@@ -8,7 +8,6 @@ import torch
 from lightning.pytorch.callbacks import Checkpoint
 from lightning.pytorch.trainer.states import TrainerFn
 from loguru import logger
-from typing_extensions import override
 
 
 class CustomModelCheckpoint(Checkpoint):
@@ -141,7 +140,6 @@ class CustomModelCheckpoint(Checkpoint):
             raise ValueError("Trainer logger has no log directory")
         return pathlib.Path(log_dir)
 
-    @override
     def on_train_epoch_end(self, trainer: L.Trainer, pl_module: L.LightningModule) -> None:
         """Save model checkpoints at the end of each training epoch.
 
@@ -197,7 +195,6 @@ class CustomModelCheckpoint(Checkpoint):
         self._clean_checkpoints()
         # breakpoint()
 
-    @override
     def on_fit_end(self, trainer: L.Trainer, pl_module: L.LightningModule) -> None:
         """Finalize the model checkpoint tracking at the end of training.
 
