@@ -47,9 +47,9 @@ class gSASRecLoss(nn.Module):
             loss: gSASRec loss
         """
         # use float64 to increase numerical stability
-        assert (
-            positive_logits.size(1) == 1
-        ), f"positive sample size should be one, Got {positive_logits.size()=}"
+        assert positive_logits.size(1) == 1, (
+            f"positive sample size should be one, Got {positive_logits.size()=}"
+        )
 
         positive_logits = positive_logits.to(torch.float64)
         negative_logits = negative_logits.to(positive_logits.dtype)
