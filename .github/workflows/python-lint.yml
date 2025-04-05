@@ -55,7 +55,7 @@ jobs:
 
           # Set the single directory as output
           echo "dirs=$(echo "$CHANGED_DIRS" | tr -d '\n')" >> $GITHUB_OUTPUT
-          echo "run_tests=false" >> $GITHUB_OUTPUT
+          echo "run_tests=true" >> $GITHUB_OUTPUT
       - name: Install uv
         if: ${{ steps.changes.outputs.run_tests }} == 'true'
         uses: astral-sh/setup-uv@v5
