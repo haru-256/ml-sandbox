@@ -1,0 +1,35 @@
+# https://pr-agent-docs.codium.ai/
+# https://github.com/Codium-ai/pr-agent/blob/main/pr_agent/settings/configuration.toml
+
+[config]
+model = "o3-mini"
+ignore_pr_labels = ['renovate']
+
+[ignore]
+glob = ['*.lock.hcl', '*.sops.yaml', '*.toml']
+
+[github_app]
+pr_commands = [
+  "/describe --pr_description.final_update_message=false",
+  "/review",
+  "/improve",
+]
+
+[pr_description]
+generate_ai_title = true
+final_update_message = true
+
+[pr_reviewer]
+require_tests_review = true
+require_can_be_split_review = true
+num_code_suggestions = 6
+inline_code_comments = true
+enable_auto_approval = true
+maximal_review_effort = 3
+
+[pr_code_suggestions]
+num_code_suggestions = 6
+rank_suggestions = true
+commitable_code_suggestions = true
+demand_code_suggestions_self_review = true
+summarize = false
