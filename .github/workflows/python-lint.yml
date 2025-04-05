@@ -11,25 +11,63 @@ on:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   python-lint:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Get changed directories
+        id: changes
+        run: |
+          # Get unique directories from changed files
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            # For PRs, compare with base branch
+            git fetch origin ${{ github.base_ref }}
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }} HEAD | grep '\.py$' || echo "")
+          else
+            # For pushes, compare with previous commit
+            CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '\.py$' || echo "")
+          fi
+
+          # If no Python files changed, skip tests
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No Python files changed"
+            echo "should_run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          CHANGED_DIRS=$(echo "$CHANGED_FILES" | awk -F/ '{print $1}' | sort -u)
+          echo "Changed directories: $CHANGED_DIRS"
+
+          # Count how many directories were changed
+          DIR_COUNT=$(echo "$CHANGED_DIRS" | grep -v "^$" | wc -l)
+
+          if [ "$DIR_COUNT" -eq 0 ]; then
+            echo "No Python directories changed"
+            echo "run_tests=false" >> $GITHUB_OUTPUT
+            exit 0
+          elif [ "$DIR_COUNT" -gt 1 ]; then
+            echo "::error::Changes detected in multiple directories: $CHANGED_DIRS"
+            echo "This workflow supports changes in only one directory at a time"
+            exit 1
+          fi
+
+          # Set the single directory as output
+          echo "dirs=$(echo "$CHANGED_DIRS" | tr -d '\n')" >> $GITHUB_OUTPUT
+          echo "run_tests=true" >> $GITHUB_OUTPUT
+      - name: Install uv
+        if: ${{ steps.changes.outputs.run_tests }} == 'true'
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12"
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
-      - name: Lint with ruff
-        run: pip install uv
+          enable-cache: true
+      - name: Install the project
+        if: ${{ steps.changes.outputs.run_tests }} == 'true'
+        run: uv sync --all-groups
+        working-directory: ${{ steps.changes.outputs.dirs }}
       - name: Check ruff
+        if: ${{ steps.changes.outputs.run_tests }} == 'true'
         run: uvx ruff check .
+        working-directory: ${{ steps.changes.outputs.dirs }}
       # - name: Check mypy
       #   run: uvx mypy .
