@@ -8,6 +8,12 @@ on:
       - "main"
     paths:
       - "**/*.py"
+  workflow_dispatch:
+    inputs:
+      target_dir:
+        description: "Directories to run lint and test on"
+        required: true
+        default: ""
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -20,6 +26,7 @@ jobs:
         uses: actions/checkout@v4
       - name: Get changed directories
         id: changes
+        if: ${{ inputs.target_dir == '' }}
         run: |
           # Get unique directories from changed files
           if [ "${{ github.event_name }}" == "pull_request" ]; then
