@@ -3,6 +3,7 @@
 import pathlib
 import pickle
 from enum import IntEnum
+from typing import Literal
 
 import datasets as D
 import lightning as L
@@ -19,31 +20,48 @@ class SpecialIndex(IntEnum):
     UNK = 1  # corresponds to unknown id
 
 
-def fetch_dataset(domain: str = "Video_Games") -> D.DatasetDict:
+def fetch_dataset(
+    category: str = "Video_Games",
+    dataset_type: Literal["0core_last_out_w_his", "raw_review"] = "0core_last_out_w_his",
+) -> D.DatasetDict:
     """Fetch Amazon Reviews 2023 dataset from the datasets library.
 
+    Args:
+        category: category name. Defaults to "Video_Games". Please refer to the dataset card for more details: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#grouped-by-category
+        dataset_type: dataset type. Defaults to "0core_last_out_w_his"
+            - "0core_last_out_w_his": user x product with reviewed history. https://amazon-reviews-2023.github.io/data_processing/0core.html
+            - "raw_review": user x product pair simply. https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-user-reviews
+
     Returns:
-        datasets.DatasetDict, keys: ["train", "test", "unsupervised"]
+        datasets.DatasetDict, keys: ["train", "test", "unsupervised"]. Dataset Schema is the following: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-user-reviews
     """
     logger.info("Fetching Amazon Reviews 2023 dataset")
     # NOTE: According to the benchmark script, last_out is widely used in research. But, it is not realistic.
     # https://github.com/hyp1231/AmazonReviews2023/tree/main/benchmark_scripts#rating_only---timestamp
     dataset_dict: D.DatasetDict = D.load_dataset(
         "McAuley-Lab/Amazon-Reviews-2023",
-        f"0core_last_out_w_his_{domain}",
+        f"{dataset_type}_{category}",
         trust_remote_code=True,
-    )  # type: ignore
+    )
     return dataset_dict
 
 
-def fetch_metadata(domain: str = "Video_Games") -> D.Dataset:
+def fetch_metadata(category: str = "Video_Games") -> D.Dataset:
+    """Fetch Amazon Reviews 2023 metadata from the datasets library.
+
+    Args:
+        category: category name. Defaults to "Video_Games". Please refer to the dataset card for more details: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#grouped-by-category
+
+    Returns:
+        datasets.Dataset, Dataset Schema is the following: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-item-metadata
+    """
     logger.info("Fetching Amazon Reviews 2023 metadata")
     metadata: D.Dataset = D.load_dataset(
         "McAuley-Lab/Amazon-Reviews-2023",
-        f"raw_meta_{domain}",
+        f"raw_meta_{category}",
         split="full",
         trust_remote_code=True,
-    )  # type: ignore
+    )
     return metadata
 
 
