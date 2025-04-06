@@ -8,6 +8,12 @@ on:
       - "main"
     paths:
       - "**/*.py"
+  workflow_dispatch:
+    inputs:
+      target_dir:
+        description: "Directories to run lint and test on"
+        required: false
+        default: ""
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -21,6 +27,13 @@ jobs:
       - name: Get changed directories
         id: changes
         run: |
+          # Check if the target_dir input is provided
+          if [ -n "${{ github.event.inputs.target_dir }}" ]; then
+            echo "dirs=${{ github.event.inputs.target_dir }}" >> $GITHUB_OUTPUT
+            echo "run_tests=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
           # Get unique directories from changed files
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             # For PRs, compare with base branch
