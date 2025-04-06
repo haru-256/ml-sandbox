@@ -1,4 +1,4 @@
-name: Python Lint
+name: Python Lint and Test
 on:
   pull_request:
     paths:
@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  python-lint:
+  python-lint-and-test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -63,11 +63,13 @@ jobs:
           enable-cache: true
       - name: Install the project
         if: ${{ steps.changes.outputs.run_tests }} == 'true'
-        run: uv sync --all-groups
+        run: make install
         working-directory: ${{ steps.changes.outputs.dirs }}
-      - name: Check ruff
+      - name: Lint
         if: ${{ steps.changes.outputs.run_tests }} == 'true'
-        run: uvx ruff check .
+        run: make lint
         working-directory: ${{ steps.changes.outputs.dirs }}
-      # - name: Check mypy
-      #   run: uvx mypy .
+      - name: Test
+        if: ${{ steps.changes.outputs.run_tests }} == 'true'
+        run: make test
+        working-directory: ${{ steps.changes.outputs.dirs }}

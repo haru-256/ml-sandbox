@@ -1,6 +1,6 @@
 import torch
 
-from utils.metrics import (
+from ml_sandbox_libs.utils.metrics import (
     MRR,
     HitRate,
     create_classification_inputs,

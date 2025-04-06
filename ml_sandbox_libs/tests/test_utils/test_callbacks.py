@@ -10,7 +10,7 @@ from deepdiff import DeepDiff
 from loguru import logger
 from pytest_mock import MockerFixture
 
-from utils.callbacks import CustomModelCheckpoint
+from ml_sandbox_libs.utils.callbacks import CustomModelCheckpoint
 
 
 def _custom_model_checkpoint_factory(

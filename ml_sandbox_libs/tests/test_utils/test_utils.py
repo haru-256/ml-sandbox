@@ -1,6 +1,6 @@
 import torch
 
-from utils.utils import create_attn_padding_mask
+from ml_sandbox_libs.utils.utils import create_attn_padding_mask
 
 
 def test_create_attn_padding_mask():
