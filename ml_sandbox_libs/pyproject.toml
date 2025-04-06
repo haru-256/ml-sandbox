@@ -1,0 +1,83 @@
+[project]
+name = "ml_sandbox_libs"
+version = "0.1.0"
+description = "Library for the ml-sandbox project"
+readme = "README.md"
+authors = [{ name = "Yohei Okabayashi", email = "yohei.kuro48@gmail.com" }]
+requires-python = ">=3.12"
+classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+  "lightning~=2.5.0.post0",
+  "torchmetrics~=1.6.1",
+  "datasets~=3.2.0",
+  "numpy~=2.2.1",
+  "polars~=1.18.0",
+  "tensorboard~=2.18.0",
+  "torchinfo~=1.8.0",
+  "loguru~=0.7.3",
+]
+
+[project.optional-dependencies]
+cpu = ["torch==2.5.1"]
+gpu = ["torch==2.5.1"]
+
+[dependency-groups]
+dev = [
+  "notebook~=7.3.2",
+  "pytest~=8.3.4",
+  "pytest-mock~=3.14.0",
+  "deepdiff~=8.1.1",
+  "mypy~=1.14.0",
+  "ipywidgets>=8.1.5",
+  "tqdm~=4.67.1",
+]
+lint = ["ruff~=0.8.4"]
+
+[tool.uv]
+package = true
+conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'macOS'" },
+  { index = "pytorch-gpu", extra = "gpu" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu-mac"
+url = "https://pypi.python.org/simple"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-gpu"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.mypy]
+python_version = "3.12"
+exclude = [".venv"]
+disable_error_code = ["import-untyped", "assignment"]
+
+[[tool.mypy.overrides]]
+module = ["torch.*"]
+ignore_missing_imports = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+exclude = ["tests", "samples"]
