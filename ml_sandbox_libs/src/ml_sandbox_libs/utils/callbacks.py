@@ -59,7 +59,7 @@ class CustomModelCheckpoint(Checkpoint):
         """
         # from: lightning.pytorch.callbacks.model_checkpoint::ModelCheckpoint::_should_skip_saving_checkpoints
         return (
-            bool(trainer.fast_dev_run)
+            bool(trainer.fast_dev_run)  # type: ignore
             or trainer.state.fn != TrainerFn.FITTING
             or trainer.sanity_checking
         )
@@ -169,8 +169,6 @@ class CustomModelCheckpoint(Checkpoint):
         metrics = trainer.callback_metrics.get(self.monitor)
         if metrics is None:
             raise ValueError(f"Metric '{self.monitor}' not found in callback metrics")
-        # breakpoint()
-        metrics = float(metrics.item())
         num_epochs = trainer.current_epoch
         num_steps = trainer.global_step
 
@@ -192,7 +190,7 @@ class CustomModelCheckpoint(Checkpoint):
         logger.info(f"Checkpoint saved in {time.perf_counter() - _start:.2f} seconds")
 
         # update the best model
-        self._checkpoints.append((metrics, checkpoint_path))
+        self._checkpoints.append((float(metrics), checkpoint_path))
         self._update_best_model()
         self._clean_checkpoints()
         # breakpoint()
