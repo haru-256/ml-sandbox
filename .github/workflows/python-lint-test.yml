@@ -12,7 +12,7 @@ on:
     inputs:
       target_dir:
         description: "Directories to run lint and test on"
-        required: true
+        required: false
         default: ""
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
