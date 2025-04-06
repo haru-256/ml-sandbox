@@ -30,7 +30,7 @@ jobs:
           # Check if the target_dir input is provided
           if [ -n "${{ github.event.inputs.target_dir }}" ]; then
             echo "dirs=${{ github.event.inputs.target_dir }}" >> $GITHUB_OUTPUT
-            echo "run_tests=true" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -43,6 +43,7 @@ jobs:
             # For pushes, compare with previous commit
             CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '\.py$' || echo "")
           fi
+          echo "::debug::Changed files: $CHANGED_FILES"
 
           # If no Python files changed, skip tests
           if [ -z "$CHANGED_FILES" ]; then
@@ -58,7 +59,7 @@ jobs:
 
           if [ "$DIR_COUNT" -eq 0 ]; then
             echo "No Python directories changed"
-            echo "run_tests=false" >> $GITHUB_OUTPUT
+            echo "should_run=false" >> $GITHUB_OUTPUT
             exit 0
           elif [ "$DIR_COUNT" -gt 1 ]; then
             echo "::error::Changes detected in multiple directories: $CHANGED_DIRS"
@@ -68,21 +69,21 @@ jobs:
 
           # Set the single directory as output
           echo "dirs=$(echo "$CHANGED_DIRS" | tr -d '\n')" >> $GITHUB_OUTPUT
-          echo "run_tests=true" >> $GITHUB_OUTPUT
+          echo "should_run=true" >> $GITHUB_OUTPUT
       - name: Install uv
-        if: ${{ steps.changes.outputs.run_tests }} == 'true'
+        if: ${{ steps.changes.outputs.should_run }} == 'true'
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
       - name: Install the project
-        if: ${{ steps.changes.outputs.run_tests }} == 'true'
+        if: ${{ steps.changes.outputs.should_run }} == 'true'
         run: make install
         working-directory: ${{ steps.changes.outputs.dirs }}
       - name: Lint
-        if: ${{ steps.changes.outputs.run_tests }} == 'true'
+        if: ${{ steps.changes.outputs.should_run }} == 'true'
         run: make lint
         working-directory: ${{ steps.changes.outputs.dirs }}
       - name: Test
-        if: ${{ steps.changes.outputs.run_tests }} == 'true'
+        if: ${{ steps.changes.outputs.should_run }} == 'true'
         run: make test
         working-directory: ${{ steps.changes.outputs.dirs }}
