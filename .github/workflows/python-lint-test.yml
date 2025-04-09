@@ -16,6 +16,9 @@ on:
         required: false
         default: ""
 
+env:
+  FORCE_COLOR: 1 # https://github.com/pytest-dev/pytest/issues/7443#issuecomment-656642591
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
