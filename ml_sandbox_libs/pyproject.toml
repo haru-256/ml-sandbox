@@ -3,7 +3,7 @@ name = "ml_sandbox_libs"
 version = "0.1.0"
 description = "Library for the ml-sandbox project"
 readme = "README.md"
-authors = [{ name = "Yohei Okabayashi", email = "yohei.kuro48@gmail.com" }]
+authors = [{ name = "haru256", email = "yohei.kuro48@gmail.com" }]
 requires-python = ">=3.12"
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
@@ -70,6 +70,13 @@ extend-select = ["I"]
 python_version = "3.12"
 exclude = [".venv"]
 disable_error_code = ["import-untyped", "assignment"]
+
+follow_imports = "silent"
+warn_redundant_casts = true
+warn_unused_ignores = true
+disallow_any_generics = true
+no_implicit_reexport = true
+disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
 module = ["torch.*"]
