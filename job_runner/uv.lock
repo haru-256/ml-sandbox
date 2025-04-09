@@ -39,12 +39,13 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
-dev = [
-    { name = "mypy" },
-    { name = "pytest" },
-]
 lint = [
+    { name = "mypy" },
     { name = "ruff" },
+]
+test = [
+    { name = "pytest" },
+    { name = "pytest-console-scripts" },
 ]
 
 [package.metadata]
@@ -55,11 +56,14 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-dev = [
+lint = [
     { name = "mypy", specifier = "~=1.14.1" },
-    { name = "pytest", specifier = "~=8.3.4" },
+    { name = "ruff", specifier = "~=0.8.4" },
 ]
-lint = [{ name = "ruff", specifier = "~=0.8.4" }]
+test = [
+    { name = "pytest", specifier = "~=8.3.4" },
+    { name = "pytest-console-scripts", specifier = "~=1.4.1" },
+]
 
 [[package]]
 name = "loguru"
@@ -205,6 +209,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/05/35/30e0d83068951d90a01852cb1cef56e5d8a09d20c7f511634cc2f7e0372a/pytest-8.3.4.tar.gz", hash = "sha256:965370d062bce11e73868e0335abac31b4d3de0e82f4007408d242b4f8610761", size = 1445919 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/11/92/76a1c94d3afee238333bc0a42b82935dd8f9cf8ce9e336ff87ee14d9e1cf/pytest-8.3.4-py3-none-any.whl", hash = "sha256:50e16d954148559c9a74109af1eaf0c945ba2d8f30f0a3d3335edde19788b6f6", size = 343083 },
+]
+
+[[package]]
+name = "pytest-console-scripts"
+version = "1.4.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a1/85/2fbafaea1fa948497ef7f52574448e7ff99236c71a1519e312b8a2f01008/pytest-console-scripts-1.4.1.tar.gz", hash = "sha256:5a826ed84cc0afa202eb9e44381d7d762f7bdda8e0c23f9f79a7f1f44cf4a895", size = 20994 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/12/149a568c244b58912350c7fd3b997ed6b57889a22098564cc43c3e511b76/pytest_console_scripts-1.4.1-py3-none-any.whl", hash = "sha256:ad860a951a90eca4bd3bd1159b8f5428633ba4ea01abd5c9526b67a95f65437a", size = 10881 },
 ]
 
 [[package]]
