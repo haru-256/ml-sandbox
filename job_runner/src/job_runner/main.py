@@ -68,7 +68,9 @@ class JobRunner(BaseSettings):
             location=self.location,
             container_uri=self.image_uri,
             staging_bucket=self.gcs_path,
-            command=command,
+            # FIXME: If the following PR is merged, this will be removed
+            # https://github.com/googleapis/python-aiplatform/pull/5162
+            command=command,  # type: ignore
         )
         job.run(
             service_account=self.service_account,
