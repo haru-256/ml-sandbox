@@ -33,8 +33,8 @@ class JobRunner(BaseSettings):
 
     # from args
     command: Optional[str] = Field(default=None, description="Command to run in the container")
-    machine_type: Literal["g2-instance-4", "g2-instance-8"] = Field(
-        description="Machine type to use for the job", default="g2-instance-4"
+    machine_type: Literal["g2-standard-4", "g2-standard-8"] = Field(
+        description="Machine type to use for the job", default="g2-standard-4"
     )
     accelerator_type: Literal["NVIDIA_L4"] = Field(
         description="Accelerator type to use for the job", default="NVIDIA_L4"
