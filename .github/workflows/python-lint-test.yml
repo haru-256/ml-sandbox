@@ -16,6 +16,9 @@ on:
         required: false
         default: ""
 
+env:
+  FORCE_COLOR: 1 # https://github.com/pytest-dev/pytest/issues/7443#issuecomment-656642591
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -58,7 +61,8 @@ jobs:
               // Filter out directories that contain pyproject.toml and Makefile
               const paths = inputs.filter(path => {
                 if (
-                  fs.statSync(path).isDirectory()
+                  fs.existsSync(path)
+                  && fs.statSync(path).isDirectory()
                   && fs.existsSync(`${path}/pyproject.toml`)
                   && fs.existsSync(`${path}/Makefile`)
                 ) {
@@ -78,6 +82,7 @@ jobs:
     needs: target_projects
     if: ${{ needs.target_projects.outputs.projects != '' && toJson(fromJson(needs.target_projects.outputs.projects)) != '[]' }}
     strategy:
+      fail-fast: false
       matrix:
         project: ${{ fromJson(needs.target_projects.outputs.projects) }}
     runs-on: ubuntu-latest

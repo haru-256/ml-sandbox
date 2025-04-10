@@ -1,21 +1,28 @@
 [project]
-name = "job-runner"
+name = "job_runner"
 version = "0.1.0"
 description = "Command line utilities to run ml training job"
 readme = "README.md"
+authors = [{ name = "haru256", email = "yohei.kuro48@gmail.com" }]
 requires-python = ">=3.12"
-dependencies = ["loguru~=0.7.3", "pydantic~=2.10.4", "pydantic-settings~=2.7.1"]
+classifiers = ["Private :: Do Not Upload"]
+dependencies = [
+  "loguru~=0.7.3",
+  "pydantic~=2.11.3",
+  "pydantic-settings~=2.8.1",
+  "google-cloud-aiplatform~=1.88.0",
+]
+
+[project.scripts]
+job-runner = "job_runner.main:main"
 
 [dependency-groups]
-dev = ["pytest~=8.3.4", "mypy~=1.14.1"]
-lint = ["ruff~=0.8.4"]
+test = ["pytest~=8.3.4", "pytest-console-scripts~=1.4.1"]
+lint = ["ruff~=0.8.4", "mypy~=1.14.1"]
 
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-
-[tool.ruff.lint]
-extend-select = ["I"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -33,3 +40,10 @@ disallow_untyped_defs = true
 init_forbid_extra = true
 init_typed = true
 warn_required_dynamic_aliases = true
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.sdist]
+exclude = ["tests", "samples"]

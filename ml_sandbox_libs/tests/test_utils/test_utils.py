@@ -3,7 +3,7 @@ import torch
 from ml_sandbox_libs.utils.utils import create_attn_padding_mask
 
 
-def test_create_attn_padding_mask():
+def test_create_attn_padding_mask() -> None:
     x = torch.tensor([[1, 2, 0], [3, 0, 0]])
     pad_idx = 0
     seq_len = x.size(1)

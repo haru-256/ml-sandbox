@@ -12,7 +12,7 @@ from ml_sandbox_libs.utils.metrics import (
 )
 
 
-def test_create_classification_inputs():
+def test_create_classification_inputs() -> None:
     pos_logits = torch.tensor([[0.1], [0.4]])
     neg_logits = torch.tensor([[0.2, 0.3, 0.4], [0.3, 0.2, 0.1]])
 
@@ -24,7 +24,7 @@ def test_create_classification_inputs():
     torch.testing.assert_close(actual_labels, excepted_labels)
 
 
-def test_create_retrieval_inputs():
+def test_create_retrieval_inputs() -> None:
     pos_logits = torch.tensor([[0.1], [0.4]])
     neg_logits = torch.tensor([[0.2, 0.3, 0.4], [0.3, 0.2, 0.1]])
 
@@ -38,7 +38,7 @@ def test_create_retrieval_inputs():
     torch.testing.assert_close(actual_indexes, expected_indexes)
 
 
-def test_mrr():
+def test_mrr() -> None:
     score = torch.tensor(
         [
             [0.1, 0.2, 0.3, 0.4],
@@ -69,7 +69,7 @@ def test_mrr():
     torch.testing.assert_close(actual, expected)
 
 
-def test_hit_rate():
+def test_hit_rate() -> None:
     score = torch.tensor(
         [
             [0.1, 0.2, 0.3, 0.4],
@@ -101,7 +101,7 @@ def test_hit_rate():
 
 
 class TestMRR:
-    def test_forward(self):
+    def test_forward(self) -> None:
         mrr = MRR(k=4)
 
         # test forward batch
@@ -147,7 +147,7 @@ class TestMRR:
 
 
 class TestHitRate:
-    def test_forward(self):
+    def test_forward(self) -> None:
         hit_rate = HitRate(k=1)
 
         # test forward batch

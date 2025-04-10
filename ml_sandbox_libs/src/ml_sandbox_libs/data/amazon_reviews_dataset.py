@@ -299,7 +299,18 @@ def preprocess_dataset(
     )
 
 
-class AmazonReviewsDataset(Dataset):
+type AmazonReviewsDatasetItem = tuple[
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+    torch.Tensor,
+]
+
+
+class AmazonReviewsDataset(Dataset[AmazonReviewsDatasetItem]):
     def __init__(
         self,
         df: pl.DataFrame,
@@ -323,7 +334,7 @@ class AmazonReviewsDataset(Dataset):
         self.max_seq_len = max_seq_len
         self.rng = np.random.default_rng(seed)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.df)
 
     def negative_sampling(
@@ -363,17 +374,7 @@ class AmazonReviewsDataset(Dataset):
         else:
             return F.pad(seq, (max_seq_len - len(seq), 0))
 
-    def __getitem__(
-        self, idx
-    ) -> tuple[
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-        torch.Tensor,
-    ]:
+    def __getitem__(self, idx: int) -> AmazonReviewsDatasetItem:
         """Get item
 
         Args:
@@ -536,7 +537,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         else:
             raise NotImplementedError(f"Invalid stage: {stage}")
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader[AmazonReviewsDatasetItem]:
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -545,7 +546,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
             persistent_workers=True,
         )
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader[AmazonReviewsDatasetItem]:
         # NOTE: For ranking metrics, we have more negative samples. So, to avoid OOM, we need to reduce the batch size.
         return DataLoader(
             self.val_dataset,
@@ -554,7 +555,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
             persistent_workers=True,
         )
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader[AmazonReviewsDatasetItem]:
         # NOTE: For ranking metrics, we have more negative samples. So, to avoid OOM, we need to reduce the batch size.
         return DataLoader(
             self.test_dataset,
