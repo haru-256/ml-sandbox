@@ -69,7 +69,7 @@ extend-select = ["I"]
 [tool.mypy]
 python_version = "3.12"
 exclude = [".venv"]
-disable_error_code = ["import-untyped", "assignment"]
+disable_error_code = ["import-untyped", "assignment", "unused-ignore"]
 
 follow_imports = "silent"
 warn_redundant_casts = true
@@ -79,7 +79,7 @@ no_implicit_reexport = true
 disallow_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["torch.*"]
+module = ["torch.*", "deepdiff.*", "datasets.*"]
 ignore_missing_imports = true
 
 [build-system]

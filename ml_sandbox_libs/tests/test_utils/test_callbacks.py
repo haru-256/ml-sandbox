@@ -1,13 +1,11 @@
 import pathlib
-from contextlib import contextmanager
 from copy import deepcopy
 from typing import Optional
 
 import lightning as L
 import pytest
 import torch
-from deepdiff import DeepDiff
-from loguru import logger
+from deepdiff import DeepDiff  # type: ignore
 from pytest_mock import MockerFixture
 
 from ml_sandbox_libs.utils.callbacks import CustomModelCheckpoint
@@ -22,13 +20,6 @@ def _custom_model_checkpoint_factory(
     if checkpoints is not None:
         callback._checkpoints = deepcopy(checkpoints)
     return callback
-
-
-@contextmanager
-def dummy_profiler():
-    logger.info("in")
-    yield
-    logger.info("end")
 
 
 class TestCustomModelCheckpoint:
