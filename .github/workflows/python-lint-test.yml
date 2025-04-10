@@ -82,6 +82,7 @@ jobs:
     needs: target_projects
     if: ${{ needs.target_projects.outputs.projects != '' && toJson(fromJson(needs.target_projects.outputs.projects)) != '[]' }}
     strategy:
+      fail-fast: false
       matrix:
         project: ${{ fromJson(needs.target_projects.outputs.projects) }}
     runs-on: ubuntu-latest
