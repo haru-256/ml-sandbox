@@ -61,7 +61,8 @@ jobs:
               // Filter out directories that contain pyproject.toml and Makefile
               const paths = inputs.filter(path => {
                 if (
-                  fs.statSync(path).isDirectory()
+                  fs.existsSync(path)
+                  && fs.statSync(path).isDirectory()
                   && fs.existsSync(`${path}/pyproject.toml`)
                   && fs.existsSync(`${path}/Makefile`)
                 ) {
