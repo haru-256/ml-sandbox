@@ -6,7 +6,12 @@ readme = "README.md"
 authors = [{ name = "haru256", email = "yohei.kuro48@gmail.com" }]
 requires-python = ">=3.12"
 classifiers = ["Private :: Do Not Upload"]
-dependencies = ["loguru~=0.7.3", "pydantic~=2.10.4", "pydantic-settings~=2.7.1"]
+dependencies = [
+  "loguru~=0.7.3",
+  "pydantic~=2.11.3",
+  "pydantic-settings~=2.8.1",
+  "google-cloud-aiplatform~=1.88.0",
+]
 
 [project.scripts]
 job-runner = "job_runner.main:main"
