@@ -427,11 +427,16 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         sampling_val_test: bool = False,
         eval_negative_sample_size: int = 100,
     ):
-        """IMDb data module
+        """Amazon Reviews Data Module
 
         Args:
             save_dir: save directory for preprocessed dataset
             batch_size: batch size. Defaults to 32.
+            num_workers: number of workers. Defaults to 2.
+            max_seq_len: maximum sequence length. Defaults to 50.
+            neg_sample_size: negative sample size. Defaults to 1.
+            sampling_val_test: whether to sample validation and test dataset. Defaults to False.
+            eval_negative_sample_size: negative sample size for evaluation. Defaults to 100.
         """
         super().__init__()
         self.save_dir = save_dir
