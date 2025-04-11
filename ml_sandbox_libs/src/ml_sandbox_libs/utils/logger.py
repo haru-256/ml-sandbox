@@ -39,7 +39,7 @@ def setup_logger(
 
     # Add a new sink for stdout
     logger.add(sys.stdout, level=level)
-    # Add a sink fpr a log file
+    # Add a sink for a log file
     if log_path is not None:
         logger.add(log_path, level=level)
 
