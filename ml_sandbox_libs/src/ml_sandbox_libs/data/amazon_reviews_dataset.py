@@ -3,7 +3,7 @@
 import pathlib
 import pickle
 from enum import IntEnum
-from typing import Literal
+from typing import Literal, NamedTuple
 
 import datasets as D
 import lightning as L
@@ -22,7 +22,9 @@ class SpecialIndex(IntEnum):
 
 def fetch_dataset(
     category: str = "Video_Games",
-    dataset_type: Literal["0core_last_out_w_his", "raw_review"] = "0core_last_out_w_his",
+    dataset_type: Literal[
+        "0core_last_out_w_his", "0core_timestamp_w_his", "raw_review"
+    ] = "0core_last_out_w_his",
 ) -> D.DatasetDict:
     """Fetch Amazon Reviews 2023 dataset from the datasets library.
 
@@ -30,6 +32,7 @@ def fetch_dataset(
         category: category name. Defaults to "Video_Games". Please refer to the dataset card for more details: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#grouped-by-category
         dataset_type: dataset type. Defaults to "0core_last_out_w_his"
             - "0core_last_out_w_his": user x product with reviewed history. https://amazon-reviews-2023.github.io/data_processing/0core.html
+            - "0core_timestamp_w_his": user x product with reviewed history. https://github.com/hyp1231/AmazonReviews2023/tree/main/benchmark_scripts#rating_only---timestamp
             - "raw_review": user x product pair simply. https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-user-reviews
 
     Returns:
@@ -66,7 +69,7 @@ def fetch_metadata(category: str = "Video_Games") -> D.Dataset:
 
 
 def preprocess_dataset(
-    dataset_dict: D.DatasetDict, metadata: D.Dataset
+    dataset_dict: D.DatasetDict, metadata: D.Dataset, filter_no_history: bool = True
 ) -> tuple[
     pl.DataFrame,
     pl.DataFrame,
@@ -81,6 +84,7 @@ def preprocess_dataset(
     Args:
         dataset: dataset from the datasets library(transformers)
         metadata: metadata dataset from the datasets library(transformers)
+        filter_no_history: whether to filter out the dataset which has no history. Defaults to True.
 
     Returns:
         train_df: train dataset
@@ -114,10 +118,10 @@ def preprocess_dataset(
     test_df = test_df.join(meta_df, on="parent_asin", how="left", validate="m:1")
 
     # filter out empty history
-    # NOTE: we should use data which dose not have history.
-    train_df = train_df.filter(pl.col("history") != "")
-    val_df = val_df.filter(pl.col("history") != "")
-    test_df = test_df.filter(pl.col("history") != "")
+    if filter_no_history:
+        train_df = train_df.filter(pl.col("history") != "")
+        val_df = val_df.filter(pl.col("history") != "")
+        test_df = test_df.filter(pl.col("history") != "")
 
     # assign unique ID to users, items and categories
     # user
@@ -147,6 +151,7 @@ def preprocess_dataset(
             start=len(SpecialIndex),
         )
     }
+    item2index.pop("", None)  # remove empty item
     item2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
     item2index_df = pl.from_dict(
         {
@@ -299,15 +304,27 @@ def preprocess_dataset(
     )
 
 
-type AmazonReviewsDatasetItem = tuple[
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-    torch.Tensor,
-]
+class AmazonReviewsDatasetItem(NamedTuple):
+    """
+    Amazon Reviews dataset item
+
+    Fields:
+        user_index: user index, shape: (B,)
+        item_history: item history, shape: (B, max_seq_len)
+        category_history: category history, shape: (B, max_seq_len)
+        pos_item_index: positive item index, shape: (B,)
+        pos_category_index: positive category index, shape: (B,)
+        neg_item_indexes: negative item indexes, shape: (B, neg_sample_size)
+        neg_category_indexes: negative category indexes, shape: (B, neg_sample_size)
+    """
+
+    user_index: torch.Tensor
+    item_history: torch.Tensor
+    category_history: torch.Tensor
+    pos_item_index: torch.Tensor
+    pos_category_index: torch.Tensor
+    neg_item_indexes: torch.Tensor
+    neg_category_indexes: torch.Tensor
 
 
 class AmazonReviewsDataset(Dataset[AmazonReviewsDatasetItem]):
@@ -397,22 +414,22 @@ class AmazonReviewsDataset(Dataset[AmazonReviewsDatasetItem]):
         # TODO: this operation is implemented in the preprocess_dataset function
         item_history = AmazonReviewsDataset.trunc_and_pad(item_history, self.max_seq_len)
         category_history = AmazonReviewsDataset.trunc_and_pad(category_history, self.max_seq_len)
-        # shape: (1,)
-        pos_item_index = torch.tensor(row["item_index"], dtype=torch.long).unsqueeze(0)
-        pos_category_index = torch.tensor(row["category_index"], dtype=torch.long).unsqueeze(0)
+        # shape: ()
+        pos_item_index = torch.tensor(row["item_index"], dtype=torch.long)
+        pos_category_index = torch.tensor(row["category_index"], dtype=torch.long)
         # shape: (neg_sample_size,)
         neg_item_indexes, neg_category_indexes = self.negative_sampling(
             int(pos_item_index.item()), neg_sample_size=self.neg_sample_size
         )
 
-        return (
-            user_index,
-            item_history,
-            category_history,
-            pos_item_index,
-            pos_category_index,
-            neg_item_indexes,
-            neg_category_indexes,
+        return AmazonReviewsDatasetItem(
+            user_index=user_index,
+            item_history=item_history,
+            category_history=category_history,
+            pos_item_index=pos_item_index,
+            pos_category_index=pos_category_index,
+            neg_item_indexes=neg_item_indexes,
+            neg_category_indexes=neg_category_indexes,
         )
 
 
@@ -426,6 +443,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         neg_sample_size: int = 1,
         sampling_val_test: bool = False,
         eval_negative_sample_size: int = 100,
+        filter_no_history: bool = True,
     ):
         """Amazon Reviews Data Module
 
@@ -437,6 +455,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
             neg_sample_size: negative sample size. Defaults to 1.
             sampling_val_test: whether to sample validation and test dataset. Defaults to False.
             eval_negative_sample_size: negative sample size for evaluation. Defaults to 100.
+            filter_no_history: whether to filter out the dataset which has no history. Defaults to True.
         """
         super().__init__()
         self.save_dir = save_dir
@@ -446,11 +465,12 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         self.neg_sample_size = neg_sample_size
         self.sampling_val_test = sampling_val_test
         self.eval_negative_sample_size = eval_negative_sample_size
+        self.filter_no_history = filter_no_history
 
     def prepare_data(self) -> None:
-        train_path = self.save_dir / "train.avro"
-        val_path = self.save_dir / "val.avro"
-        test_path = self.save_dir / "test.avro"
+        train_path = self.save_dir / "train.parquet"
+        val_path = self.save_dir / "val.parquet"
+        test_path = self.save_dir / "test.parquet"
         user2index_path = self.save_dir / "user2index.pkl"
         item2index_path = self.save_dir / "item2index.pkl"
         category2index_path = self.save_dir / "category2index.pkl"
@@ -466,9 +486,9 @@ class AmazonReviewsDataModule(L.LightningDataModule):
             and item_index_2_category_index_path.exists()
         ):
             logger.info("Loading preprocessed dataset")
-            self.train_df = pl.read_avro(train_path)
-            self.val_df = pl.read_avro(val_path)
-            self.test_df = pl.read_avro(test_path)
+            self.train_df = pl.read_parquet(train_path)
+            self.val_df = pl.read_parquet(val_path)
+            self.test_df = pl.read_parquet(test_path)
             with open(user2index_path, "rb") as f:
                 self.user2index: dict[str, int] = pickle.load(f)
             with open(item2index_path, "rb") as f:
@@ -492,18 +512,22 @@ class AmazonReviewsDataModule(L.LightningDataModule):
                 self.item2index,
                 self.category2index,
                 self.item_index_2_category_index,
-            ) = preprocess_dataset(dataset_dict, metadata)
+            ) = preprocess_dataset(dataset_dict, metadata, filter_no_history=self.filter_no_history)
 
             # save
-            self.train_df.write_avro(train_path)
-            self.val_df.write_avro(val_path)
-            self.test_df.write_avro(test_path)
+            self.train_df.write_parquet(train_path)
+            self.val_df.write_parquet(val_path)
+            self.test_df.write_parquet(test_path)
+            # FIXME: pickleはsafeではないが、特に公開する必要はないのでpickleを採用
+            # https://www.benfrederickson.com/dont-pickle-your-data
             with open(user2index_path, "wb") as f:
                 pickle.dump(self.user2index, f)
             with open(item2index_path, "wb") as f:
                 pickle.dump(self.item2index, f)
             with open(category2index_path, "wb") as f:
                 pickle.dump(self.category2index, f)
+            with open(item_index_2_category_index_path, "wb") as f:
+                pickle.dump(self.item_index_2_category_index, f)
 
         # validation and test dataset has too many samples, so we need to reduce the size
         if self.sampling_val_test:
