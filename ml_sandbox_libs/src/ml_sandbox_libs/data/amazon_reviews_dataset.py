@@ -23,8 +23,8 @@ class SpecialIndex(IntEnum):
 def fetch_dataset(
     category: str = "Video_Games",
     dataset_type: Literal[
-        "0core_last_out_w_his", "0core_timestamp_w_his", "raw_review"
-    ] = "0core_last_out_w_his",
+        "0core_timestamp_w_his", "0core_last_out_w_his", "raw_review"
+    ] = "0core_timestamp_w_his",
 ) -> D.DatasetDict:
     """Fetch Amazon Reviews 2023 dataset from the datasets library.
 
@@ -68,7 +68,7 @@ def fetch_metadata(category: str = "Video_Games") -> D.Dataset:
     return metadata
 
 
-def preprocess_dataset(
+def seq_rec_preprocess_dataset(
     dataset_dict: D.DatasetDict, metadata: D.Dataset, filter_no_history: bool = True
 ) -> tuple[
     pl.DataFrame,
@@ -304,9 +304,9 @@ def preprocess_dataset(
     )
 
 
-class AmazonReviewsDatasetItem(NamedTuple):
+class AmazonReviewsSeqRecItem(NamedTuple):
     """
-    Amazon Reviews dataset item
+    Amazon Reviews dataset item for Sequential Recommendation
 
     Fields:
         user_index: user index, shape: (B,)
@@ -327,7 +327,7 @@ class AmazonReviewsDatasetItem(NamedTuple):
     neg_category_indexes: torch.Tensor
 
 
-class AmazonReviewsDataset(Dataset[AmazonReviewsDatasetItem]):
+class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
     def __init__(
         self,
         df: pl.DataFrame,
@@ -336,7 +336,7 @@ class AmazonReviewsDataset(Dataset[AmazonReviewsDatasetItem]):
         max_seq_len: int,
         seed: int = 1026,
     ):
-        """Amazon Reviews dataset
+        """Amazon Reviews dataset for sequential recommendation
 
         Args:
             df: dataframe, schema: ["user_index", "history_index", "item_index"]
@@ -391,29 +391,25 @@ class AmazonReviewsDataset(Dataset[AmazonReviewsDatasetItem]):
         else:
             return F.pad(seq, (max_seq_len - len(seq), 0))
 
-    def __getitem__(self, idx: int) -> AmazonReviewsDatasetItem:
+    def __getitem__(self, idx: int) -> AmazonReviewsSeqRecItem:
         """Get item
 
         Args:
             idx: index
 
         Returns:
-            user_index: user index, shape: ()
-            item_history: item history, shape: (self.max_seq_len,)
-            category_history: category history, shape: (self.max_seq_len,)
-            pos_item_index: positive item index, shape: ()
-            pos_category_index: positive category index, shape: ()
-            neg_item_indexes: negative item indexes, shape: (neg_sample_size,)
-            neg_category_indexes: negative category indexes, shape: (neg_sample_size,)
+            AmazonReviewsDatasetItem
         """
         row = self.df.row(idx, named=True)
         user_index = torch.tensor(row["user_index"], dtype=torch.long)
         item_history = torch.tensor(row["history_index"], dtype=torch.long)
         category_history = torch.tensor(row["history_category_index"], dtype=torch.long)
         # truncate or pad
-        # TODO: this operation is implemented in the preprocess_dataset function
-        item_history = AmazonReviewsDataset.trunc_and_pad(item_history, self.max_seq_len)
-        category_history = AmazonReviewsDataset.trunc_and_pad(category_history, self.max_seq_len)
+        # TODO: this operation should be implemented in the seq_rec_preprocess_dataset function
+        item_history = AmazonReviewsSeqRecDataset.trunc_and_pad(item_history, self.max_seq_len)
+        category_history = AmazonReviewsSeqRecDataset.trunc_and_pad(
+            category_history, self.max_seq_len
+        )
         # shape: ()
         pos_item_index = torch.tensor(row["item_index"], dtype=torch.long)
         pos_category_index = torch.tensor(row["category_index"], dtype=torch.long)
@@ -422,7 +418,7 @@ class AmazonReviewsDataset(Dataset[AmazonReviewsDatasetItem]):
             int(pos_item_index.item()), neg_sample_size=self.neg_sample_size
         )
 
-        return AmazonReviewsDatasetItem(
+        return AmazonReviewsSeqRecItem(
             user_index=user_index,
             item_history=item_history,
             category_history=category_history,
@@ -433,7 +429,7 @@ class AmazonReviewsDataset(Dataset[AmazonReviewsDatasetItem]):
         )
 
 
-class AmazonReviewsDataModule(L.LightningDataModule):
+class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
     def __init__(
         self,
         save_dir: pathlib.Path,
@@ -445,7 +441,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         eval_negative_sample_size: int = 100,
         filter_no_history: bool = True,
     ):
-        """Amazon Reviews Data Module
+        """Amazon Reviews Data Module for Sequential Recommendation
 
         Args:
             save_dir: save directory for preprocessed dataset
@@ -512,7 +508,9 @@ class AmazonReviewsDataModule(L.LightningDataModule):
                 self.item2index,
                 self.category2index,
                 self.item_index_2_category_index,
-            ) = preprocess_dataset(dataset_dict, metadata, filter_no_history=self.filter_no_history)
+            ) = seq_rec_preprocess_dataset(
+                dataset_dict, metadata, filter_no_history=self.filter_no_history
+            )
 
             # save
             self.train_df.write_parquet(train_path)
@@ -542,14 +540,14 @@ class AmazonReviewsDataModule(L.LightningDataModule):
 
     def setup(self, stage: str) -> None:
         if stage == "fit":
-            self.train_dataset = AmazonReviewsDataset(
+            self.train_dataset = AmazonReviewsSeqRecDataset(
                 self.train_df,
                 random_neg_sampling_pool=self.random_neg_sampling_pool,
                 neg_sample_size=self.neg_sample_size,
                 max_seq_len=self.max_seq_len,
             )
             # NOTE: For ranking metrics, we need to sample more negative items.
-            self.val_dataset = AmazonReviewsDataset(
+            self.val_dataset = AmazonReviewsSeqRecDataset(
                 self.val_df,
                 random_neg_sampling_pool=self.random_neg_sampling_pool,
                 neg_sample_size=self.eval_negative_sample_size,
@@ -557,7 +555,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
             )
         elif stage == "test":
             # NOTE: For ranking metrics, we need to sample more negative items.
-            self.test_dataset = AmazonReviewsDataset(
+            self.test_dataset = AmazonReviewsSeqRecDataset(
                 self.test_df,
                 random_neg_sampling_pool=self.random_neg_sampling_pool,
                 neg_sample_size=self.eval_negative_sample_size,
@@ -566,7 +564,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
         else:
             raise NotImplementedError(f"Invalid stage: {stage}")
 
-    def train_dataloader(self) -> DataLoader[AmazonReviewsDatasetItem]:
+    def train_dataloader(self) -> DataLoader[AmazonReviewsSeqRecItem]:
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -575,7 +573,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
             persistent_workers=True,
         )
 
-    def val_dataloader(self) -> DataLoader[AmazonReviewsDatasetItem]:
+    def val_dataloader(self) -> DataLoader[AmazonReviewsSeqRecItem]:
         # NOTE: For ranking metrics, we have more negative samples. So, to avoid OOM, we need to reduce the batch size.
         return DataLoader(
             self.val_dataset,
@@ -584,7 +582,7 @@ class AmazonReviewsDataModule(L.LightningDataModule):
             persistent_workers=True,
         )
 
-    def test_dataloader(self) -> DataLoader[AmazonReviewsDatasetItem]:
+    def test_dataloader(self) -> DataLoader[AmazonReviewsSeqRecItem]:
         # NOTE: For ranking metrics, we have more negative samples. So, to avoid OOM, we need to reduce the batch size.
         return DataLoader(
             self.test_dataset,
