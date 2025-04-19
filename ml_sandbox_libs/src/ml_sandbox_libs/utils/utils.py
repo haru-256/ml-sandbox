@@ -60,15 +60,15 @@ def cpu_count() -> int:
     return cnt
 
 
-def add_prefix_to_keys(d: dict[str, Any], prefix: str, deliminator: str = "_") -> dict[str, Any]:
+def add_prefix_to_keys(d: dict[str, Any], prefix: str, delimiter: str = "_") -> dict[str, Any]:
     """Add prefix to keys of a dictionary
 
     Args:
         d: input dictionary
         prefix: prefix to add
-        deliminator: deliminator to use between prefix and key
+        delimiter: delimiter to use between prefix and key
 
     Returns:
         dictionary with prefixed keys
     """
-    return {f"{prefix}{deliminator}{k}": v for k, v in d.items()}
+    return {f"{prefix}{delimiter}{k}": v for k, v in d.items()}
