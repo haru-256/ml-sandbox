@@ -8,7 +8,7 @@ from pydantic_settings import BaseSettings, CliApp, SettingsConfigDict
 
 
 class JobRunner(BaseSettings):
-    """JobRunner class to run a job on Google Cloud AI Platform"""
+    """Run a job on Google Cloud AI Platform"""
 
     model_config = SettingsConfigDict(
         cli_parse_args=True,

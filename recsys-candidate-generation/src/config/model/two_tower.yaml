@@ -1,0 +1,14 @@
+name: "TwoTower"
+
+out_dim: 64 # 出力次元数
+
+user_id_dim: 128 # User ID embeddingの出力次元数
+item_id_dim: 128 # Item ID embeddingの出力次元数
+category_id_dim: 128 # カテゴリID embeddingの出力次元数
+
+# Towerの中間層
+hidden_dims: [64, 64] # 中間層の次元数
+
+normalization: "batch"
+activation: "leaky_relu"
+dropout: 0

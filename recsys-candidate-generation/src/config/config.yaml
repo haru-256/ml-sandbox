@@ -1,3 +1,26 @@
 defaults:
   - _self_
   - hydra: default
+  - model: two_tower
+
+save_dir: ./results/
+debug: true
+
+device:
+  accelerator: gpu
+  accelerator_no: 0
+  num_workers: 4
+
+data:
+  batch_size: 512
+  max_seq_len: 50
+  neg_sample_size: 4
+  top_k: 100 # nDCGやMRRを評価する上位K
+
+loss:
+  learning_rate: 0.001
+  gradient_clip_val: 1.0
+  weight_decay: 0
+
+log:
+  log_every_n_steps: 100

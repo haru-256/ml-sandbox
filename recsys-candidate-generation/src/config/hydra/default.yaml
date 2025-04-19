@@ -4,4 +4,4 @@ defaults:
   - override hydra_logging: none
 
 run:
-  dir: ../results/artifact/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  dir: ./results/artifact/${now:%Y-%m-%d}/${now:%H-%M-%S}
