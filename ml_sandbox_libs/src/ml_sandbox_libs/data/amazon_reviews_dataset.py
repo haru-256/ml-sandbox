@@ -318,13 +318,13 @@ class AmazonReviewsSeqRecItem(NamedTuple):
     Amazon Reviews dataset item for Sequential Recommendation
 
     Fields:
-        user_index: user index, shape: (,)
-        item_history: item history, shape: (max_seq_len)
-        category_history: category history, shape: (max_seq_len)
+        user_index: user index, shape: ()
+        item_history: item history, shape: (max_seq_len,)
+        category_history: category history, shape: (max_seq_len,)
         pos_item_index: positive item index, shape: ()
         pos_category_index: positive category index, shape: ()
-        neg_item_indexes: negative item indexes, shape: (neg_sample_size)
-        neg_category_indexes: negative category indexes, shape: ( neg_sample_size)
+        neg_item_indexes: negative item indexes, shape: (neg_sample_size,)
+        neg_category_indexes: negative category indexes, shape: (neg_sample_size,)
     """
 
     user_index: torch.Tensor
