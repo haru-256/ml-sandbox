@@ -405,7 +405,7 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
         item_history = torch.tensor(row["history_index"], dtype=torch.long)
         category_history = torch.tensor(row["history_category_index"], dtype=torch.long)
         # truncate or pad
-        # TODO: this operation is implemented in the preprocess_dataset function
+        # TODO: this operation should be implemented in the seq_rec_preprocess_dataset function
         item_history = AmazonReviewsSeqRecDataset.trunc_and_pad(item_history, self.max_seq_len)
         category_history = AmazonReviewsSeqRecDataset.trunc_and_pad(
             category_history, self.max_seq_len
