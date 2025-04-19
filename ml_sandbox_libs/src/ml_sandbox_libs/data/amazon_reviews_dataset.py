@@ -125,6 +125,9 @@ def seq_rec_preprocess_dataset(
 
     # assign unique ID to users, items and categories
     # user
+    # FIXME: 以下のどちらかの条件を満たすUserはUNKに対応させる
+    # - 出現回数が一定以下のuser
+    # - trainに出現しないuser
     user2index: dict[str, int] = {
         user_id: idx
         for idx, user_id in enumerate(
@@ -138,6 +141,9 @@ def seq_rec_preprocess_dataset(
     )
     assert user2index.get("", -1) == -1, "Empty user should not be in the user2index"
     # item
+    # FIXME: 以下のどちらかの条件を満たすItemはUNKに対応させる
+    # - 出現回数が一定以下のitem
+    # - trainに出現しないitem
     item2index: dict[str, int] = {
         parent_asin: idx
         for idx, parent_asin in enumerate(
@@ -161,6 +167,9 @@ def seq_rec_preprocess_dataset(
     )
     assert item2index.get("", -1) == -1, "Empty item should not be in the item2index"
     # category
+    # FIXME: 以下のどちらかの条件を満たすcategoryはUNKに対応させる
+    # - 出現回数が一定以下のcategory
+    # - trainに出現しないcategory
     category2index: dict[str, int] = {
         category: idx
         for idx, category in enumerate(
@@ -309,13 +318,13 @@ class AmazonReviewsSeqRecItem(NamedTuple):
     Amazon Reviews dataset item for Sequential Recommendation
 
     Fields:
-        user_index: user index, shape: (B,)
-        item_history: item history, shape: (B, max_seq_len)
-        category_history: category history, shape: (B, max_seq_len)
-        pos_item_index: positive item index, shape: (B,)
-        pos_category_index: positive category index, shape: (B,)
-        neg_item_indexes: negative item indexes, shape: (B, neg_sample_size)
-        neg_category_indexes: negative category indexes, shape: (B, neg_sample_size)
+        user_index: user index, shape: (,)
+        item_history: item history, shape: (max_seq_len)
+        category_history: category history, shape: (max_seq_len)
+        pos_item_index: positive item index, shape: ()
+        pos_category_index: positive category index, shape: ()
+        neg_item_indexes: negative item indexes, shape: (neg_sample_size)
+        neg_category_indexes: negative category indexes, shape: ( neg_sample_size)
     """
 
     user_index: torch.Tensor
@@ -325,6 +334,21 @@ class AmazonReviewsSeqRecItem(NamedTuple):
     pos_category_index: torch.Tensor
     neg_item_indexes: torch.Tensor
     neg_category_indexes: torch.Tensor
+
+
+class AmazonReviewsSeqRecBatch(AmazonReviewsSeqRecItem):
+    """
+    Amazon Reviews dataset item for Sequential Recommendation
+
+    Fields:
+        user_index: user index, shape: (B,)
+        item_history: item history, shape: (B, max_seq_len)
+        category_history: category history, shape: (B, max_seq_len)
+        pos_item_index: positive item index, shape: (B,)
+        pos_category_index: positive category index, shape: (B,)
+        neg_item_indexes: negative item indexes, shape: (B, neg_sample_size)
+        neg_category_indexes: negative category indexes, shape: (B,  neg_sample_size)
+    """
 
 
 class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
@@ -590,3 +614,17 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
             num_workers=self.num_workers,
             persistent_workers=True,
         )
+
+    def summary(self) -> str:
+        """Summary of the dataset
+
+        Returns:
+            str: summary of the dataset
+        """
+        return f"""
+        Train Dataset: {len(self.train_dataset)}
+        Val Dataset: {len(self.val_dataset)}
+        User2Index: {len(self.user2index)}
+        Item2Index: {len(self.item2index)}
+        Category2Index: {len(self.category2index)}
+        """
