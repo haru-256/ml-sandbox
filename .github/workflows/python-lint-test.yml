@@ -81,12 +81,15 @@ jobs:
       matrix:
         project: ${{ fromJson(needs.target_projects.outputs.projects) }}
     runs-on: ubuntu-latest
+    env:
+      RUFF_OUTPUT_FORMAT: github
     concurrency:
       group: ${{ github.workflow }}-${{ matrix.project }}
       cancel-in-progress: true
     defaults:
       run:
         working-directory: ${{ matrix.project }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
