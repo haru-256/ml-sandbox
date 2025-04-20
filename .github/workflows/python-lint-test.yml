@@ -2,13 +2,9 @@ name: Python Lint and Test
 
 on:
   pull_request:
-    paths:
-      - "**/*.py"
   push:
     branches:
       - "main"
-    paths:
-      - "**/*.py"
   workflow_dispatch:
     inputs:
       target_projects:
