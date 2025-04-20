@@ -2,7 +2,7 @@
 dependencies = [
   "lightning~=2.5.1",
   "torchmetrics~=1.7.1",
-  "numpy~=2.2.4",
+  "numpy~=2.2.5",
   "polars~=1.27.1",
   "torchinfo~=1.8.0",
   "loguru~=0.7.3",
@@ -19,8 +19,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 
 [project.optional-dependencies]
-cpu = ["torch==2.6.0"]
-gpu = ["torch==2.6.0"]
+cpu = ["torch==2.6.0", "torchvision==0.21.0"]
+gpu = ["torch==2.6.0", "torchvision==0.21.0"]
 
 [dependency-groups]
 dev = ["notebook~=7.3.2", "ipywidgets>=8.1.5", "tqdm~=4.67.1"]
@@ -34,6 +34,11 @@ conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
 ml-sandbox-libs = { path = "../ml_sandbox_libs", editable = true }
 job-runner = { path = "../job_runner", editable = true }
 torch = [
+  { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'macOS'" },
+  { index = "pytorch-gpu", extra = "gpu" },
+]
+torchvision = [
   { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'macOS'" },
   { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'macOS'" },
   { index = "pytorch-gpu", extra = "gpu" },
