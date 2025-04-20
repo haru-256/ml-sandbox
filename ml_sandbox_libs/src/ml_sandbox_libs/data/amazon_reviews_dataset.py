@@ -172,8 +172,7 @@ def seq_rec_preprocess_dataset(
             start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
         )
     }
-
-    user2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
+    user2index.update({"#UNK": SpecialIndex.UNK})
     user2index_df = pl.from_dict(
         {"user_id": list(user2index.keys()), "user_index": list(user2index.values())}
     )
