@@ -1,5 +1,3 @@
-# TODO: this dataset.py is same as the one in the sequential recommendation. so, we need to refactor it.
-
 import pathlib
 import pickle
 from enum import IntEnum
@@ -68,6 +66,36 @@ def fetch_metadata(category: str = "Video_Games") -> D.Dataset:
     return metadata
 
 
+def unk_filter_by_count(df: pl.DataFrame, id_column_name: str, threshold: float) -> pl.DataFrame:
+    """Filter out the items which are not in the top k% of the count.
+
+    Args:
+        df: dataframe to filter, schema: [`id_column_name`]
+        id_column_name: id column name, which is used to group by
+        threshold: threshold for filtering, the top k% of the count will be kept. For example, if threshold is 0.95, the top 95% of the count will be kept.
+
+    Returns:
+        filtered dataframe, schema: [`id_column_name`]
+    """
+    counts_df = (
+        df.group_by(id_column_name)
+        .agg(pl.len().alias("count"))
+        .sort("count", descending=True)
+        .select(
+            pl.col(id_column_name),
+            pl.col("count"),
+            pl.col("count").cum_sum().alias("cumulative_count"),
+        )
+        .with_columns(
+            (pl.col("cumulative_count") / pl.col("count").sum()).alias("cumulative_count_rate")
+        )
+    )
+    filtered_df = counts_df.filter(pl.col("cumulative_count_rate") <= threshold).select(
+        id_column_name
+    )
+    return filtered_df
+
+
 def seq_rec_preprocess_dataset(
     dataset_dict: D.DatasetDict, metadata: D.Dataset, filter_no_history: bool = True
 ) -> tuple[
@@ -124,40 +152,60 @@ def seq_rec_preprocess_dataset(
         test_df = test_df.filter(pl.col("history") != "")
 
     # assign unique ID to users, items and categories
+    # 以下の条件を満たすUser/Item/CategoryはUNKに対応させるため、欠損させる。欠損したitemは後ほどUNKに対応させる
+    # - 出現回数が一定以下
+    threshold = 0.95
     # user
-    # FIXME: 以下のどちらかの条件を満たすUserはUNKに対応させる
-    # - 出現回数が一定以下のuser
-    # - trainに出現しないuser
+    filtered_by_count_df = unk_filter_by_count(
+        train_df, id_column_name="user_id", threshold=threshold
+    )
+    # 出現回数が一定以下のuserを除外
+    train_users = (
+        train_df.select(pl.col("user_id"))
+        .unique()
+        .join(filtered_by_count_df, on="user_id", how="inner", validate="1:1")
+    )
     user2index: dict[str, int] = {
         user_id: idx
         for idx, user_id in enumerate(
-            train_df["user_id"].unique().sort(),
+            train_users["user_id"].sort(),
             start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
         )
     }
+
+    a
+    ge
+
     user2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
     user2index_df = pl.from_dict(
         {"user_id": list(user2index.keys()), "user_index": list(user2index.values())}
     )
     assert user2index.get("", -1) == -1, "Empty user should not be in the user2index"
     # item
-    # FIXME: 以下のどちらかの条件を満たすItemはUNKに対応させる
-    # - 出現回数が一定以下のitem
-    # - trainに出現しないitem
+    train_item_df = (
+        pl.concat(
+            [train_df["parent_asin"], train_df["history"].str.split(" ").explode()],
+            how="vertical",
+        )
+        .rename("parent_asin")
+        .to_frame()
+        .filter(pl.col("parent_asin") != "")
+    )
+    filtered_by_count_df = unk_filter_by_count(
+        train_item_df, id_column_name="parent_asin", threshold=threshold
+    )
+    train_items = (
+        train_item_df.select(pl.col("parent_asin"))
+        .unique()
+        .join(filtered_by_count_df, on="parent_asin", how="inner", validate="1:1")
+    )
     item2index: dict[str, int] = {
-        parent_asin: idx
-        for idx, parent_asin in enumerate(
-            # history has item which is not in the parent_asin
-            pl.concat(
-                [train_df["parent_asin"], train_df["history"].str.split(" ").explode()],
-                how="vertical",
-            )
-            .unique()
-            .sort(),
-            start=len(SpecialIndex),
+        user_id: idx
+        for idx, user_id in enumerate(
+            train_items["parent_asin"].sort(),
+            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
         )
     }
-    item2index.pop("", None)  # remove empty item
     item2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
     item2index_df = pl.from_dict(
         {
@@ -167,14 +215,19 @@ def seq_rec_preprocess_dataset(
     )
     assert item2index.get("", -1) == -1, "Empty item should not be in the item2index"
     # category
-    # FIXME: 以下のどちらかの条件を満たすcategoryはUNKに対応させる
-    # - 出現回数が一定以下のcategory
-    # - trainに出現しないcategory
+    filtered_by_count_df = unk_filter_by_count(
+        train_df, id_column_name="category", threshold=threshold
+    )
+    train_categorys = (
+        train_df.select(pl.col("category"))
+        .unique()
+        .join(filtered_by_count_df, on="category", how="inner", validate="1:1")
+    )
     category2index: dict[str, int] = {
-        category: idx
-        for idx, category in enumerate(
-            train_df.filter(pl.col("category").is_not_null())["category"].unique().sort(),
-            start=len(SpecialIndex),
+        user_id: idx
+        for idx, user_id in enumerate(
+            train_categorys["category"].sort(),
+            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
         )
     }
     category2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
