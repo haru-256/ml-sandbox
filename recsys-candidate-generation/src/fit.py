@@ -11,8 +11,9 @@ from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecDataM
 from ml_sandbox_libs.utils import setup_logger
 from omegaconf import DictConfig
 
+from const import EVAL_NEG_SAMPLE_SIZE
 from models import TwoTowerModule
-from my_types import LossParams
+from my_types import LRSchedulerParams, OptimizerParams
 
 
 @hydra.main(version_base=None, config_path="config", config_name="config")
@@ -31,11 +32,25 @@ def main(cfg: DictConfig) -> None:
         max_seq_len=cfg.data.max_seq_len,
         neg_sample_size=cfg.data.neg_sample_size,
         num_workers=cfg.device.num_workers,
+        eval_negative_sample_size=EVAL_NEG_SAMPLE_SIZE,
     )
     datamodule.prepare_data()
     datamodule.setup(stage="fit")
     logger.info(datamodule.summary())
 
+    optimizer_params = OptimizerParams(
+        lr=cfg.optimizer.lr,
+        weight_decay=cfg.optimizer.weight_decay,
+        lr_scheduler=LRSchedulerParams(
+            step_unit=cfg.optimizer.lr_scheduler.step_unit,
+            frequency=cfg.optimizer.lr_scheduler.frequency,
+            t_initial=cfg.optimizer.lr_scheduler.t_initial,
+            warmup_t=cfg.optimizer.lr_scheduler.warmup_t,
+            warmup_lr_init=cfg.optimizer.lr_scheduler.warmup_lr_init,
+            lr_min=cfg.optimizer.lr_scheduler.lr_min,
+            cycle_limit=cfg.optimizer.lr_scheduler.cycle_limit,
+        ),
+    )
     if cfg.model.name == "TwoTower":
         module = TwoTowerModule(
             num_users=len(datamodule.user2index),
@@ -48,13 +63,10 @@ def main(cfg: DictConfig) -> None:
             activation=cfg.model.activation,
             dropout=cfg.model.dropout,
             pad_idx=SpecialIndex.PAD,
-            # loss
-            loss_params=LossParams(
-                learning_rate=cfg.loss.learning_rate,
-                weight_decay=cfg.loss.weight_decay,
-            ),
+            # optimizer
+            optimizer_params=optimizer_params,
             # eval
-            top_k=cfg.data.top_k,
+            eval_top_k=cfg.data.eval_top_k,
         )
     else:
         raise NotImplementedError(f"{cfg.model.name=} is not supported")
@@ -71,22 +83,25 @@ def main(cfg: DictConfig) -> None:
         project="recsys-candidate-generation",
         name=cfg.model.name,
         save_dir=save_dir / "logs",
-        version=datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+        version=f"{cfg.model.name}_{datetime.now().strftime('%Y%m%dT%H%M%S')}",
     )
     trainer = L.Trainer(
         max_epochs=10,
         accelerator=cfg.device.accelerator,
         devices=[cfg.device.accelerator_no] if cfg.device.accelerator == "gpu" else "auto",
         callbacks=[
-            EarlyStopping(monitor="val_loss", mode="min", patience=3),
+            EarlyStopping(monitor="val_hit_rate", mode="max", patience=3),
         ],
         detect_anomaly=True,
         fast_dev_run=10 if cfg.debug else False,
         enable_progress_bar=False,
+        enable_model_summary=False,
         log_every_n_steps=cfg.log.log_every_n_steps,
         logger=wandb_logger,
         gradient_clip_val=cfg.loss.gradient_clip_val,
         gradient_clip_algorithm="norm",
+        limit_train_batches=1000,
+        limit_val_batches=1000,
     )
     trainer.fit(model=module, datamodule=datamodule)
 

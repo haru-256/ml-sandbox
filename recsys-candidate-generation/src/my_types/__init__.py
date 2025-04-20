@@ -2,8 +2,22 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
-class LossParams:
+class OptimizerParams:
     """Loss parameters."""
 
-    learning_rate: float = 1e-3
-    weight_decay: float = 1e-5
+    lr: float
+    weight_decay: float
+    lr_scheduler: "LRSchedulerParams"
+
+
+@dataclass(frozen=True)
+class LRSchedulerParams:
+    """Learning rate scheduler parameters."""
+
+    step_unit: str
+    frequency: int
+    t_initial: int
+    warmup_t: int
+    warmup_lr_init: float
+    lr_min: float
+    cycle_limit: int

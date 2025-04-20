@@ -1,0 +1,5 @@
+EVAL_NEG_SAMPLE_SIZE = 99
+
+__all__ = [
+    "EVAL_NEG_SAMPLE_SIZE",
+]

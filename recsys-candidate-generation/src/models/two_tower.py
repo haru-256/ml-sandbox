@@ -2,16 +2,18 @@ from typing import Any, Literal, Optional, override
 
 import lightning as L
 import torch
+from lightning.pytorch.utilities.types import LRSchedulerConfigType, OptimizerLRSchedulerConfig
 from loguru import logger
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.utils.metrics import create_classification_inputs, create_retrieval_inputs
 from ml_sandbox_libs.utils.utils import add_prefix_to_keys
+from timm.scheduler.cosine_lr import CosineLRScheduler
 from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
-from my_types import LossParams
+from my_types import OptimizerParams
 
 from .modules.base import IdEmbedding, LinearBlock
 
@@ -29,15 +31,19 @@ class UserTower(nn.Module):
     ):
         """User tower module for the Two-Tower model.
 
-        Projects user ID to an embedding space and processes it through linear layers.
+        Embeds user IDs and processes them through a series of linear layers
+        to produce user embeddings.
 
         Args:
-            num_users: Total number of unique users.
+            num_users: Total number of unique users. Used to determine the size
+                of the user ID embedding table (num_users + 1 for unknown user).
             out_dim: The final output dimension of the user embedding.
             user_id_dim: The dimension of the initial user ID embedding.
             hidden_dims: A list of dimensions for the hidden linear layers.
-            normalization: The type of normalization to use in the linear blocks (e.g., "batch", "layer"). None for no normalization.
-            activation: The type of activation function to use in the linear blocks (e.g., "relu", "leaky_relu"). None for no activation.
+            normalization: The type of normalization to use in the linear blocks
+                (e.g., "batch", "layer"). None for no normalization.
+            activation: The type of activation function to use in the linear blocks
+                (e.g., "relu", "leaky_relu"). None for no activation.
             dropout: Dropout probability for the linear blocks. Defaults to 0.0.
         """
         super().__init__()
@@ -68,11 +74,16 @@ class UserTower(nn.Module):
         """Forward pass for the UserTower.
 
         Args:
-            user_ids: Tensor containing user IDs. Shape: (B,)
-            user_features: input user feature tensor, shape (B, F). F is feature dimension
+            user_ids: Tensor containing user IDs. Shape: (B,).
+            user_features: Optional tensor containing user features. Shape: (B, F).
+                Currently not implemented.
 
         Returns:
-            Tensor representing the user embeddings. Shape: (B, out_dim)
+            Tensor representing the user embeddings. Shape: (B, out_dim).
+
+        Raises:
+            NotImplementedError: If user_features is provided.
+            AssertionError: If user_ids is not a 1D tensor.
         """
         assert user_ids.ndim == 1, f"user_ids should be 1D tensor, got shape {user_ids.shape}"
         if user_features is not None:
@@ -99,16 +110,21 @@ class ItemTower(nn.Module):
     ):
         """Item tower module for the Two-Tower model.
 
-        Projects item ID to an embedding space and processes it through linear layers.
+        Embeds item IDs and processes them through a series of linear layers
+        to produce item embeddings.
 
         Args:
-            num_items: Total number of unique items.
+            num_items: Total number of unique items. Used to determine the size
+                of the item ID embedding table (num_items + 2 for unknown and padding).
             out_dim: The final output dimension of the item embedding.
             item_id_dim: The dimension of the initial item ID embedding.
             hidden_dims: A list of dimensions for the hidden linear layers.
-            normalization: The type of normalization to use in the linear blocks (e.g., "batch", "layer"). None for no normalization.
-            activation: The type of activation function to use in the linear blocks (e.g., "relu", "leaky_relu"). None for no activation.
-            dropout: Dropout probability for the linear blocks. Defaults to 0.0.
+            normalization: The type of normalization to use in the linear blocks
+                (e.g., "batch", "layer"). None for no normalization.
+            activation: The type of activation function to use in the linear blocks
+                (e.g., "relu", "leaky_relu"). None for no activation.
+            dropout: Dropout probability for the linear blocks.
+            padding_idx: Index used for padding in the item ID embedding table.
         """
         super().__init__()
         self.out_dim = out_dim
@@ -138,11 +154,16 @@ class ItemTower(nn.Module):
         """Forward pass for the ItemTower.
 
         Args:
-            item_ids: Tensor containing item IDs. Shape: (B,) or (B * N,)
-            item_features: input item feature tensor, shape (B, F). F is feature dimension
+            item_ids: Tensor containing item IDs. Shape: (B,) or (B * N,).
+            item_features: Optional tensor containing item features. Shape: (B, F) or (B * N, F).
+                Currently not implemented.
 
         Returns:
-            Tensor representing the item embeddings. Shape: (B, out_dim) or (B * N, out_dim)
+            Tensor representing the item embeddings. Shape: (B, out_dim) or (B * N, out_dim).
+
+        Raises:
+            NotImplementedError: If item_features is provided.
+            AssertionError: If item_ids is not a 1D tensor.
         """
         assert item_ids.ndim == 1, f"item_ids should be 1D tensor, got shape {item_ids.shape}"
         if item_features is not None:
@@ -171,7 +192,7 @@ class TwoTower(nn.Module):
     ):
         """Two-Tower model architecture.
 
-        Consists of a UserTower and an ItemTower.
+        Consists of a UserTower and an ItemTower that produce embeddings independently.
 
         Args:
             num_users: Total number of unique users.
@@ -179,10 +200,11 @@ class TwoTower(nn.Module):
             out_dim: The final output dimension for both user and item embeddings.
             user_id_dim: The dimension of the initial user ID embedding.
             item_id_dim: The dimension of the initial item ID embedding.
+            padding_idx: Index used for padding in the item ID embedding table.
             hidden_dims: A list of dimensions for the hidden linear layers in both towers.
             normalization: The type of normalization to use in the linear blocks.
             activation: The type of activation function to use in the linear blocks.
-            dropout: Dropout probability for the linear blocks. Defaults to 0.0.
+            dropout: Dropout probability for the linear blocks.
         """
         super().__init__()
         self.user_tower = UserTower(
@@ -216,23 +238,33 @@ class TwoTower(nn.Module):
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Forward pass for the TwoTower model.
 
+        Generates embeddings for users, positive items, and negative items.
+
         Args:
-            user_ids: Tensor containing user IDs. Shape: (B,)
-            pos_item_ids: Tensor containing positive item IDs. Shape: (B,)
-            neg_item_ids: Tensor containing negative item IDs. Shape: (B * N,), where N is the number of negative samples.
-            user_features: input user feature tensor, shape (B, F). F is feature dimension
-            pos_item_features: input item feature tensor, shape (B, F). F is feature dimension
-            neg_item_features: input item feature tensor, shape (B * N, F). F is feature dimension
+            user_ids: Tensor containing user IDs. Shape: (B,).
+            pos_item_ids: Tensor containing positive item IDs. Shape: (B,).
+            neg_item_ids: Tensor containing negative item IDs. Shape: (B, N),
+                where N is the number of negative samples per positive item.
+            user_features: Optional tensor containing user features. Shape: (B, F).
+                Currently not implemented.
+            pos_item_features: Optional tensor containing positive item features. Shape: (B, F).
+                Currently not implemented.
+            neg_item_features: Optional tensor containing negative item features. Shape: (B * N, F).
+                Currently not implemented.
 
         Returns:
             A tuple containing:
-                - user_emb: User embeddings. Shape: (B, out_dim)
-                - pos_item_emb: Positive item embeddings. Shape: (B, out_dim)
-                - neg_item_emb: Negative item embeddings. Shape: (B, N, out_dim)
+                - user_emb: User embeddings. Shape: (B, out_dim).
+                - pos_item_emb: Positive item embeddings. Shape: (B, out_dim).
+                - neg_item_emb: Negative item embeddings. Shape: (B, N, out_dim).
+
+        Raises:
+            NotImplementedError: If any feature tensor is provided.
+            AssertionError: If pos_item_ids is not 1D or neg_item_ids is not 2D.
         """
-        assert (
-            pos_item_ids.ndim == 1 and neg_item_ids.ndim == 2
-        ), f"pos_item_ids should be 1D tensor, neg_item_ids should be 2D tensor, got {pos_item_ids.shape}, {neg_item_ids.shape}"
+        assert pos_item_ids.ndim == 1 and neg_item_ids.ndim == 2, (
+            f"pos_item_ids should be 1D tensor, neg_item_ids should be 2D tensor, got {pos_item_ids.shape}, {neg_item_ids.shape}"
+        )
         batch_size = user_ids.size(0)
         neg_num_items = neg_item_ids.size(1)
 
@@ -269,10 +301,13 @@ class TwoTowerModule(L.LightningModule):
         activation: Optional[str],
         dropout: float,
         pad_idx: int,
-        top_k: int = 10,
-        loss_params: LossParams = LossParams(),
+        eval_top_k: int,
+        optimizer_params: OptimizerParams,
     ):
         """LightningModule for training and evaluating the Two-Tower model.
+
+        Handles the training loop, validation loop, optimizer configuration,
+        loss calculation, and metric computation.
 
         Args:
             num_users: Total number of unique users.
@@ -284,9 +319,10 @@ class TwoTowerModule(L.LightningModule):
             normalization: The type of normalization to use in the linear blocks.
             activation: The type of activation function to use in the linear blocks.
             dropout: Dropout probability for the linear blocks.
-            pad_idx: Padding index for embeddings.
-            loss_params: Dataclass containing loss parameters (learning_rate, weight_decay).
-            top_k: The number of top items to consider for retrieval metrics (HitRate, NDCG). Defaults to 10.
+            pad_idx: Padding index for item embeddings.
+            eval_top_k: The number of top items to consider for retrieval metrics
+                (HitRate, NDCG) during evaluation.
+            optimizer_params: Dataclass containing optimizer and optional LR scheduler parameters.
         """
         super().__init__()
         self.save_hyperparameters()
@@ -306,25 +342,26 @@ class TwoTowerModule(L.LightningModule):
         )
         self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
         self.accuracy = BinaryAccuracy(threshold=0.5)
-        self.hit_rate = RetrievalHitRate(top_k=top_k)
-        self.ndcg = RetrievalNormalizedDCG(top_k=top_k)
-        self.loss_params = loss_params
+        self.hit_rate = RetrievalHitRate(top_k=eval_top_k)
+        self.ndcg = RetrievalNormalizedDCG(top_k=eval_top_k)
+        self.optimizer_params = optimizer_params
 
     def forward(
         self, user: torch.Tensor, pos_item: torch.Tensor, neg_item: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Performs a forward pass through the TwoTower model.
+        """Performs a forward pass through the underlying TwoTower model.
 
         Args:
-            user: User ID tensor. Shape: (B,)
-            pos_item: Positive item ID tensor. Shape: (B, 1)
-            neg_item: Negative item ID tensor. Shape: (B, N), where N is the number of negative samples.
+            user: User ID tensor. Shape: (B,).
+            pos_item: Positive item ID tensor. Shape: (B,).
+            neg_item: Negative item ID tensor. Shape: (B, N), where N is the
+                number of negative samples.
 
         Returns:
             A tuple containing:
-                - user_emb: User embeddings. Shape: (B, out_dim)
-                - pos_item_emb: Positive item embeddings. Shape: (B, out_dim)
-                - neg_item_emb: Negative item embeddings. Shape: (B, N, out_dim)
+                - user_emb: User embeddings. Shape: (B, out_dim).
+                - pos_item_emb: Positive item embeddings. Shape: (B, out_dim).
+                - neg_item_emb: Negative item embeddings. Shape: (B, N, out_dim).
         """
         return self.model(user_ids=user, pos_item_ids=pos_item, neg_item_ids=neg_item)
 
@@ -332,17 +369,19 @@ class TwoTowerModule(L.LightningModule):
     def _calc_logits(
         user_emb: torch.Tensor, pos_item_emb: torch.Tensor, neg_item_emb: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Calculates the logits for positive and negative items based on user embeddings.
+        """Calculates the dot product logits between user and item embeddings.
 
         Args:
-            user_emb: User embeddings. Shape: (B, out_dim)
-            pos_item_emb: Positive item embeddings. Shape: (B, out_dim)
-            neg_item_emb: Negative item embeddings. Shape: (B, N, out_dim)
+            user_emb: User embeddings. Shape: (B, out_dim).
+            pos_item_emb: Positive item embeddings. Shape: (B, out_dim).
+            neg_item_emb: Negative item embeddings. Shape: (B, N, out_dim).
 
         Returns:
             A tuple containing:
-                - pos_logits: Logits for positive items. Shape: (B, 1)
-                - neg_logits: Logits for negative items. Shape: (B, N)
+                - pos_logits: Logits for positive items (dot product of user_emb
+                  and pos_item_emb). Shape: (B, 1).
+                - neg_logits: Logits for negative items (dot product of user_emb
+                  and neg_item_emb). Shape: (B, N).
         """
         # extract the last hidden state, shape (batch_size, 1, hidden_size)
         assert user_emb.ndim == 2
@@ -362,10 +401,12 @@ class TwoTowerModule(L.LightningModule):
     def _logging(
         self, metrics_dict: dict[str, Any], stage: Literal["train", "val"], batch_idx: int
     ) -> None:
-        """Logging function for train and val. Trainerに設定されたLoggerへの出力と、標準出力への出力を行う
+        """Logs metrics to the configured logger and standard output.
 
         Args:
-            stage: stage name, train or val
+            metrics_dict: Dictionary containing metric names and their values.
+            stage: The current stage ('train' or 'val').
+            batch_idx: The current batch index.
         """
         self.log_dict(
             add_prefix_to_keys(metrics_dict, stage),
@@ -385,14 +426,16 @@ class TwoTowerModule(L.LightningModule):
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Performs a single training step.
 
-        Calculates loss and accuracy based on the batch data.
+        Computes embeddings, calculates logits, computes the BCE loss,
+        and logs training metrics (loss, accuracy, mean logits).
 
         Args:
-            batch: The input batch data.
+            batch: The input batch data containing user, positive item, and
+                negative item indices.
             batch_idx: The index of the current batch.
 
         Returns:
-            The calculated loss tensor.
+            The calculated loss tensor for backpropagation.
         """
         user, pos_item, neg_item = batch.user_index, batch.pos_item_index, batch.neg_item_indexes
         # (B, D), (B, D), (B, N, D)
@@ -421,16 +464,20 @@ class TwoTowerModule(L.LightningModule):
     def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Performs a single validation step.
 
-        Calculates loss, accuracy, HitRate, and NDCG based on the batch data.
+        Computes embeddings, calculates logits, computes the BCE loss,
+        and logs validation metrics (loss, accuracy, HitRate, NDCG, mean logits).
+        Note: Loss and accuracy are calculated using only the first negative sample
+        for efficiency, while retrieval metrics use all negative samples.
 
         Args:
-            batch: The input batch data.
+            batch: The input batch data containing user, positive item, and
+                negative item indices.
             batch_idx: The index of the current batch.
 
         Returns:
-            The calculated loss tensor.
+            The calculated loss tensor (not used for optimization in validation).
         """
-        user, _, _, pos_item, _, neg_item, _ = batch
+        user, pos_item, neg_item = batch.user_index, batch.pos_item_index, batch.neg_item_indexes
         # (B, D), (B, D), (B, N, D)
         user_emb, pos_item_emb, neg_item_emb = self(user, pos_item, neg_item)
         assert pos_item_emb.size(0) == batch.user_index.size(0) * 1
@@ -464,39 +511,62 @@ class TwoTowerModule(L.LightningModule):
 
         return loss
 
-    def configure_optimizers(self) -> torch.optim.Optimizer:
-        """Configures the optimizer for training.
+    @override
+    def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
+        """Configures the optimizer and optional learning rate scheduler.
+
+        Uses AdamW optimizer and optionally a CosineLRScheduler based on
+        the provided `optimizer_params`.
 
         Returns:
-            The Adam optimizer instance.
+            A dictionary or a tuple containing the optimizer and optionally
+            the learning rate scheduler configuration.
         """
         optimizer = torch.optim.AdamW(
             self.model.parameters(),
-            lr=self.loss_params.learning_rate,
-            weight_decay=self.loss_params.weight_decay,
+            lr=self.optimizer_params.lr,
+            weight_decay=self.optimizer_params.weight_decay,
         )
-        return optimizer
+        rt: OptimizerLRSchedulerConfig = {"optimizer": optimizer}  # type: ignore
+        if self.optimizer_params.lr_scheduler is not None:
+            lr_scheduler = CosineLRScheduler(
+                optimizer,
+                t_initial=self.optimizer_params.lr_scheduler.t_initial,
+                lr_min=self.optimizer_params.lr_scheduler.lr_min,
+                warmup_t=self.optimizer_params.lr_scheduler.warmup_t,
+                warmup_lr_init=self.optimizer_params.lr_scheduler.warmup_lr_init,
+                warmup_prefix=True,
+                cycle_limit=self.optimizer_params.lr_scheduler.cycle_limit,
+                cycle_mul=1,
+            )
+            lr_scheduler_config: LRSchedulerConfigType = {
+                "scheduler": lr_scheduler,  # type: ignore
+                "interval": self.optimizer_params.lr_scheduler.step_unit,
+                "frequency": self.optimizer_params.lr_scheduler.frequency,
+                "monitor": None,
+                "strict": True,
+                "name": "learning_rate",
+            }
+            rt.update({"lr_scheduler": lr_scheduler_config})
+        return rt
 
     def summary(
         self,
         batch_size: int,
         neg_sample_size: int,
         depth: int = 4,
-        verbose: int = 1,
+        verbose: int = 0,
     ) -> ModelStatistics:
-        """Generates and returns a summary of the TwoTower model architecture and parameters.
-
-        Uses torchinfo.summary.
+        """Generates and returns a summary of the TwoTower model using torchinfo.
 
         Args:
-            batch_size: The batch size to use for input shape calculation.
-            pos_sample_size: The number of positive samples per user.
-            neg_sample_size: The number of negative samples per user.
-            depth: The maximum depth of nested modules to show. Defaults to 4.
-            verbose: Verbosity level (0: quiet, 1: print summary). Defaults to 1.
+            batch_size: The batch size to use for creating dummy input tensors.
+            neg_sample_size: The number of negative samples per user for dummy input.
+            depth: The maximum depth of nested modules to show in the summary. Defaults to 4.
+            verbose: Verbosity level for torchinfo.summary (0: quiet, 1: print). Defaults to 0.
 
         Returns:
-            A ModelStatistics object containing the summary information.
+            A ModelStatistics object containing the model summary information.
         """
         user_ids = torch.randint(0, self.num_users, (batch_size,), dtype=torch.long)
         item_pos_ids = torch.randint(
