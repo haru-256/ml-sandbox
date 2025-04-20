@@ -16,7 +16,6 @@ class IdEmbedding(nn.Module):
         super().__init__()
         self.id_embedding = nn.Embedding(num_ids, embedding_dim, padding_idx=padding_idx)
 
-    # TODO: unkに対する処理を追加する
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         """Forward pass for embedding layer
 

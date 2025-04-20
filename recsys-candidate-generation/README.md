@@ -29,7 +29,7 @@ related information
 
 具体的には以下のモデルを実装する予定です。
 
-- [ ] TwoTower: Two-Tower Model
+- [x] TwoTower: Two-Tower Model
 - [ ] MF: Matrix Factorization
 - [ ] Collaborative Filtering
 - [ ] NCF: Neural Collaborative Filtering
