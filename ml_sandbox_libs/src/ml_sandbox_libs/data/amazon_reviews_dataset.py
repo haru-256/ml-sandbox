@@ -173,9 +173,6 @@ def seq_rec_preprocess_dataset(
         )
     }
 
-    a
-    ge
-
     user2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
     user2index_df = pl.from_dict(
         {"user_id": list(user2index.keys()), "user_index": list(user2index.values())}
