@@ -1,12 +1,9 @@
-from typing import Any, Literal, Optional, override
+from typing import Optional, override
 
-import lightning as L
 import torch
 from lightning.pytorch.utilities.types import LRSchedulerConfigType, OptimizerLRSchedulerConfig
-from loguru import logger
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.utils.metrics import create_classification_inputs, create_retrieval_inputs
-from ml_sandbox_libs.utils.utils import add_prefix_to_keys
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torch import nn
 from torchinfo import ModelStatistics, summary
@@ -15,6 +12,7 @@ from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
 from my_types import OptimizerParams
 
+from .base import BaseModule
 from .modules.base import IdEmbedding, LinearBlock
 
 
@@ -288,7 +286,7 @@ class TwoTower(nn.Module):
         return user_emb, pos_item_emb, neg_item_emb
 
 
-class TwoTowerModule(L.LightningModule):
+class TwoTowerModule(BaseModule):
     def __init__(
         self,
         num_users: int,
@@ -398,30 +396,6 @@ class TwoTowerModule(L.LightningModule):
 
         return pos_logits, neg_logits
 
-    def _logging(
-        self, metrics_dict: dict[str, Any], stage: Literal["train", "val"], batch_idx: int
-    ) -> None:
-        """Logs metrics to the configured logger and standard output.
-
-        Args:
-            metrics_dict: Dictionary containing metric names and their values.
-            stage: The current stage ('train' or 'val').
-            batch_idx: The current batch index.
-        """
-        self.log_dict(
-            add_prefix_to_keys(metrics_dict, stage),
-            # valはepoch単位の評価のみ。trainはTrainerのlogs_every_n_stepsで指定したstep単位の評価のためNoneにする
-            on_step=None if stage == "train" else False,
-            on_epoch=True,
-            prog_bar=False,
-        )
-        # stdinに出力する
-        if batch_idx % 100 == 0:
-            logger.info(
-                f"{stage.upper()} | step: {batch_idx:>5d} | "
-                + ", ".join([f"{k}: {v:.4f}" for k, v in metrics_dict.items()])
-            )
-
     @override
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Performs a single training step.
@@ -447,7 +421,7 @@ class TwoTowerModule(L.LightningModule):
         loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
-        self._logging(
+        self._logging_step(
             {
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
@@ -486,8 +460,8 @@ class TwoTowerModule(L.LightningModule):
         assert pos_logits.size(1) == 1
 
         # calc loss, accuracy
-        #  for imbalanced, extract the first item logits, shape (batch_size, 1)
-        logits, labels = create_classification_inputs(pos_logits, neg_logits[:, 0:1])
+        # for imbalanced, extract the first item logits, shape (batch_size, 1)
+        logits, labels = create_classification_inputs(pos_logits[0:1], neg_logits[:, 0:1])
         loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
@@ -496,7 +470,7 @@ class TwoTowerModule(L.LightningModule):
         hit_rate: torch.Tensor = self.hit_rate(logits, target, indexes)
         ndcg: torch.Tensor = self.ndcg(logits, target, indexes)
 
-        self._logging(
+        self._logging_step(
             {
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
