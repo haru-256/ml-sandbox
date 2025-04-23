@@ -7,41 +7,44 @@ from .base.point_wise_feed_forward import PointwiseFeedForward
 class TransformerEncoderBlock(nn.Module):
     def __init__(
         self,
-        hidden_size: int,
+        out_dim: int,
         num_attention_heads: int,
-        attn_dropout_prob: float,
-        ff_dropout_prob: float,
+        attn_dropout: float,
+        ffn_dropout: float,
     ):
         """Transformer encoder block
 
         Args:
-            hidden_size: embedding dimension
+            out_dim: embedding dimension
             num_attention_heads: number of attention heads
-            attn_dropout_prob: dropout probability for attention weights
-            ff_dropout_prob: dropout probability for point-wise feed-forward layer
+            attn_dropout: dropout probability for attention weights
+            ffn_dropout: dropout probability for point-wise feed-forward layer
 
         """
         super().__init__()
-        self.layer_norm_1 = nn.LayerNorm(hidden_size)
-        self.layer_norm_2 = nn.LayerNorm(hidden_size)
+        self.layer_norm_1 = nn.LayerNorm(out_dim)
+        self.layer_norm_2 = nn.LayerNorm(out_dim)
         self.mha = nn.MultiheadAttention(
-            embed_dim=hidden_size,
+            embed_dim=out_dim,
             num_heads=num_attention_heads,
-            dropout=attn_dropout_prob,
+            dropout=attn_dropout,
             batch_first=True,
         )
-        self.feed_forward = PointwiseFeedForward(hidden_size, hidden_size * 4, ff_dropout_prob)
+        self.feed_forward = PointwiseFeedForward(out_dim, out_dim * 4, ffn_dropout)
 
-    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor, key_padding_mask: torch.Tensor):
+    def forward(
+        self, x: torch.Tensor, attn_mask: torch.Tensor, key_padding_mask: torch.Tensor
+    ) -> torch.Tensor:
         """Forward pass for transformer encoder layer
 
         Args:
-            x: input tensor, shape (batch_size, seq_len, hidden_size)
+            x: input tensor, shape (batch_size, seq_len, out_dim)
             attn_mask: mask tensor for causal, shape (batch_size, seq_len, seq_len)
             key_padding_mask: mask tensor for padding, shape (batch_size, seq_len)
 
         Returns:
-            output tensor, shape (batch_size, seq_len, hidden_size)
+            output tensor, shape (batch_size, seq_len, out_dim)
+
         """
         # Apply attention with a skip connection
         h = self.layer_norm_1(x)

@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 import torch
 from torch import nn
@@ -15,6 +15,7 @@ class ApplyOrder(StrEnum):
     Attributes:
         NORM_ACT_DROPOUT (str): Apply normalization, activation, and dropout.
         ACT_NORM_DROPOUT (str): Apply activation, normalization, and dropout.
+
     """
 
     NORM_ACT_DROPOUT = f"{_NORM}_{_ACT}_{_DROP}"
@@ -25,6 +26,7 @@ class ApplyOrder(StrEnum):
 
         Returns:
             tuple[str, str, str]: A tuple containing the components in the order they are applied.
+
         """
         return self.value.split("_")  # type: ignore
 
@@ -41,6 +43,7 @@ def build_normalization(
 
     Returns:
         nn.Module: The normalization layer.
+
     """
     match normalize:
         case "batch":
@@ -55,7 +58,7 @@ def build_normalization(
 
 def build_activation(
     activation: Literal["relu", "leaky_relu", "sigmoid", "tanh", "gelu", "silu"],
-    kwargs: Optional[dict[str, Any]] = None,
+    kwargs: dict[str, Any] | None = None,
 ) -> nn.Module:
     """Builds an activation layer based on the specified type.
 
@@ -68,6 +71,7 @@ def build_activation(
 
     Returns:
         Activation layer based on the specified type.
+
     """
     match activation:
         case "relu":
@@ -96,15 +100,16 @@ class LinearBlock(nn.Module):
         activation (str, optional): Activation function to use. Defaults to "relu".
         dropout (float, optional): Dropout probability. Defaults to 0.0.
         bias (bool, optional): Whether to include bias in the linear layer. Defaults to True.
+
     """
 
     def __init__(
         self,
         in_features: int,
         out_features: int,
-        normalize: Optional[str],
-        activation: Optional[str],
-        activation_kwargs: Optional[dict[str, Any]] = None,
+        normalize: str | None,
+        activation: str | None,
+        activation_kwargs: dict[str, Any] | None = None,
         dropout: float = 0.0,
         bias: bool = True,
         apply_order: ApplyOrder = ApplyOrder.NORM_ACT_DROPOUT,

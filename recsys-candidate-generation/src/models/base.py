@@ -32,6 +32,7 @@ class BaseModule(L.LightningModule):
             metrics_dict: Dictionary containing metric names and their values.
             stage: The current stage ('train' or 'val').
             batch_idx: The current batch index.
+
         """
         self.log_dict(
             add_prefix_to_keys(metrics_dict, stage),
@@ -42,7 +43,7 @@ class BaseModule(L.LightningModule):
         )
         # stdinに出力する
         total_steps = self.total_train_steps if stage == "train" else self.total_val_steps
-        if batch_idx % 100 == 0:
+        if batch_idx > 0 and batch_idx % 100 == 0:
             logger.info(
                 f"{stage.upper()} | Epoch: {self.current_epoch}, Steps: {batch_idx}/{total_steps}, {format_metrics_dict(metrics_dict)}"
             )

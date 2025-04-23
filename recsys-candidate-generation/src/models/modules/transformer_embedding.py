@@ -1,20 +1,21 @@
 import torch
 from torch import nn
 
-from .base.id_embedding import IdEmbeddings
+from .base.id_embedding import IdEmbedding
 
 
 class TransformerEmbeddings(nn.Module):
-    def __init__(self, item_num: int, embedding_dim: int, max_position: int):
+    def __init__(self, item_num: int, embedding_dim: int, max_position: int, padding_idx: int = 0):
         """Embedding layer for transformer model, including token and position embeddings
 
         Args:
             id_num: size of item
             embedding_dim: embedding dimension
             max_position: maximum position for position
+
         """
         super().__init__()
-        self.id_embeddings = IdEmbeddings(item_num, embedding_dim)
+        self.id_embeddings = IdEmbedding(item_num, embedding_dim, padding_idx=padding_idx)
         self.position_embeddings = nn.Embedding(max_position, embedding_dim)
         self.layer_norm = nn.LayerNorm(embedding_dim, eps=1e-12)
         self.dropout = nn.Dropout(p=0.5)
@@ -30,6 +31,7 @@ class TransformerEmbeddings(nn.Module):
 
         Returns:
             output embeddings, shape (batch_size, seq_len, hidden_size)
+
         """
         # Create position IDs for input sequence
         seq_length = x.size(1)
