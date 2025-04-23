@@ -12,7 +12,7 @@ from ml_sandbox_libs.utils import setup_logger
 from omegaconf import DictConfig
 
 from const import EVAL_NEG_SAMPLE_SIZE
-from models import TwoTowerModule
+from models import SASRecModule, TwoTowerModule
 from my_types import LRSchedulerParams, OptimizerParams
 
 
@@ -68,6 +68,22 @@ def main(cfg: DictConfig) -> None:
             # eval
             eval_top_k=cfg.data.eval_top_k,
         )
+    elif cfg.model.name == "SASRec":
+        module = SASRecModule(
+            num_items=len(datamodule.item2index),
+            out_dim=cfg.model.out_dim,
+            num_heads=cfg.model.num_heads,
+            num_blocks=cfg.model.num_blocks,
+            attn_dropout=cfg.model.attn_dropout,
+            ffn_dropout=cfg.model.ffn_dropout,
+            max_seq_len=cfg.data.max_seq_len,
+            pad_idx=SpecialIndex.PAD,
+            float16=cfg.device.float16,
+            # optimizer
+            optimizer_params=optimizer_params,
+            # eval
+            eval_top_k=cfg.data.eval_top_k,
+        )
     else:
         raise NotImplementedError(f"{cfg.model.name=} is not supported")
 
@@ -98,7 +114,7 @@ def main(cfg: DictConfig) -> None:
         enable_model_summary=False,
         log_every_n_steps=cfg.log.log_every_n_steps,
         logger=wandb_logger,
-        gradient_clip_val=cfg.loss.gradient_clip_val,
+        gradient_clip_val=cfg.optimizer.gradient_clip_val,
         gradient_clip_algorithm="norm",
         limit_train_batches=1000,
         limit_val_batches=1000,

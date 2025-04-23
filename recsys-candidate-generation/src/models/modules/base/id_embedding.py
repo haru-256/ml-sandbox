@@ -1,17 +1,16 @@
-from typing import Optional
-
 import torch
 from torch import nn
 
 
 class IdEmbedding(nn.Module):
-    def __init__(self, num_ids: int, embedding_dim: int, padding_idx: Optional[int]):
+    def __init__(self, num_ids: int, embedding_dim: int, padding_idx: int | None):
         """Embedding layer for transformer model, including token and position embeddings
 
         Args:
             num_ids: number of unique token ids
             embedding_dim: dimension of the embedding vector
             padding_idx: index for padding token, default is None
+
         """
         super().__init__()
         self.id_embedding = nn.Embedding(num_ids, embedding_dim, padding_idx=padding_idx)
@@ -24,6 +23,7 @@ class IdEmbedding(nn.Module):
 
         Returns:
             output embeddings, shape (batch_size, seq_len, hidden_size)
+
         """
         # Create position IDs for input sequence
         embeddings = self.id_embedding(input_ids)

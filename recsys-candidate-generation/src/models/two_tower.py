@@ -1,12 +1,9 @@
-from typing import Any, Literal, Optional, override
+from typing import Any, override
 
-import lightning as L
 import torch
 from lightning.pytorch.utilities.types import LRSchedulerConfigType, OptimizerLRSchedulerConfig
-from loguru import logger
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.utils.metrics import create_classification_inputs, create_retrieval_inputs
-from ml_sandbox_libs.utils.utils import add_prefix_to_keys
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torch import nn
 from torchinfo import ModelStatistics, summary
@@ -15,6 +12,7 @@ from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
 from my_types import OptimizerParams
 
+from .base import BaseModule
 from .modules.base import IdEmbedding, LinearBlock
 
 
@@ -25,8 +23,8 @@ class UserTower(nn.Module):
         out_dim: int,
         user_id_dim: int,
         hidden_dims: list[int],
-        normalization: Optional[str],
-        activation: Optional[str],
+        normalization: str | None,
+        activation: str | None,
         dropout: float = 0.0,
     ):
         """User tower module for the Two-Tower model.
@@ -45,6 +43,7 @@ class UserTower(nn.Module):
             activation: The type of activation function to use in the linear blocks
                 (e.g., "relu", "leaky_relu"). None for no activation.
             dropout: Dropout probability for the linear blocks. Defaults to 0.0.
+
         """
         super().__init__()
         self.out_dim = out_dim
@@ -69,7 +68,7 @@ class UserTower(nn.Module):
         )
 
     def forward(
-        self, user_ids: torch.Tensor, user_features: Optional[torch.Tensor] = None
+        self, user_ids: torch.Tensor, user_features: torch.Tensor | None = None
     ) -> torch.Tensor:
         """Forward pass for the UserTower.
 
@@ -84,6 +83,7 @@ class UserTower(nn.Module):
         Raises:
             NotImplementedError: If user_features is provided.
             AssertionError: If user_ids is not a 1D tensor.
+
         """
         assert user_ids.ndim == 1, f"user_ids should be 1D tensor, got shape {user_ids.shape}"
         if user_features is not None:
@@ -103,8 +103,8 @@ class ItemTower(nn.Module):
         out_dim: int,
         item_id_dim: int,
         hidden_dims: list[int],
-        normalization: Optional[str],
-        activation: Optional[str],
+        normalization: str | None,
+        activation: str | None,
         dropout: float,
         padding_idx: int,
     ):
@@ -125,6 +125,7 @@ class ItemTower(nn.Module):
                 (e.g., "relu", "leaky_relu"). None for no activation.
             dropout: Dropout probability for the linear blocks.
             padding_idx: Index used for padding in the item ID embedding table.
+
         """
         super().__init__()
         self.out_dim = out_dim
@@ -149,7 +150,7 @@ class ItemTower(nn.Module):
         )
 
     def forward(
-        self, item_ids: torch.Tensor, item_features: Optional[torch.Tensor] = None
+        self, item_ids: torch.Tensor, item_features: torch.Tensor | None = None
     ) -> torch.Tensor:
         """Forward pass for the ItemTower.
 
@@ -164,6 +165,7 @@ class ItemTower(nn.Module):
         Raises:
             NotImplementedError: If item_features is provided.
             AssertionError: If item_ids is not a 1D tensor.
+
         """
         assert item_ids.ndim == 1, f"item_ids should be 1D tensor, got shape {item_ids.shape}"
         if item_features is not None:
@@ -186,8 +188,8 @@ class TwoTower(nn.Module):
         item_id_dim: int,
         padding_idx: int,
         hidden_dims: list[int],
-        normalization: Optional[str],
-        activation: Optional[str],
+        normalization: str | None,
+        activation: str | None,
         dropout: float,
     ):
         """Two-Tower model architecture.
@@ -205,6 +207,7 @@ class TwoTower(nn.Module):
             normalization: The type of normalization to use in the linear blocks.
             activation: The type of activation function to use in the linear blocks.
             dropout: Dropout probability for the linear blocks.
+
         """
         super().__init__()
         self.user_tower = UserTower(
@@ -232,9 +235,9 @@ class TwoTower(nn.Module):
         user_ids: torch.Tensor,
         pos_item_ids: torch.Tensor,
         neg_item_ids: torch.Tensor,
-        user_features: Optional[torch.Tensor] = None,
-        pos_item_features: Optional[torch.Tensor] = None,
-        neg_item_features: Optional[torch.Tensor] = None,
+        user_features: torch.Tensor | None = None,
+        pos_item_features: torch.Tensor | None = None,
+        neg_item_features: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Forward pass for the TwoTower model.
 
@@ -261,6 +264,7 @@ class TwoTower(nn.Module):
         Raises:
             NotImplementedError: If any feature tensor is provided.
             AssertionError: If pos_item_ids is not 1D or neg_item_ids is not 2D.
+
         """
         assert pos_item_ids.ndim == 1 and neg_item_ids.ndim == 2, (
             f"pos_item_ids should be 1D tensor, neg_item_ids should be 2D tensor, got {pos_item_ids.shape}, {neg_item_ids.shape}"
@@ -288,7 +292,7 @@ class TwoTower(nn.Module):
         return user_emb, pos_item_emb, neg_item_emb
 
 
-class TwoTowerModule(L.LightningModule):
+class TwoTowerModule(BaseModule):
     def __init__(
         self,
         num_users: int,
@@ -297,8 +301,8 @@ class TwoTowerModule(L.LightningModule):
         user_id_dim: int,
         item_id_dim: int,
         hidden_dims: list[int],
-        normalization: Optional[str],
-        activation: Optional[str],
+        normalization: str | None,
+        activation: str | None,
         dropout: float,
         pad_idx: int,
         eval_top_k: int,
@@ -323,6 +327,7 @@ class TwoTowerModule(L.LightningModule):
             eval_top_k: The number of top items to consider for retrieval metrics
                 (HitRate, NDCG) during evaluation.
             optimizer_params: Dataclass containing optimizer and optional LR scheduler parameters.
+
         """
         super().__init__()
         self.save_hyperparameters()
@@ -362,6 +367,7 @@ class TwoTowerModule(L.LightningModule):
                 - user_emb: User embeddings. Shape: (B, out_dim).
                 - pos_item_emb: Positive item embeddings. Shape: (B, out_dim).
                 - neg_item_emb: Negative item embeddings. Shape: (B, N, out_dim).
+
         """
         return self.model(user_ids=user, pos_item_ids=pos_item, neg_item_ids=neg_item)
 
@@ -382,6 +388,7 @@ class TwoTowerModule(L.LightningModule):
                   and pos_item_emb). Shape: (B, 1).
                 - neg_logits: Logits for negative items (dot product of user_emb
                   and neg_item_emb). Shape: (B, N).
+
         """
         # extract the last hidden state, shape (batch_size, 1, hidden_size)
         assert user_emb.ndim == 2
@@ -398,30 +405,6 @@ class TwoTowerModule(L.LightningModule):
 
         return pos_logits, neg_logits
 
-    def _logging(
-        self, metrics_dict: dict[str, Any], stage: Literal["train", "val"], batch_idx: int
-    ) -> None:
-        """Logs metrics to the configured logger and standard output.
-
-        Args:
-            metrics_dict: Dictionary containing metric names and their values.
-            stage: The current stage ('train' or 'val').
-            batch_idx: The current batch index.
-        """
-        self.log_dict(
-            add_prefix_to_keys(metrics_dict, stage),
-            # valはepoch単位の評価のみ。trainはTrainerのlogs_every_n_stepsで指定したstep単位の評価のためNoneにする
-            on_step=None if stage == "train" else False,
-            on_epoch=True,
-            prog_bar=False,
-        )
-        # stdinに出力する
-        if batch_idx % 100 == 0:
-            logger.info(
-                f"{stage.upper()} | step: {batch_idx:>5d} | "
-                + ", ".join([f"{k}: {v:.4f}" for k, v in metrics_dict.items()])
-            )
-
     @override
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Performs a single training step.
@@ -436,6 +419,7 @@ class TwoTowerModule(L.LightningModule):
 
         Returns:
             The calculated loss tensor for backpropagation.
+
         """
         user, pos_item, neg_item = batch.user_index, batch.pos_item_index, batch.neg_item_indexes
         # (B, D), (B, D), (B, N, D)
@@ -447,7 +431,7 @@ class TwoTowerModule(L.LightningModule):
         loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
-        self._logging(
+        self._logging_step(
             {
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
@@ -476,6 +460,7 @@ class TwoTowerModule(L.LightningModule):
 
         Returns:
             The calculated loss tensor (not used for optimization in validation).
+
         """
         user, pos_item, neg_item = batch.user_index, batch.pos_item_index, batch.neg_item_indexes
         # (B, D), (B, D), (B, N, D)
@@ -486,8 +471,8 @@ class TwoTowerModule(L.LightningModule):
         assert pos_logits.size(1) == 1
 
         # calc loss, accuracy
-        #  for imbalanced, extract the first item logits, shape (batch_size, 1)
-        logits, labels = create_classification_inputs(pos_logits, neg_logits[:, 0:1])
+        # for imbalanced, extract the first item logits, shape (batch_size, 1)
+        logits, labels = create_classification_inputs(pos_logits[:, 0:1], neg_logits[:, 0:1])
         loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
@@ -496,7 +481,7 @@ class TwoTowerModule(L.LightningModule):
         hit_rate: torch.Tensor = self.hit_rate(logits, target, indexes)
         ndcg: torch.Tensor = self.ndcg(logits, target, indexes)
 
-        self._logging(
+        self._logging_step(
             {
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
@@ -521,6 +506,7 @@ class TwoTowerModule(L.LightningModule):
         Returns:
             A dictionary or a tuple containing the optimizer and optionally
             the learning rate scheduler configuration.
+
         """
         optimizer = torch.optim.AdamW(
             self.model.parameters(),
@@ -550,6 +536,25 @@ class TwoTowerModule(L.LightningModule):
             rt.update({"lr_scheduler": lr_scheduler_config})
         return rt
 
+    @override
+    def lr_scheduler_step(self, scheduler: CosineLRScheduler, metric: Any | None) -> None:  # type: ignore
+        """CosineLRSchedulerのstepを進める
+        CosineLRSchedulerがtorch.optim.lr_scheduler.LRSchedulerを継承していないためoverride
+        """
+        match self.optimizer_params.lr_scheduler.step_unit:
+            case "epoch":
+                steps = self.current_epoch
+            case "step":
+                steps = self.global_step
+            case _:
+                raise ValueError(
+                    f"Invalid step unit: {self.optimizer_params.lr_scheduler.step_unit}"
+                )
+        if metric is None:
+            scheduler.step(epoch=steps)  # NOTE: epochとあるが、epochでもstepでもどちらでもOK
+        else:
+            scheduler.step(epoch=steps, metric=metric)
+
     def summary(
         self,
         batch_size: int,
@@ -567,6 +572,7 @@ class TwoTowerModule(L.LightningModule):
 
         Returns:
             A ModelStatistics object containing the model summary information.
+
         """
         user_ids = torch.randint(0, self.num_users, (batch_size,), dtype=torch.long)
         item_pos_ids = torch.randint(

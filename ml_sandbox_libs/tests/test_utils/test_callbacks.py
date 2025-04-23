@@ -1,6 +1,5 @@
 import pathlib
 from copy import deepcopy
-from typing import Optional
 
 import lightning as L
 import pytest
@@ -13,8 +12,8 @@ from ml_sandbox_libs.utils.callbacks import CustomModelCheckpoint
 
 def _custom_model_checkpoint_factory(
     mode: str,
-    save_top_k: Optional[int] = -1,
-    checkpoints: Optional[list[tuple[float, pathlib.Path]]] = None,
+    save_top_k: int | None = -1,
+    checkpoints: list[tuple[float, pathlib.Path]] | None = None,
 ) -> CustomModelCheckpoint:
     callback = CustomModelCheckpoint(monitor="metric", mode=mode, save_top_k=save_top_k)  # type: ignore
     if checkpoints is not None:

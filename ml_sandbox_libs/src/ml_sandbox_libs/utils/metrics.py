@@ -94,7 +94,7 @@ def mrr_v2(score: torch.Tensor, target: torch.Tensor, k: int = 10) -> torch.Tens
     assert k > 0 and k <= score.size(1)
 
     values = torch.as_tensor(
-        [retrieval_reciprocal_rank(s, t, top_k=k) for s, t in zip(score, target)],
+        [retrieval_reciprocal_rank(s, t, top_k=k) for s, t in zip(score, target, strict=False)],
         dtype=torch.float32,
     )
     return values.mean()
@@ -148,7 +148,7 @@ def hit_rate_v2(score: torch.Tensor, target: torch.Tensor, k: int = 10) -> torch
     assert k > 0 and k <= score.size(1)
 
     values = torch.as_tensor(
-        [retrieval_hit_rate(s, t, top_k=k) for s, t in zip(score, target)],
+        [retrieval_hit_rate(s, t, top_k=k) for s, t in zip(score, target, strict=False)],
         dtype=torch.float32,
     )
     return values.mean()
@@ -211,7 +211,7 @@ def format_metrics_dict(metrics_dict: dict[str, float | torch.Tensor | Metric]) 
     """
     return " ".join(
         [
-            f"{k}: {v:.4f}" if isinstance(v, (float, torch.Tensor)) else f"{k}: {v.compute():.4f}"
+            f"{k}: {v:.4f}" if isinstance(v, float | torch.Tensor) else f"{k}: {v.compute():.4f}"
             for k, v in metrics_dict.items()
         ]
     )

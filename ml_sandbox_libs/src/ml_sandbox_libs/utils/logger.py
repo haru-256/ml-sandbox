@@ -1,7 +1,7 @@
 import os
 import pathlib
 import sys
-from typing import Literal, Optional
+from typing import Literal
 
 import google.cloud.logging
 from google.cloud.logging_v2.handlers import CloudLoggingHandler
@@ -20,7 +20,7 @@ def check_is_in_vertexai_training() -> bool:
 
 def setup_logger(
     level: Literal["INFO", "DEBUG"] = "INFO",
-    log_path: Optional[pathlib.Path] = None,
+    log_path: pathlib.Path | None = None,
 ) -> None:
     """
     Setup the logger for the project.
