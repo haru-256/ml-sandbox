@@ -1,14 +1,13 @@
 import json
 import pathlib
 import time
-from typing import Literal, Optional
+from typing import Literal, override
 
 import lightning as L
 import torch
 from lightning.pytorch.callbacks import Checkpoint
 from lightning.pytorch.trainer.states import TrainerFn
 from loguru import logger
-from typing_extensions import override
 
 
 class CustomModelCheckpoint(Checkpoint):
@@ -45,8 +44,8 @@ class CustomModelCheckpoint(Checkpoint):
         self.save_top_k = save_top_k
 
         self._checkpoints: list[tuple[float, pathlib.Path]] = []
-        self._best_model_path: Optional[pathlib.Path] = None
-        self._best_model_score: Optional[float] = None
+        self._best_model_path: pathlib.Path | None = None
+        self._best_model_score: float | None = None
 
     def _should_skip_saving_checkpoints(self, trainer: L.Trainer) -> bool:
         """Determine if checkpoint saving should be skipped.
@@ -65,7 +64,7 @@ class CustomModelCheckpoint(Checkpoint):
         )
 
     @property
-    def best_model_path(self) -> Optional[pathlib.Path]:
+    def best_model_path(self) -> pathlib.Path | None:
         """Get the path to the best model checkpoint.
 
         Returns:
@@ -79,7 +78,7 @@ class CustomModelCheckpoint(Checkpoint):
         return self._best_model_path
 
     @property
-    def best_model_score(self) -> Optional[float]:
+    def best_model_score(self) -> float | None:
         """Get the score of the best model.
 
         Returns:
