@@ -1,5 +1,7 @@
 # ML-Sandbox
 
+[![Python Lint and Test](https://github.com/haru-256/ml-sandbox/actions/workflows/python-lint-test.yml/badge.svg)](https://github.com/haru-256/ml-sandbox/actions/workflows/python-lint-test.yml)
+
 This repository provides implementations and experiments of various ML models.
 
 ## Directory Structure
@@ -33,9 +35,6 @@ This repository has the following models.
 For more information on Sequential Recommendation, please refer to the [sequential_recommendation directory](https://github.com/haru-256/ml-sandbox/tree/main/sequential_recommendation).
 
 ### Two-Tower Recommendation
-
-
-
 
 ### Sentiment Analysis
 
