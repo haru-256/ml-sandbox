@@ -79,6 +79,7 @@ jobs:
     strategy:
       matrix:
         project: ${{ fromJson(needs.target_projects.outputs.projects) }}
+      fail-fast: false
     runs-on: ubuntu-latest
     env:
       RUFF_OUTPUT_FORMAT: github
