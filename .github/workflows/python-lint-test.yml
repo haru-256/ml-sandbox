@@ -38,7 +38,7 @@ jobs:
         with:
           matrix: true # 後続のjobでmatrixで使うために。ファイルがjson形式で出力される
           dir_names: true # uniqueディレクトリ名を取得
-          dir_names_max_depth: 1 # ディレクトリ名の深さを指定
+          dir_names_max_depth: 2 # ディレクトリ名の深さを指定
           files_ignore: |
             .github/**
       - name: Get Python projects
