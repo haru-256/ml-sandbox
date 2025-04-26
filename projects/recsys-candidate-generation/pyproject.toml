@@ -31,8 +31,8 @@ lint = ["ruff~=0.11.4", "mypy~=1.14.0"]
 conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
 
 [tool.uv.sources]
-ml-sandbox-libs = { path = "../ml_sandbox_libs", editable = true }
-job-runner = { path = "../job_runner", editable = true }
+ml-sandbox-libs = { path = "../../libs/ml_sandbox_libs", editable = true }
+job-runner = { path = "../../apps/job_runner", editable = true }
 torch = [
   { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'macOS'" },
   { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'macOS'" },
