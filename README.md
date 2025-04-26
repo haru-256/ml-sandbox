@@ -2,48 +2,43 @@
 
 [![Python Lint and Test](https://github.com/haru-256/ml-sandbox/actions/workflows/python-lint-test.yml/badge.svg)](https://github.com/haru-256/ml-sandbox/actions/workflows/python-lint-test.yml)
 
-This repository provides implementations and experiments of various ML models.
+機械学習モデルの実装と実験用のリポジトリ
 
-## Directory Structure
+## ディレクトリ構成
 
 ```sh
 .
-├── sentiment__analysis/ # Sentiment Analysis
-├── sequential_recommendation/ # Sequential Recommendation
-└── two_tower_recommendation/ # Sequential Recommendation
+├── README.md
+├── apps/  # 機械学習コードを動かすアプリケーションコード
+│   └── job_runner
+├── libs/ # 複数projectで使用される内部ライブラリ
+│   └── ml_sandbox_libs
+└── projects/ # 各問題設定に対応するproject
+    └── recsys-candidate-generation
 ```
 
-## Problem Types
+## projects
 
-This repository deals with the following problem types:
+### Recsys Candidate Generation
 
-1. Sequential Recommendation
-1. Two-Tower Recommendation
-1. Sentiment Analysis
+Candidate Generationとは、以下2段階の推薦のMulti-Stage Architectureの1つ目の段階を指します。
+どれだけユーザーが興味のある商品を絞り込むことができるかが重要です。
 
-### Sequential Recommendation
+1. Candidate Generation: ユーザーが興味のあるitemを取得し推薦候補を生成
+2. Ranking: 取得した推薦候補を並び替える
 
-According to <https://paperswithcode.com/task/sequential-recommendation>, Sequential Recommendation is the following.
+詳細は[README.md](projects/recsys-candidate-generation/README.md)を参照してください。
 
-> Sequential recommendation is a sophisticated approach to providing personalized suggestions by analyzing users' historical interactions in a sequential manner. Unlike traditional recommendation systems, which consider items in isolation, sequential recommendation takes into account the temporal order of user actions. This method is particularly valuable in domains where the sequence of events matters, such as streaming services, e-commerce platforms, and social media.
+## apps
 
-This repository has the following models.
+### job_runner
 
-- SASRec: [Self-Attentive Sequential Recommendation](<https://arxiv.org/abs/1808.09781>)
-- gSASRec: [gSASRec: Reducing Overconfidence in Sequential Recommendation Trained with Negative Sampling](https://arxiv.org/abs/2308.07192)
+Vertex AIでのトレーニングジョブを実行するためのCLIツール
 
-For more information on Sequential Recommendation, please refer to the [sequential_recommendation directory](https://github.com/haru-256/ml-sandbox/tree/main/sequential_recommendation).
+## libs
 
-### Two-Tower Recommendation
+### ml_sandbox_libs
 
-### Sentiment Analysis
+共通ライブラリ。主に以下の機能を提供します。
 
-According to <https://en.wikipedia.org/wiki/Sentiment_analysis>, Sentiment Analysis is the following.
-
-> Sentiment analysis (also known as opinion mining or emotion AI) is the use of natural language processing, text analysis, computational linguistics, and biometrics to systematically identify, extract, quantify, and study affective states and subjective information. Sentiment analysis is widely applied to voice of the customer materials such as reviews and survey responses, online and social media, and healthcare materials for applications that range from marketing to customer service to clinical medicine. With the rise of deep language models, such as RoBERTa, also more difficult data domains can be analyzed, e.g., news texts where authors typically express their opinion/sentiment less explicitly.[1]
-
-This repository has the following models.
-
-- Transformer: [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
-
-For more information on Sentiment Analysis, please refer to the [sentiment_analysis directory](https://github.com/haru-256/ml-sandbox/tree/main/sentiment_analysis).
+- Amazon Reviews 2023のデータセットを扱うためのユーティリティ
