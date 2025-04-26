@@ -1,6 +1,6 @@
 # ML-Sandbox
 
-[![Python Lint and Test](https://github.com/haru-256/ml-sandbox/actions/workflows/python-lint-test.yml/badge.svg)](https://github.com/haru-256/ml-sandbox/actions/workflows/python-lint-test.yml)
+[![Python CI](https://github.com/haru-256/ml-sandbox/actions/workflows/python-ci.yml/badge.svg)](https://github.com/haru-256/ml-sandbox/actions/workflows/python-ci.yml)
 
 機械学習モデルの実装と実験用のリポジトリ
 
