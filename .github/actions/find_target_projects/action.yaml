@@ -31,7 +31,7 @@ runs:
       run: |
         echo "::debug::Changed files: ${{ steps.changed-files.outputs.all_changed_and_modified_files }}"
       shell: bash
-    - name: Get Python projects
+    - name: Find Target Projects
       uses: actions/github-script@v7
       id: find-target-projects
       with:
@@ -43,18 +43,18 @@ runs:
             dispatch_inputs = dispatch_inputs.split(',').map(path => path.trim());
             core.setOutput('projects', JSON.stringify(dispatch_inputs));
           } else { // If no input is provided, get directories from changed files
-            const changed_path = JSON.parse(${{ toJSON(steps.changed-files.outputs.all_changed_and_modified_files) }});
+            const changed_paths = JSON.parse(${{ toJSON(steps.changed-files.outputs.all_changed_and_modified_files) }});
             // convert ['hoge/fuga', 'foo/zoo'] => ['hoge', 'hoge/fuga', 'foo', 'foo/zoo']
-            const changed_directories = new Set();
-            paths.forEach(path => {
+            const set = new Set();
+            changed_paths.forEach(path => {
               const segments = path.split('/');
               let current = '';
               segments.forEach((segment, index) => {
                 current = index === 0 ? segment : `${current}/${segment}`;
-                changed_directories.add(current);
+                set.add(current);
               });
             });
-            const changed_directories = Array.from(changed_directories);
+            const changed_directories = Array.from(set);
             const required_files = "${{ inputs.required_files }}".split(',').map(path => path.trim());
             // Filter out directories that contain required files.
             const projects = changed_directories.filter(path => {
