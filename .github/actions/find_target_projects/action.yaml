@@ -1,0 +1,62 @@
+name: Find Target Projects
+description: Find target projects from changed files.
+inputs:
+  max_depth:
+    description: The maximum depth of the directory to search for projects
+    required: true
+  required_files:
+    description: The required files to identify a project. Each file should be separated by a comma (e.g., pyproject.toml, Makefile)
+    required: true
+  target_projects:
+    description: The projects to run lint and test on. If not provided, it will be determined by the changed files.
+    required: false
+    default: ""
+outputs:
+  projects:
+    value: ${{ steps.find-target-projects.outputs.projects }}
+    description: The list of found projects(json format)
+runs:
+  using: composite
+  steps:
+    - name: Get changed directories
+      id: changed-files
+      uses: tj-actions/changed-files@6cb76d07bee4c9772c6882c06c37837bf82a04d3 # v46
+      with:
+        matrix: true # 後続のjobでmatrixで使うために、ファイルをjson形式で出力させる
+        dir_names: true # uniqueディレクトリ名を取得
+        dir_names_max_depth: ${{ inputs.max_depth }} # ディレクトリ名の深さを指定
+        files_ignore: |
+          .github/**
+    - name: Get Python projects
+      uses: actions/github-script@v7
+      id: find-target-projects
+      with:
+        script: |
+          const fs = require('node:fs');
+          // If target_projects input is provided, use it
+          dispatch_inputs = "${{ inputs.target_projects }}";
+          if (dispatch_inputs !== "") {
+            dispatch_inputs = dispatch_inputs.split(',').map(path => path.trim());
+            core.setOutput('projects', JSON.stringify(dispatch_inputs));
+          } else { // If no input is provided, get directories from changed files
+            const inputs = JSON.parse(${{ toJSON(steps.changed-files.outputs.all_changed_and_modified_files) }});
+            const required_files = "${{ inputs.required_files }}".split(',').map(path => path.trim());
+            // Filter out directories that contain required files.
+            const paths = inputs.filter(path => {
+              if (
+                fs.statSync(path).isDirectory()
+              ) {
+                // Check if all required files exist in the directory
+                const all_files_exist = required_files.every(file => fs.existsSync(`${path}/${file}`));
+                if (all_files_exist) {
+                  return true;
+                }
+              }
+              return false;
+            });
+            core.setOutput('projects', JSON.stringify(paths));
+          }
+    - name: Print changed directories
+      run: |
+        echo "::debug::Changed directories: ${{ steps.get-projects.outputs.projects }}"
+      shell: bash

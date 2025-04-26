@@ -26,51 +26,18 @@ jobs:
       contents: read
     runs-on: ubuntu-latest
     outputs:
-      projects: ${{ steps.get-projects.outputs.projects }}
+      projects: ${{ steps.find-target-projects.outputs.projects }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Get changed directories
-        id: changed-files
-        uses: tj-actions/changed-files@6cb76d07bee4c9772c6882c06c37837bf82a04d3 # v46
+      - uses: ./.github/actions/find_target_projects/
+        id: find-target-projects
         with:
-          matrix: true # 後続のjobでmatrixで使うために。ファイルがjson形式で出力される
-          dir_names: true # uniqueディレクトリ名を取得
-          dir_names_max_depth: 2 # ディレクトリ名の深さを指定
-          files_ignore: |
-            .github/**
-      - name: Get Python projects
-        uses: actions/github-script@v7
-        id: get-projects
-        with:
-          script: |
-            const fs = require('node:fs');
-            // If target_projects input is provided, use it
-            dispatch_inputs = "${{ github.event.inputs.target_projects }}";
-            if (dispatch_inputs !== "") {
-              dispatch_inputs = dispatch_inputs.split(',').map(path => path.trim());
-              core.setOutput('projects', JSON.stringify(dispatch_inputs));
-            } else { // If no input is provided, get directories from changed files
-              const inputs = JSON.parse(${{ toJSON(steps.changed-files.outputs.all_changed_and_modified_files) }});
-              // Filter out directories that contain pyproject.toml and Makefile
-              const paths = inputs.filter(path => {
-                if (
-                  fs.statSync(path).isDirectory()
-                  && fs.existsSync(`${path}/pyproject.toml`)
-                  && fs.existsSync(`${path}/Makefile`)
-                ) {
-                  return true;
-                }
-                return false;
-              });
-              core.setOutput('projects', JSON.stringify(paths));
-            }
-      - name: Print changed directories
-        run: |
-          echo "Changed directories: ${{ steps.get-projects.outputs.projects }}"
-          echo "::debug::Changed directories: ${{ steps.get-projects.outputs.projects }}"
+          max_depth: 2
+          required_files: pyproject.toml, Makefile
+          target_projects: ${{ github.event.inputs.target_projects }}
 
   python-lint-and-test:
     name: Python Lint and Test
