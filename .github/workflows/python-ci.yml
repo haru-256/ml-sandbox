@@ -1,4 +1,4 @@
-name: Python Lint and Test
+name: Python CI for Lint and Test
 
 on:
   pull_request:
@@ -20,7 +20,7 @@ env:
   FORCE_COLOR: 1
 
 jobs:
-  target_projects:
+  find_target_projects:
     name: Find target Projects
     permissions:
       contents: read
@@ -39,13 +39,13 @@ jobs:
           required_files: pyproject.toml, Makefile
           target_projects: ${{ github.event.inputs.target_projects }}
 
-  python-lint-and-test:
-    name: Python Lint and Test
-    needs: target_projects
-    if: ${{ needs.target_projects.outputs.projects != '' && toJson(fromJson(needs.target_projects.outputs.projects)) != '[]' }}
+  lint-and-test:
+    name: Lint and Test
+    needs: find_target_projects
+    if: ${{ needs.find_target_projects.outputs.projects != '' && toJson(fromJson(needs.find_target_projects.outputs.projects)) != '[]' }}
     strategy:
       matrix:
-        project: ${{ fromJson(needs.target_projects.outputs.projects) }}
+        project: ${{ fromJson(needs.find_target_projects.outputs.projects) }}
       fail-fast: false
     runs-on: ubuntu-latest
     env:
