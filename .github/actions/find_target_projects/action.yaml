@@ -73,5 +73,5 @@ runs:
           }
     - name: Print changed directories
       run: |
-        echo "::debug::Changed directories: ${{ steps.get-projects.outputs.projects }}"
+        echo "::debug::Found Projects: ${{ steps.find-target-projects.outputs.projects }}
       shell: bash
