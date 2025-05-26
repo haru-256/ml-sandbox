@@ -2,7 +2,7 @@
 # https://github.com/Codium-ai/pr-agent/blob/main/pr_agent/settings/configuration.toml
 
 [config]
-model = "o3-mini"
+model = "vertex_ai/gemini-2.5-flash-preview-05-20"
 ignore_pr_labels = ['renovate']
 
 [ignore]
