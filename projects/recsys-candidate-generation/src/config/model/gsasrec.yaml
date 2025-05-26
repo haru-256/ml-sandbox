@@ -1,4 +1,4 @@
-name: "SASRec"
+name: "gSASRec"
 
 out_dim: 64 # 出力次元数 & Item ID embeddingの次元 & Transformerの出力次元
 
