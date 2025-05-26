@@ -48,8 +48,8 @@ class gSASRecLoss(nn.Module):
         """Forward pass for gSASRec loss, see https://github.com/asash/gSASRec-pytorch/blob/main/train_gsasrec.py#L63-L71
 
         Args:
-            positive_logits: positive logits, shape (batch_size, 1)
-            negative_logits: negative logits, shape (batch_size, neg_sample_size)
+            positive_logits: logits for positive label, shape (batch_size, 1)
+            negative_logits: logits for negative label, shape (batch_size, neg_sample_size)
 
         Returns:
             loss: gSASRec loss
@@ -189,9 +189,9 @@ class gSASRecModule(BaseModule):
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
         # shape (batch_size, 1), (batch_size, neg_sample_size)
         pos_logits, neg_logits = gSASRecModule._calc_logits(out, pos_item_emb, neg_item_emb)
+        loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
-        loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         self._logging_step(
@@ -221,10 +221,10 @@ class gSASRecModule(BaseModule):
         assert pos_logits.size(1) == 1
 
         # calc loss, accuracy
+        loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
         # for imbalanced, extract the first item logits, shape (batch_size, 1)
         _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
         logits, labels = create_classification_inputs(_pos_logits, _neg_logits)
-        loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         # calc ranking metrics
