@@ -11,11 +11,21 @@ jobs:
       issues: write
       pull-requests: write
       contents: write
+      id-token: write
     name: Run pr agent on every pull request, respond to user comments
     steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v4
+
+      - name: "Authenticate to Google Cloud"
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }} # 出力値を登録
+          service_account: ${{ vars.GCP_SA_EMAIL }} # 出力値を登録
+
       - name: PR Agent action step
         id: pragent
         uses: qodo-ai/pr-agent@main
         env:
-          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
