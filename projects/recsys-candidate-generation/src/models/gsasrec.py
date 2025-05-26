@@ -109,7 +109,6 @@ class gSASRecModule(BaseModule):
             pad_idx: padding index
             float16: whether to use float16
             eval_top_k: number of top-k items for evaluation metrics
-            optimizer_params: optimizer parameters
             t: calibration parameter for gSASRec loss
             neg_sample_size: negative sample size per positive sample. This parameter is used to calculate the gSASRec loss for alpha.
             optimizer_params: Optimizer parameters including learning rate, weight decay, and learning rate scheduler configuration.
