@@ -1092,7 +1092,7 @@ wheels = [
 [[package]]
 name = "job-runner"
 version = "0.1.0"
-source = { editable = "../job_runner" }
+source = { editable = "../../apps/job_runner" }
 dependencies = [
     { name = "google-cloud-aiplatform" },
     { name = "loguru" },
@@ -1461,7 +1461,7 @@ wheels = [
 [[package]]
 name = "ml-sandbox-libs"
 version = "0.1.0"
-source = { editable = "../ml_sandbox_libs" }
+source = { editable = "../../libs/ml_sandbox_libs" }
 dependencies = [
     { name = "datasets" },
     { name = "google-cloud-logging" },
@@ -2600,10 +2600,10 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "hydra-core", specifier = "~=1.3.2" },
-    { name = "job-runner", editable = "../job_runner" },
+    { name = "job-runner", editable = "../../apps/job_runner" },
     { name = "lightning", specifier = "~=2.5.1" },
     { name = "loguru", specifier = "~=0.7.3" },
-    { name = "ml-sandbox-libs", editable = "../ml_sandbox_libs" },
+    { name = "ml-sandbox-libs", editable = "../../libs/ml_sandbox_libs" },
     { name = "numpy", specifier = "~=2.2.5" },
     { name = "polars", specifier = "~=1.27.1" },
     { name = "timm", specifier = "~=1.0.15" },

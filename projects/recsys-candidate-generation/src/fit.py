@@ -12,7 +12,7 @@ from ml_sandbox_libs.utils import setup_logger
 from omegaconf import DictConfig
 
 from const import EVAL_NEG_SAMPLE_SIZE
-from models import SASRecModule, TwoTowerModule
+from models import SASRecModule, TwoTowerModule, gSASRecModule
 from my_types import LRSchedulerParams, OptimizerParams
 
 
@@ -79,6 +79,24 @@ def main(cfg: DictConfig) -> None:
             max_seq_len=cfg.data.max_seq_len,
             pad_idx=SpecialIndex.PAD,
             float16=cfg.device.float16,
+            # optimizer
+            optimizer_params=optimizer_params,
+            # eval
+            eval_top_k=cfg.data.eval_top_k,
+        )
+    elif cfg.model.name == "gSASRec":
+        module = gSASRecModule(
+            num_items=len(datamodule.item2index),
+            out_dim=cfg.model.out_dim,
+            num_heads=cfg.model.num_heads,
+            num_blocks=cfg.model.num_blocks,
+            attn_dropout=cfg.model.attn_dropout,
+            ffn_dropout=cfg.model.ffn_dropout,
+            max_seq_len=cfg.data.max_seq_len,
+            pad_idx=SpecialIndex.PAD,
+            float16=cfg.device.float16,
+            t=cfg.model.t,
+            neg_sample_size=cfg.data.neg_sample_size,
             # optimizer
             optimizer_params=optimizer_params,
             # eval

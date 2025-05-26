@@ -78,9 +78,16 @@ recsys-candidate-generation/
 ### SASRec
 
 - **ファイルパス:** `src/models/sasrec.py`
+- 論文: [SASRec: Self-Attentive Sequential Recommendation](https://arxiv.org/abs/1808.09781)
 - TransformerのSelf-Attention機構を利用したシーケンシャル推薦モデル。
 - ユーザーの過去のアイテムインタラクション履歴（シーケンス）を入力とします。
 - アイテムIDを埋め込み、位置エンコーディングを加えた後、複数のTransformerエンコーダーブロック（自己注意機構 + FeedForward層）で処理します。
 - 自己注意機構により、シーケンス内のアイテム間の依存関係を捉えます。
 - 最後のTransformerブロックの出力（特にシーケンスの最後のアイテムに対応する表現）を用いて、次にユーザーがインタラクションするアイテムを予測します。
 - 訓練時には、予測アイテム（正例）と負例アイテムに対するスコアを計算し、正例のスコアが高くなるように学習します (BCEWithLogitsLossを使用)。
+
+## gSASRec
+
+- **ファイルパス:** `src/models/gsasrec.py`
+- SASRecの拡張版で、ロスを調整することで、より効果的な学習を行います。
+- 論文: [gSASRec: Reducing Overconfidence in Sequential Recommendation Trained with Negative Sampling](https://arxiv.org/abs/2308.07192)
