@@ -318,7 +318,6 @@ class gSASRecModule(BaseModule):
         Args:
             batch_size: batch size
             neg_sample_size: negative sample size
-            pos_sample_size: positive sample size
             depth: depth. Defaults to 4.
             verbose: verbose. Defaults to 1.
 
