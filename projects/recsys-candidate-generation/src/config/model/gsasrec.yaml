@@ -1,0 +1,12 @@
+name: "SASRec"
+
+out_dim: 64 # 出力次元数 & Item ID embeddingの次元 & Transformerの出力次元
+
+# MHAの設定
+num_heads: 2 # MultiHeadAttentionのhead数
+num_blocks: 2 # Transformerのblock数
+attn_dropout: 0.5 # MultiHeadAttentionのdropout率
+ffn_dropout: 0.5 # FeedForwardNetworkのdropout率
+
+# lossの設定
+t: 0.75 # gSASRecのtパラメータ, calibration parameter https://github.com/asash/gSASRec-pytorch
