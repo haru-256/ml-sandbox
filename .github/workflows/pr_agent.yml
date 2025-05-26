@@ -29,3 +29,5 @@ jobs:
         uses: qodo-ai/pr-agent@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          vertexai.vertex_project: ${{ vars.GCP_PROJECT_ID }}
+          vertexai.vertex_location: ""
