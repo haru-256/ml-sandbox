@@ -96,31 +96,191 @@ def unk_filter_by_count(df: pl.DataFrame, id_column_name: str, threshold: float)
     return filtered_df
 
 
-def seq_rec_preprocess_dataset(
-    dataset_dict: D.DatasetDict, metadata: D.Dataset, filter_no_history: bool = True
+def build_feature_indices(
+    train_df: pl.DataFrame,
+    meta_df: pl.DataFrame,
+    threshold: float = 0.95,
 ) -> tuple[
-    pl.DataFrame,
-    pl.DataFrame,
-    pl.DataFrame,
-    dict[str, int],
-    dict[str, int],
-    dict[str, int],
-    dict[int, int],
+    dict[str, int],  # user2index
+    dict[str, int],  # item2index
+    dict[str, int],  # category2index
+    dict[int, int],  # item_index_2_category_index
 ]:
-    """preprocess the dataset
+    """Builds indices for users, items, and categories from the provided datasets.
 
     Args:
-        dataset: dataset from the datasets library(transformers)
+        train_df: The Polars DataFrame for training data after initial processing (conversion, metadata join, optional history filtering).
+        meta_df: The Polars DataFrame containing metadata for items, including categories.
+        threshold: The threshold for `unk_filter_by_count` to determine frequent users/items/categories. Defaults to 0.95.
+
+    Returns:
+        A tuple containing:
+            - user2index: Mapping from user ID string to integer index.
+            - item2index: Mapping from item ID (parent_asin) string to integer index.
+            - category2index: Mapping from category string to integer index.
+            - item_index_2_category_index: Mapping from item integer index to category integer index.
+            - processed_train_df: The Polars DataFrame for training data after initial processing (conversion, metadata join, optional history filtering) from which indices were derived.
+    """
+    # Assign unique ID to users, items and categories
+    # 以下の条件を満たすUser/Item/CategoryはUNKに対応させるため、欠損させる。欠損したitemは後ほどUNKに対応させる
+    # - 出現回数が一定以下
+
+    # User index
+    filtered_users_df = unk_filter_by_count(train_df, id_column_name="user_id", threshold=threshold)
+    train_users = (
+        train_df.select(pl.col("user_id"))
+        .unique()
+        .join(filtered_users_df, on="user_id", how="inner", validate="1:1")
+    )
+    user2index: dict[str, int] = {
+        user_id_str: idx
+        for idx, user_id_str in enumerate(
+            train_users["user_id"].sort(),
+            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
+        )
+    }
+    user2index.update({"#UNK": SpecialIndex.UNK})
+    assert user2index.get("", -1) == -1, "Empty user should not be in the user2index"
+
+    # Item index
+    train_item_df = (
+        pl.concat(
+            [
+                train_df["parent_asin"],
+                train_df["history"].str.split(" ").explode(),
+            ],
+            how="vertical",
+        )
+        .rename("parent_asin")
+        .to_frame()
+        .filter(pl.col("parent_asin") != "")
+    )
+    filtered_items_df = unk_filter_by_count(
+        train_item_df, id_column_name="parent_asin", threshold=threshold
+    )
+    train_items = (
+        train_item_df.select(pl.col("parent_asin"))
+        .unique()
+        .join(filtered_items_df, on="parent_asin", how="inner", validate="1:1")
+    )
+    item2index: dict[str, int] = {
+        item_asin: idx
+        for idx, item_asin in enumerate(
+            train_items["parent_asin"].sort(),
+            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
+        )
+    }
+    item2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
+    assert item2index.get("", -1) == -1, "Empty item should not be in the item2index"
+
+    # Category index
+    # Ensure 'category' column is not null for counting, replace nulls with a placeholder if necessary before counting
+    # or rely on unk_filter_by_count to handle it if it groups nulls.
+    # For safety, let's consider how unk_filter_by_count handles nulls or filter them.
+    # The original code directly uses train_df which has categories joined, potentially with nulls.
+    # unk_filter_by_count groups by id_column_name, nulls would form their own group.
+    # Let's assume train_df already has 'category' column from the join.
+    train_df_for_category_count = train_df.filter(pl.col("category").is_not_null())
+    if train_df_for_category_count.is_empty() and not train_df.is_empty():
+        logger.warning(
+            "No non-null categories found in train_df for category indexing. Category index will be minimal."
+        )
+        # Create a minimal category2index if no categories are found to prevent errors downstream
+        category2index: dict[str, int] = {"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD}
+        train_categories = pl.DataFrame({"category": []})  # Empty DataFrame
+    elif train_df_for_category_count.is_empty() and train_df.is_empty():
+        logger.warning("train_df is empty. Category index will be minimal.")
+        category2index = {"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD}
+        train_categories = pl.DataFrame({"category": []})  # Empty DataFrame
+    else:
+        filtered_categories_df = unk_filter_by_count(
+            train_df_for_category_count, id_column_name="category", threshold=threshold
+        )
+        train_categories = (
+            train_df_for_category_count.select(pl.col("category"))
+            .unique()
+            .join(filtered_categories_df, on="category", how="inner", validate="1:1")
+        )
+        category2index = {
+            cat_name: idx
+            for idx, cat_name in enumerate(
+                train_categories["category"].sort(),
+                start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
+            )
+        }
+        category2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
+    assert category2index.get("", -1) == -1, "Empty category should not be in the category2index"
+
+    # Item index to category index mapping
+    item2index_df = pl.from_dict(
+        {"parent_asin": list(item2index.keys()), "item_index": list(item2index.values())}
+    )
+    category2index_df = pl.from_dict(
+        {"category": list(category2index.keys()), "category_index": list(category2index.values())}
+    )
+    item_index_2_category_index_df = item2index_df.join(
+        meta_df,
+        on="parent_asin",
+        how="left",
+        validate="1:1",  # Use the full meta_df for category lookup
+    ).join(category2index_df, on="category", how="left", validate="m:1")
+
+    item_index_2_category_index_df = item_index_2_category_index_df.with_columns(
+        pl.when(pl.col("item_index") == SpecialIndex.PAD)
+        .then(SpecialIndex.PAD)
+        .when(pl.col("category_index").is_null())  # If category was null or not in category2index
+        .then(SpecialIndex.UNK)
+        .otherwise(pl.col("category_index"))
+        .alias("category_index")
+    )
+    item_index_2_category_index: dict[int, int] = {
+        row_item_index: row_category_index
+        for row_item_index, row_category_index in item_index_2_category_index_df[
+            ["item_index", "category_index"]
+        ].iter_rows()
+    }
+    # Ensure all item indices (including PAD, UNK) from item2index are in item_index_2_category_index
+    # UNK items might not have a category in meta_df, or their category might be rare.
+    # PAD items should map to PAD category_index.
+    if (
+        SpecialIndex.UNK in item2index.values()
+        and item2index["#UNK"] not in item_index_2_category_index
+    ):
+        item_index_2_category_index[item2index["#UNK"]] = SpecialIndex.UNK
+    if (
+        SpecialIndex.PAD in item2index.values()
+        and item2index["#PAD"] not in item_index_2_category_index
+    ):
+        item_index_2_category_index[item2index["#PAD"]] = SpecialIndex.PAD
+
+    return (
+        user2index,
+        item2index,
+        category2index,
+        item_index_2_category_index,
+    )
+
+
+def _common_preprocess_dataset(
+    dataset_dict: D.DatasetDict, metadata: D.Dataset, filter_no_history: bool = True
+) -> tuple[
+    tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame],
+    pl.DataFrame,
+    tuple[dict[str, int], dict[str, int], dict[str, int], dict[int, int]],
+    tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame],
+]:
+    """Common preprocessing steps for the dataset
+
+    Args:
+        dataset_dict: dataset from the datasets library(transformers)
         metadata: metadata dataset from the datasets library(transformers)
         filter_no_history: whether to filter out the dataset which has no history. Defaults to True.
 
     Returns:
-        train_df: train dataset
-        val_df: validation dataset
-        test_df: test dataset
-        user2index: user to index dictionary
-        item2index: item to index dictionary
-        category2index: category to index dictionary
+        tuple of train_df, val_df, test_df: preprocessed train, validation and test datasets
+        meta_df: metadata dataframe
+        tuple of user2index, item2index, category2index, item_index_2_category_index: dictionaries for user, item and category indices
+        tuple of user2index_df, item2index_df, category2index_df: dataframes for user, item and category indices
     """
     schema_overrides = {
         "user_id": pl.String,
@@ -151,107 +311,72 @@ def seq_rec_preprocess_dataset(
         val_df = val_df.filter(pl.col("history") != "")
         test_df = test_df.filter(pl.col("history") != "")
 
-    # assign unique ID to users, items and categories
-    # 以下の条件を満たすUser/Item/CategoryはUNKに対応させるため、欠損させる。欠損したitemは後ほどUNKに対応させる
-    # - 出現回数が一定以下
-    threshold = 0.95
-    # user
-    filtered_by_count_df = unk_filter_by_count(
-        train_df, id_column_name="user_id", threshold=threshold
-    )
-    # 出現回数が一定以下のuserを除外
-    train_users = (
-        train_df.select(pl.col("user_id"))
-        .unique()
-        .join(filtered_by_count_df, on="user_id", how="inner", validate="1:1")
-    )
-    user2index: dict[str, int] = {
-        user_id: idx
-        for idx, user_id in enumerate(
-            train_users["user_id"].sort(),
-            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
-        )
-    }
-    user2index.update({"#UNK": SpecialIndex.UNK})
+    (
+        user2index,
+        item2index,
+        category2index,
+        item_index_2_category_index,
+    ) = build_feature_indices(train_df, meta_df, threshold=0.95)
     user2index_df = pl.from_dict(
         {"user_id": list(user2index.keys()), "user_index": list(user2index.values())}
     )
-    assert user2index.get("", -1) == -1, "Empty user should not be in the user2index"
-    # item
-    train_item_df = (
-        pl.concat(
-            [train_df["parent_asin"], train_df["history"].str.split(" ").explode()],
-            how="vertical",
-        )
-        .rename("parent_asin")
-        .to_frame()
-        .filter(pl.col("parent_asin") != "")
-    )
-    filtered_by_count_df = unk_filter_by_count(
-        train_item_df, id_column_name="parent_asin", threshold=threshold
-    )
-    train_items = (
-        train_item_df.select(pl.col("parent_asin"))
-        .unique()
-        .join(filtered_by_count_df, on="parent_asin", how="inner", validate="1:1")
-    )
-    item2index: dict[str, int] = {
-        user_id: idx
-        for idx, user_id in enumerate(
-            train_items["parent_asin"].sort(),
-            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
-        )
-    }
-    item2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
     item2index_df = pl.from_dict(
         {
             "parent_asin": list(item2index.keys()),
             "item_index": list(item2index.values()),
         }
     )
-    assert item2index.get("", -1) == -1, "Empty item should not be in the item2index"
-    # category
-    filtered_by_count_df = unk_filter_by_count(
-        train_df, id_column_name="category", threshold=threshold
-    )
-    train_categorys = (
-        train_df.select(pl.col("category"))
-        .unique()
-        .join(filtered_by_count_df, on="category", how="inner", validate="1:1")
-    )
-    category2index: dict[str, int] = {
-        user_id: idx
-        for idx, user_id in enumerate(
-            train_categorys["category"].sort(),
-            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
-        )
-    }
-    category2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
     category2index_df = pl.from_dict(
         {
             "category": list(category2index.keys()),
             "category_index": list(category2index.values()),
         }
     )
-    assert category2index.get("", -1) == -1, "Empty category should not be in the category2index"
-    # item index to category index
-    item_index_2_category_index_df = item2index_df.join(
-        meta_df, on="parent_asin", how="left", validate="1:1"
-    ).join(category2index_df, on="category", how="left", validate="m:1")
-    item_index_2_category_index_df = item_index_2_category_index_df.with_columns(
-        pl.when(pl.col("item_index") == SpecialIndex.PAD)
-        .then(SpecialIndex.PAD)
-        .when(pl.col("category_index").is_null())
-        .then(SpecialIndex.UNK)
-        .otherwise(pl.col("category_index"))
-        .alias("category_index")
+
+    return (
+        (train_df, val_df, test_df),
+        meta_df,
+        (user2index, item2index, category2index, item_index_2_category_index),
+        (user2index_df, item2index_df, category2index_df),
     )
-    item_index_2_category_index = {
-        item_index: category_index
-        for item_index, category_index in item_index_2_category_index_df[
-            ["item_index", "category_index"]
-        ].iter_rows()
-    }
+
+
+def seq_rec_preprocess_dataset(
+    dataset_dict: D.DatasetDict, metadata: D.Dataset, filter_no_history: bool = True
+) -> tuple[
+    pl.DataFrame,
+    pl.DataFrame,
+    pl.DataFrame,
+    dict[str, int],
+    dict[str, int],
+    dict[str, int],
+    dict[int, int],
+]:
+    """preprocess the dataset
+
+    Args:
+        dataset: dataset from the datasets library(transformers)
+        metadata: metadata dataset from the datasets library(transformers)
+        filter_no_history: whether to filter out the dataset which has no history. Defaults to True.
+
+    Returns:
+        train_df: train dataset
+        val_df: validation dataset
+        test_df: test dataset
+        user2index: user to index dictionary
+        item2index: item to index dictionary
+        category2index: category to index dictionary
+    """
+    (
+        (train_df, val_df, test_df),
+        meta_df,
+        (user2index, item2index, category2index, item_index_2_category_index),
+        (user2index_df, item2index_df, category2index_df),
+    ) = _common_preprocess_dataset(
+        dataset_dict=dataset_dict,
+        metadata=metadata,
+        filter_no_history=filter_no_history,
+    )
 
     # preprocess
     def _preprocess(df: pl.DataFrame) -> pl.DataFrame:
@@ -677,3 +802,78 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
         Item2Index: {len(self.item2index)}
         Category2Index: {len(self.category2index)}
         """
+
+
+def bipartite_graph_preprocess_dataset(
+    dataset_dict: D.DatasetDict, metadata: D.Dataset
+) -> tuple[
+    pl.DataFrame,
+    pl.DataFrame,
+    pl.DataFrame,
+    dict[str, int],
+    dict[str, int],
+    dict[str, int],
+    dict[int, int],
+]:
+    """Preprocess the dataset for bipartite graph
+
+    Args:
+        dataset_dict: dataset from the datasets library(transformers)
+        metadata: metadata dataset from the datasets library(transformers)
+
+    Returns:
+        bipartite_df: bipartite graph dataframe
+        user2index: user to index dictionary
+        item2index: item to index dictionary
+    """
+
+    (
+        (train_df, val_df, test_df),
+        _,
+        (user2index, item2index, category2index, item_index_2_category_index),
+        _,
+    ) = _common_preprocess_dataset(
+        dataset_dict=dataset_dict,
+        metadata=metadata,
+        filter_no_history=False,
+    )
+
+    def _preprocess(df: pl.DataFrame) -> pl.DataFrame:
+        df = df.group_by("user_id", "parent_asin").agg(
+            pl.max("user_index").alias("user_index"),
+            pl.max("item_index").alias("item_index"),
+            pl.max("category").alias("category"),
+            pl.max("category_index").alias("category_index"),
+            pl.max("rating").alias("rating"),
+            pl.min("timestamp").alias("timestamp"),
+            pl.len().alias("num_ratings"),
+        )
+        df = df.select(
+            [
+                "user_id",
+                "user_index",
+                "parent_asin",
+                "item_index",
+                "category",
+                "category_index",
+                "rating",
+                "timestamp",
+                "num_ratings",
+            ]
+        )
+        return df
+
+    logger.info("Preprocessing the dataset for bipartite graph")
+    train_df = _preprocess(train_df)
+    val_df = _preprocess(val_df)
+    test_df = _preprocess(test_df)
+
+    return (
+        train_df,
+        val_df,
+        test_df,
+        user2index,
+        item2index,
+        category2index,
+        item_index_2_category_index,
+    )
