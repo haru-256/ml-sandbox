@@ -8,7 +8,7 @@ requires-python = ">=3.12"
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
   "lightning>=2.5.0.post0",
-  "torchmetrics>=1.6.1",
+  "torchmetrics>=1.7.3",
   "datasets>=3.2.0",
   "numpy>=2.2.1",
   "polars>=1.18.0",
@@ -20,8 +20,22 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cpu = ["torch>=2.5.1"]
-gpu = ["torch>=2.5.1"]
+cpu = [
+  "torch==2.7.1",
+  "pyg_lib",
+  "torch_scatter",
+  "torch_sparse",
+  "torch_cluster",
+  "torch_spline_conv",
+]
+gpu = [
+  "torch==2.7.1",
+  "pyg_lib",
+  "torch_scatter",
+  "torch_sparse",
+  "torch_cluster",
+  "torch_spline_conv",
+]
 
 [dependency-groups]
 dev = [
@@ -38,6 +52,10 @@ lint = ["ruff~=0.11.4"]
 [tool.uv]
 package = true
 conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
+# find-links = [
+#   "https://data.pyg.org/whl/torch-2.7.0+cu126.html",
+#   "https://data.pyg.org/whl/torch-2.7.0+cpu.html",
+# ]
 
 [tool.uv.sources]
 torch = [
@@ -45,6 +63,35 @@ torch = [
   { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'macOS'" },
   { index = "pytorch-gpu", extra = "gpu" },
 ]
+# indexファイルが存在しないため、以下のlinkから明示的にURLを指定
+# https://data.pyg.org/whl/torch-2.7.0+cu126.html
+# https://data.pyg.org/whl/torch-2.7.0+cpu.html
+pyg_lib = [
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27-cp312-cp312-macosx_14_0_universal2.whl", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/pyg_lib-0.4.0%2Bpt27cu126-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
+]
+torch_scatter = [
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_scatter-2.1.2%2Bpt27cu126-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
+]
+torch_sparse = [
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_sparse-0.6.18%2Bpt27cu126-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
+]
+torch_cluster = [
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_cluster-1.6.3%2Bpt27cu126-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
+]
+torch_spline_conv = [
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_spline_conv-1.2.2%2Bpt27cu126-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
+]
+
 
 [[tool.uv.index]]
 name = "pytorch-cpu-mac"
@@ -58,7 +105,7 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-gpu"
-url = "https://download.pytorch.org/whl/cu121"
+url = "https://download.pytorch.org/whl/cu126"
 explicit = true
 
 [tool.ruff]

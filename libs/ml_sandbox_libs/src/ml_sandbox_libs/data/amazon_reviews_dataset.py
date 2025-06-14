@@ -831,7 +831,7 @@ def bipartite_graph_preprocess_dataset(
         (train_df, val_df, test_df),
         _,
         (user2index, item2index, category2index, item_index_2_category_index),
-        _,
+        (user2index_df, item2index_df, category2index_df),
     ) = _common_preprocess_dataset(
         dataset_dict=dataset_dict,
         metadata=metadata,
@@ -839,7 +839,13 @@ def bipartite_graph_preprocess_dataset(
     )
 
     def _preprocess(df: pl.DataFrame) -> pl.DataFrame:
-        df = df.group_by("user_id", "parent_asin").agg(
+        main_df = df.select(["user_id", "parent_asin", "category", "rating", "timestamp"])
+        # add index columns
+        main_df = main_df.join(user2index_df, on="user_id", how="left", validate="m:1")
+        main_df = main_df.join(item2index_df, on="parent_asin", how="left", validate="m:1")
+        # add metadata
+        main_df = main_df.join(category2index_df, on="category", how="left", validate="m:1")
+        main_df = main_df.group_by("user_id", "parent_asin").agg(
             pl.max("user_index").alias("user_index"),
             pl.max("item_index").alias("item_index"),
             pl.max("category").alias("category"),
@@ -848,7 +854,7 @@ def bipartite_graph_preprocess_dataset(
             pl.min("timestamp").alias("timestamp"),
             pl.len().alias("num_ratings"),
         )
-        df = df.select(
+        main_df = main_df.select(
             [
                 "user_id",
                 "user_index",
@@ -861,7 +867,7 @@ def bipartite_graph_preprocess_dataset(
                 "num_ratings",
             ]
         )
-        return df
+        return main_df
 
     logger.info("Preprocessing the dataset for bipartite graph")
     train_df = _preprocess(train_df)
