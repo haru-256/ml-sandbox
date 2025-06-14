@@ -8,8 +8,10 @@ resolution-markers = [
     "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
     "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
     "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
-    "python_full_version >= '3.13' and platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
-    "python_full_version < '3.13' and platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
     "python_full_version >= '3.13' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
     "python_full_version < '3.13' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu'",
 ]
@@ -1066,7 +1068,7 @@ dependencies = [
     { name = "overrides" },
     { name = "packaging" },
     { name = "prometheus-client" },
-    { name = "pywinpty", marker = "(os_name == 'nt' and platform_system == 'macOS') or (os_name == 'nt' and platform_system != 'macOS' and extra != 'extra-15-ml-sandbox-libs-cpu') or (os_name == 'nt' and sys_platform != 'darwin') or (os_name != 'nt' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'darwin') or (os_name == 'nt' and extra != 'extra-15-ml-sandbox-libs-cpu') or (os_name != 'nt' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "pyzmq" },
     { name = "send2trash" },
     { name = "terminado" },
@@ -1084,7 +1086,7 @@ name = "jupyter-server-terminals"
 version = "0.5.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pywinpty", marker = "(os_name == 'nt' and platform_system == 'macOS') or (os_name == 'nt' and platform_system != 'macOS' and extra != 'extra-15-ml-sandbox-libs-cpu') or (os_name == 'nt' and sys_platform != 'darwin') or (os_name != 'nt' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'darwin') or (os_name == 'nt' and extra != 'extra-15-ml-sandbox-libs-cpu') or (os_name != 'nt' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "terminado" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fc/d5/562469734f476159e99a55426d697cbf8e7eb5efe89fb0e0b4f83a3d3459/jupyter_server_terminals-0.5.3.tar.gz", hash = "sha256:5ae0295167220e9ace0edcfdb212afd2b01ee8d179fe6f23c899590e9b8a5269", size = 31430 }
@@ -1162,10 +1164,9 @@ dependencies = [
     { name = "packaging" },
     { name = "pytorch-lightning" },
     { name = "pyyaml" },
-    { name = "torch", version = "2.7.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.python.org/simple" }, marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "torch", version = "2.7.1+cu126", source = { registry = "https://download.pytorch.org/whl/cu126" }, marker = "extra == 'extra-15-ml-sandbox-libs-gpu'" },
     { name = "torchmetrics" },
     { name = "tqdm" },
@@ -1290,19 +1291,18 @@ dependencies = [
 
 [package.optional-dependencies]
 cpu = [
-    { name = "pyg-lib", version = "0.4.0+pt27", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27-cp312-cp312-macosx_14_0_universal2.whl" }, marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "pyg-lib", version = "0.4.0+pt27cpu", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(platform_system != 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch", version = "2.7.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.python.org/simple" }, marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch-cluster", version = "1.6.3", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch-cluster", version = "1.6.3+pt27cpu", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(platform_system != 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch-scatter", version = "2.1.2", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch-scatter", version = "2.1.2+pt27cpu", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(platform_system != 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch-sparse", version = "0.6.18", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" }, marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch-sparse", version = "0.6.18+pt27cpu", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(platform_system != 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch-spline-conv", version = "1.2.2", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch-spline-conv", version = "1.2.2+pt27cpu", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(platform_system != 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "pyg-lib", version = "0.4.0+pt27", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27-cp312-cp312-macosx_14_0_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "pyg-lib", version = "0.4.0+pt27cpu", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch-cluster", version = "1.6.3", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch-cluster", version = "1.6.3+pt27cpu", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch-scatter", version = "2.1.2", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch-scatter", version = "2.1.2+pt27cpu", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch-sparse", version = "0.6.18", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch-sparse", version = "0.6.18+pt27cpu", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch-spline-conv", version = "1.2.2", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch-spline-conv", version = "1.2.2+pt27cpu", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
 ]
 gpu = [
     { name = "pyg-lib", version = "0.4.0+pt27cu126", source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/pyg_lib-0.4.0%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" } },
@@ -1336,27 +1336,27 @@ requires-dist = [
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "numpy", specifier = ">=2.2.1" },
     { name = "polars", specifier = ">=1.18.0" },
-    { name = "pyg-lib", marker = "platform_system == 'macOS' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27-cp312-cp312-macosx_14_0_universal2.whl" },
-    { name = "pyg-lib", marker = "platform_system != 'macOS' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "pyg-lib", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27-cp312-cp312-macosx_14_0_universal2.whl" },
+    { name = "pyg-lib", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
     { name = "pyg-lib", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/pyg_lib-0.4.0%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" },
     { name = "tensorboard", specifier = ">=2.18.0" },
-    { name = "torch", marker = "platform_system == 'macOS' and extra == 'cpu'", specifier = "==2.7.1", index = "https://pypi.python.org/simple", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
-    { name = "torch", marker = "platform_system != 'macOS' and extra == 'cpu'", specifier = "==2.7.1", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
+    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'cpu'", specifier = "==2.7.1", index = "https://pypi.python.org/simple", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
+    { name = "torch", marker = "sys_platform != 'darwin' and extra == 'cpu'", specifier = "==2.7.1", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
     { name = "torch", marker = "extra == 'gpu'", specifier = "==2.7.1", index = "https://download.pytorch.org/whl/cu126", conflict = { package = "ml-sandbox-libs", extra = "gpu" } },
-    { name = "torch-cluster", marker = "platform_system == 'macOS' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-cluster", marker = "platform_system != 'macOS' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-cluster", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" },
+    { name = "torch-cluster", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
     { name = "torch-cluster", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_cluster-1.6.3%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-scatter", marker = "platform_system == 'macOS' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-scatter", marker = "platform_system != 'macOS' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-scatter", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" },
+    { name = "torch-scatter", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
     { name = "torch-scatter", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_scatter-2.1.2%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-sparse", marker = "platform_system == 'macOS' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" },
-    { name = "torch-sparse", marker = "platform_system != 'macOS' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-sparse", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" },
+    { name = "torch-sparse", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
     { name = "torch-sparse", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_sparse-0.6.18%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-spline-conv", marker = "platform_system == 'macOS' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-spline-conv", marker = "platform_system != 'macOS' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-spline-conv", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" },
+    { name = "torch-spline-conv", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
     { name = "torch-spline-conv", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_spline_conv-1.2.2%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" },
     { name = "torchinfo", specifier = ">=1.8.0" },
-    { name = "torchmetrics", specifier = ">=1.6.1" },
+    { name = "torchmetrics", specifier = ">=1.7.3" },
 ]
 provides-extras = ["cpu", "gpu"]
 
@@ -1682,7 +1682,7 @@ name = "nvidia-cudnn-cu12"
 version = "9.5.1.17"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "extra == 'extra-15-ml-sandbox-libs-gpu'" },
+    { name = "nvidia-cublas-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/99/93/a201a12d3ec1caa8c6ac34c1c2f9eeb696b886f0c36ff23c638b46603bd0/nvidia_cudnn_cu12-9.5.1.17-py3-none-manylinux_2_28_aarch64.whl", hash = "sha256:9fd4584468533c61873e5fda8ca41bac3a38bcb2d12350830c69b0a96a7e4def", size = 570523509 },
@@ -1695,7 +1695,7 @@ name = "nvidia-cufft-cu12"
 version = "11.3.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "extra == 'extra-15-ml-sandbox-libs-gpu'" },
+    { name = "nvidia-nvjitlink-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1f/37/c50d2b2f2c07e146776389e3080f4faf70bcc4fa6e19d65bb54ca174ebc3/nvidia_cufft_cu12-11.3.0.4-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:d16079550df460376455cba121db6564089176d9bac9e4f360493ca4741b22a6", size = 200164144 },
@@ -1731,9 +1731,9 @@ name = "nvidia-cusolver-cu12"
 version = "11.7.1.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12", marker = "extra == 'extra-15-ml-sandbox-libs-gpu'" },
-    { name = "nvidia-cusparse-cu12", marker = "extra == 'extra-15-ml-sandbox-libs-gpu'" },
-    { name = "nvidia-nvjitlink-cu12", marker = "extra == 'extra-15-ml-sandbox-libs-gpu'" },
+    { name = "nvidia-cublas-cu12" },
+    { name = "nvidia-cusparse-cu12" },
+    { name = "nvidia-nvjitlink-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/93/17/dbe1aa865e4fdc7b6d4d0dd308fdd5aaab60f939abfc0ea1954eac4fb113/nvidia_cusolver_cu12-11.7.1.2-py3-none-manylinux2014_aarch64.whl", hash = "sha256:0ce237ef60acde1efc457335a2ddadfd7610b892d94efee7b776c64bb1cac9e0", size = 157833628 },
@@ -1748,7 +1748,7 @@ name = "nvidia-cusparse-cu12"
 version = "12.5.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12", marker = "extra == 'extra-15-ml-sandbox-libs-gpu'" },
+    { name = "nvidia-nvjitlink-cu12" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/eb/eb/6681efd0aa7df96b4f8067b3ce7246833dd36830bb4cec8896182773db7d/nvidia_cusparse_cu12-12.5.4.2-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:d25b62fb18751758fe3c93a4a08eff08effedfe4edf1c6bb5afd0890fe88f887", size = 216451147 },
@@ -2155,8 +2155,10 @@ name = "pyg-lib"
 version = "0.4.0+pt27"
 source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27-cp312-cp312-macosx_14_0_universal2.whl" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_system == 'macOS'",
-    "python_full_version < '3.13' and platform_system == 'macOS'",
+    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
 ]
 wheels = [
     { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27-cp312-cp312-macosx_14_0_universal2.whl", hash = "sha256:e6a3da10cfe1944814d2f24aac8e8182200f0722b5ddc4d6028a247124885eac" },
@@ -2178,8 +2180,8 @@ source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt2
 resolution-markers = [
     "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
     "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
-    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
 ]
 wheels = [
     { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:a75a83fa6e8e42089f7d1bdec93e8b2bab89767ca937355bf8d65ac755a9d3c7" },
@@ -2281,10 +2283,9 @@ dependencies = [
     { name = "lightning-utilities" },
     { name = "packaging" },
     { name = "pyyaml" },
-    { name = "torch", version = "2.7.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.python.org/simple" }, marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "torch", version = "2.7.1+cu126", source = { registry = "https://download.pytorch.org/whl/cu126" }, marker = "extra == 'extra-15-ml-sandbox-libs-gpu'" },
     { name = "torchmetrics" },
     { name = "tqdm" },
@@ -2676,7 +2677,7 @@ version = "0.18.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ptyprocess", marker = "os_name != 'nt' or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "pywinpty", marker = "(os_name == 'nt' and platform_system == 'macOS') or (os_name == 'nt' and platform_system != 'macOS' and extra != 'extra-15-ml-sandbox-libs-cpu') or (os_name == 'nt' and sys_platform != 'darwin') or (os_name != 'nt' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and sys_platform != 'darwin') or (os_name == 'nt' and extra != 'extra-15-ml-sandbox-libs-cpu') or (os_name != 'nt' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "tornado" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8a/11/965c6fd8e5cc254f1fe142d547387da17a8ebfd75a3455f637c663fb38a0/terminado-0.18.1.tar.gz", hash = "sha256:de09f2c4b85de4765f7714688fff57d3e75bad1f909b589fde880460c753fd2e", size = 32701 }
@@ -2699,29 +2700,6 @@ wheels = [
 [[package]]
 name = "torch"
 version = "2.7.1"
-source = { registry = "https://download.pytorch.org/whl/cpu" }
-resolution-markers = [
-    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
-]
-dependencies = [
-    { name = "filelock", marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "fsspec", marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "jinja2", marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "networkx", marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "setuptools", marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "sympy", marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "typing-extensions", marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-]
-wheels = [
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:7b4f8b2b83bd08f7d399025a9a7b323bdbb53d20566f1e0d584689bb92d82f9a" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1-cp313-cp313t-macosx_14_0_arm64.whl", hash = "sha256:95af97e7b2cecdc89edc0558962a51921bf9c61538597dbec6b7cc48d31e2e13" },
-    { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1-cp313-none-macosx_11_0_arm64.whl", hash = "sha256:7ecd868a086468e1bcf74b91db425c1c2951a9cfcd0592c4c73377b7e42485ae" },
-]
-
-[[package]]
-name = "torch"
-version = "2.7.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.13'",
@@ -2732,8 +2710,23 @@ dependencies = [
     { name = "fsspec", marker = "(extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "jinja2", marker = "(extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "networkx", marker = "(extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-cublas-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-cuda-cupti-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-cuda-nvrtc-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-cuda-runtime-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-cudnn-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-cufft-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-cufile-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-curand-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-cusolver-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-cusparse-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-cusparselt-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-nccl-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "nvidia-nvtx-cu12", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "setuptools", marker = "(extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "sympy", marker = "(extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "triton", marker = "(platform_machine == 'x86_64' and sys_platform == 'linux' and extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "typing-extensions", marker = "(extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu')" },
 ]
 wheels = [
@@ -2756,17 +2749,19 @@ name = "torch"
 version = "2.7.1"
 source = { registry = "https://pypi.python.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_system == 'macOS'",
-    "python_full_version < '3.13' and platform_system == 'macOS'",
+    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
 ]
 dependencies = [
-    { name = "filelock", marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "fsspec", marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "jinja2", marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "networkx", marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "setuptools", marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "sympy", marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "typing-extensions", marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "filelock", marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "fsspec", marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "jinja2", marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "networkx", marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "setuptools", marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "sympy", marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "typing-extensions", marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/87/93/fb505a5022a2e908d81fe9a5e0aa84c86c0d5f408173be71c6018836f34e/torch-2.7.1-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:27ea1e518df4c9de73af7e8a720770f3628e7f667280bce2be7a16292697e3fa", size = 98948276 },
@@ -2790,15 +2785,17 @@ source = { registry = "https://download.pytorch.org/whl/cpu" }
 resolution-markers = [
     "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
     "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
 ]
 dependencies = [
-    { name = "filelock", marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "fsspec", marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "jinja2", marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "networkx", marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "setuptools", marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "sympy", marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "typing-extensions", marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "filelock", marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "fsspec", marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "jinja2", marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "networkx", marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "setuptools", marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "sympy", marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "typing-extensions", marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
 ]
 wheels = [
     { url = "https://download.pytorch.org/whl/cpu/torch-2.7.1%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:3bf2db5adf77b433844f080887ade049c4705ddf9fe1a32023ff84ff735aa5ad" },
@@ -2858,11 +2855,13 @@ name = "torch-cluster"
 version = "1.6.3"
 source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_system == 'macOS'",
-    "python_full_version < '3.13' and platform_system == 'macOS'",
+    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
 ]
 dependencies = [
-    { name = "scipy", marker = "platform_system == 'macOS'" },
+    { name = "scipy", marker = "sys_platform == 'darwin'" },
 ]
 wheels = [
     { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:9d5c690964e8291c4b533838ea4d1a4a520e7604fe07d11308fc87ec8e033d2c" },
@@ -2883,11 +2882,11 @@ source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3
 resolution-markers = [
     "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
     "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
-    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
 ]
 dependencies = [
-    { name = "scipy", marker = "platform_system != 'macOS'" },
+    { name = "scipy", marker = "sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:5d204396047afa0d24758fc754499838d720618924838966f3cd1daf19812de7" },
@@ -2929,8 +2928,10 @@ name = "torch-scatter"
 version = "2.1.2"
 source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_system == 'macOS'",
-    "python_full_version < '3.13' and platform_system == 'macOS'",
+    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
 ]
 wheels = [
     { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:ad502ca1460537ccadcb0bec492ebf2f8b5e2646cdecb7671d89ba8bf11bd65a" },
@@ -2950,8 +2951,8 @@ source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2
 resolution-markers = [
     "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
     "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
-    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
 ]
 wheels = [
     { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:17220ba2021398a40466d8394ff762b7b9204be84aa1a3f16b7021fa6619af02" },
@@ -2988,11 +2989,13 @@ name = "torch-sparse"
 version = "0.6.18"
 source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_system == 'macOS'",
-    "python_full_version < '3.13' and platform_system == 'macOS'",
+    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
 ]
 dependencies = [
-    { name = "scipy", marker = "platform_system == 'macOS'" },
+    { name = "scipy", marker = "sys_platform == 'darwin'" },
 ]
 wheels = [
     { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl", hash = "sha256:d16f63d297ebc92ef4a06574e1bef5875e7b848a7b247c1872f324e73edb7615" },
@@ -3013,11 +3016,11 @@ source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18
 resolution-markers = [
     "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
     "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
-    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
 ]
 dependencies = [
-    { name = "scipy", marker = "platform_system != 'macOS'" },
+    { name = "scipy", marker = "sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:080ca9feb29b693a22f7d22ea75ed2f94506e96e57c82e25d11436a7530e1883" },
@@ -3059,8 +3062,10 @@ name = "torch-spline-conv"
 version = "1.2.2"
 source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" }
 resolution-markers = [
-    "python_full_version >= '3.13' and platform_system == 'macOS'",
-    "python_full_version < '3.13' and platform_system == 'macOS'",
+    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform == 'darwin'",
 ]
 wheels = [
     { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:0090f827857ab9dd53396d75672e0d47e97ba4ad5a08c129de8aaa7ee86d9e9e" },
@@ -3080,8 +3085,8 @@ source = { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1
 resolution-markers = [
     "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
     "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform != 'darwin'",
-    "python_full_version >= '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
-    "python_full_version < '3.13' and platform_system != 'macOS' and sys_platform == 'darwin'",
+    "python_full_version >= '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
+    "python_full_version < '3.13' and platform_system == 'macOS' and sys_platform != 'darwin'",
 ]
 wheels = [
     { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:4d90d3eed45d9aff27a47dbf6a5c75891bfd9fcfe179a211a5dee1943de811fc" },
@@ -3124,21 +3129,20 @@ wheels = [
 
 [[package]]
 name = "torchmetrics"
-version = "1.7.2"
+version = "1.7.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "lightning-utilities" },
     { name = "numpy" },
     { name = "packaging" },
-    { name = "torch", version = "2.7.1", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_system != 'macOS' and sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "torch", version = "2.7.1", source = { registry = "https://pypi.org/simple" }, marker = "(extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (extra != 'extra-15-ml-sandbox-libs-cpu' and extra != 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.python.org/simple" }, marker = "(platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
-    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(platform_system != 'macOS' and sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (platform_system == 'macOS' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu') or (sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch", version = "2.7.1", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
+    { name = "torch", version = "2.7.1+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-15-ml-sandbox-libs-cpu') or (extra == 'extra-15-ml-sandbox-libs-cpu' and extra == 'extra-15-ml-sandbox-libs-gpu')" },
     { name = "torch", version = "2.7.1+cu126", source = { registry = "https://download.pytorch.org/whl/cu126" }, marker = "extra == 'extra-15-ml-sandbox-libs-gpu'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b7/ec/f5a4f94c77a1b4c0a37e5c5c8b666a33bc074130258a6b655346bec560c2/torchmetrics-1.7.2.tar.gz", hash = "sha256:ba401cd01aeaa268e809c0e4f42ef8f95669bf9b485e1d93d54dc765e012338a", size = 566185 }
+sdist = { url = "https://files.pythonhosted.org/packages/48/22/8b16c4ec34d93ee15024924cbbe84fbd235bb3e1df2cc8f48c865c1528e7/torchmetrics-1.7.3.tar.gz", hash = "sha256:08450a19cdb67ba1608aac0b213e5dc73033e11b60ad4719696ebcede591621e", size = 566545 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/56/89/b5fd7eb99b27457d71d3b7d9eca0b884fa5992abca7672aab1177c5f22d8/torchmetrics-1.7.2-py3-none-any.whl", hash = "sha256:9cc3bff07a715fcb37fb04d2a1a5ae36267c36066c097578020056653a94f2a8", size = 962510 },
+    { url = "https://files.pythonhosted.org/packages/6f/f2/bed7da46003c26ed44fc7fa3ecc98a84216f0d4758e5e6a3693754d490d9/torchmetrics-1.7.3-py3-none-any.whl", hash = "sha256:7b6fd43e92f0a1071c8bcb029637f252b0630699140a93ed8817ce7afe9db34e", size = 962639 },
 ]
 
 [[package]]
@@ -3186,7 +3190,7 @@ name = "triton"
 version = "3.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "setuptools", marker = "extra == 'extra-15-ml-sandbox-libs-gpu'" },
+    { name = "setuptools" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/24/5f/950fb373bf9c01ad4eb5a8cd5eaf32cdf9e238c02f9293557a2129b9c4ac/triton-3.3.1-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:9999e83aba21e1a78c1f36f21bce621b77bcaa530277a50484a7cb4a822f6e43", size = 155669138 },

@@ -59,36 +59,36 @@ conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
 
 [tool.uv.sources]
 torch = [
-  { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'macOS'" },
-  { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'macOS'" },
+  { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'Darwin'" },
+  { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'Darwin'" },
   { index = "pytorch-gpu", extra = "gpu" },
 ]
 # indexファイルが存在しないため、以下のlinkから明示的にURLを指定
 # https://data.pyg.org/whl/torch-2.7.0+cu126.html
 # https://data.pyg.org/whl/torch-2.7.0+cpu.html
 pyg_lib = [
-  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'macOS'" },
-  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27-cp312-cp312-macosx_14_0_universal2.whl", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27-cp312-cp312-macosx_14_0_universal2.whl", extra = "cpu", marker = "platform_system == 'Darwin'" },
   { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/pyg_lib-0.4.0%2Bpt27cu126-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
 ]
 torch_scatter = [
-  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'macOS'" },
-  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'Darwin'" },
   { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_scatter-2.1.2%2Bpt27cu126-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
 ]
 torch_sparse = [
-  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'macOS'" },
-  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl", extra = "cpu", marker = "platform_system == 'Darwin'" },
   { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_sparse-0.6.18%2Bpt27cu126-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
 ]
 torch_cluster = [
-  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'macOS'" },
-  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'Darwin'" },
   { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_cluster-1.6.3%2Bpt27cu126-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
 ]
 torch_spline_conv = [
-  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'macOS'" },
-  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'macOS'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'Darwin'" },
   { url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_spline_conv-1.2.2%2Bpt27cu126-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
 ]
 
