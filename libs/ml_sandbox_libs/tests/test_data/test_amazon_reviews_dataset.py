@@ -153,7 +153,7 @@ def test_seq_rec_preprocess_dataset(mocker: MockerFixture) -> None:
         3: 2,  # item1 -> Games/Action
         4: 3,  # item2 -> Games/RPG
         5: 4,  # item3 -> Electronics/Computers
-        SpecialItemIndex.UNK: SpecialItemIndex.UNK,
+        SpecialItemIndex.UNK: SpecialCategoryIndex.UNK,
         SpecialItemIndex.PAD: SpecialCategoryIndex.PAD,
     }
 
