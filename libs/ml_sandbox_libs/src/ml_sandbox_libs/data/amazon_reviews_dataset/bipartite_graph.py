@@ -231,11 +231,9 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         save_dir: pathlib.Path,
         batch_size: int = 32,
         num_workers: int = 2,
-        max_seq_len: int = 50,
         neg_sample_size: int = 1,
         sampling_val_test: bool = False,
         eval_negative_sample_size: int = 100,
-        filter_no_history: bool = True,
     ):
         """Initialize the Amazon Reviews Bipartite Graph DataModule.
 
@@ -247,7 +245,6 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
             neg_sample_size: Number of negative samples per positive sample (unused, kept for compatibility). Defaults to 1.
             sampling_val_test: Whether to sample validation and test datasets (unused). Defaults to False.
             eval_negative_sample_size: Number of negative samples for evaluation (unused). Defaults to 100.
-            filter_no_history: Whether to filter out users with no interaction history (unused). Defaults to True.
 
         Note:
             Some parameters are kept for compatibility with other DataModules but are not
@@ -258,13 +255,12 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         self.save_dir = save_dir
         self.batch_size = batch_size
         self.num_workers = num_workers
-        self.max_seq_len = max_seq_len
         self.neg_sample_size = neg_sample_size
         self.sampling_val_test = sampling_val_test
         self.eval_negative_sample_size = eval_negative_sample_size
-        self.filter_no_history = filter_no_history
         self.transform = T.Compose([T.RemoveIsolatedNodes(), T.RemoveSelfLoops()])
 
+    # TODO: Consider saving preprocessed data to disk for faster loading
     def prepare_data(self) -> None:
         """Download and preprocess the Amazon Reviews dataset.
 
@@ -367,6 +363,7 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
             edge_label=None,
             neg_sampling=neg_sampling,
             shuffle=True,
+            num_workers=self.num_workers,
         )
         return loader
 
@@ -397,7 +394,8 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
             ),
             edge_label=None,
             neg_sampling=neg_sampling,
-            shuffle=True,
+            shuffle=False,
+            num_workers=self.num_workers,
         )
         return loader
 
@@ -428,7 +426,8 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
             ),
             edge_label=None,
             neg_sampling=neg_sampling,
-            shuffle=True,
+            shuffle=False,
+            num_workers=self.num_workers,
         )
         return loader
 

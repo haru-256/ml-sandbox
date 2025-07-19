@@ -266,6 +266,7 @@ def build_feature_indices(
     )
 
 
+# TODO: Consider using a namedtuple for clarity in the return type
 def common_preprocess_dataset(
     dataset_dict: D.DatasetDict, metadata: D.Dataset, filter_no_history: bool = True
 ) -> tuple[
