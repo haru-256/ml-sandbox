@@ -11,7 +11,14 @@ import torch.nn.functional as F
 from loguru import logger
 from torch.utils.data import DataLoader, Dataset
 
-from .common import SpecialIndex, common_preprocess_dataset, fetch_dataset, fetch_metadata
+from .common import (
+    SpecialCategoryIndex,
+    SpecialItemIndex,
+    SpecialUserIndex,
+    common_preprocess_dataset,
+    fetch_dataset,
+    fetch_metadata,
+)
 
 
 def seq_rec_preprocess_dataset(
@@ -96,9 +103,11 @@ def seq_rec_preprocess_dataset(
             )  # add category index
             .select(["id", "idx", "history", "item_index", "category", "category_index"])
             .with_columns(
-                pl.col("item_index").fill_null(SpecialIndex.UNK).alias("item_index"),
+                pl.col("item_index").fill_null(SpecialItemIndex.UNK).alias("item_index"),
                 pl.col("category").fill_null("#UNK").alias("category"),
-                pl.col("category_index").fill_null(SpecialIndex.UNK).alias("category_index"),
+                pl.col("category_index")
+                .fill_null(SpecialCategoryIndex.UNK)
+                .alias("category_index"),
             )
         )
         history_df = history_df.group_by("id").agg(
@@ -115,10 +124,10 @@ def seq_rec_preprocess_dataset(
         df = main_df.join(history_df, on="id", how="left", validate="1:1")
         # fill null values
         df = df.with_columns(
-            pl.col("user_index").fill_null(SpecialIndex.UNK).alias("user_index"),
-            pl.col("item_index").fill_null(SpecialIndex.UNK).alias("item_index"),
+            pl.col("user_index").fill_null(SpecialUserIndex.UNK).alias("user_index"),
+            pl.col("item_index").fill_null(SpecialItemIndex.UNK).alias("item_index"),
             pl.col("category").fill_null("#UNK").alias("category"),
-            pl.col("category_index").fill_null(SpecialIndex.UNK).alias("category_index"),
+            pl.col("category_index").fill_null(SpecialCategoryIndex.UNK).alias("category_index"),
             pl.col("history").fill_null([]).alias("history"),
             pl.col("history_index").fill_null([]).alias("history_index"),
             pl.col("history_category").fill_null([]).alias("history_category"),

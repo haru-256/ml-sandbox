@@ -6,7 +6,16 @@ import polars as pl
 from loguru import logger
 
 
-class SpecialIndex(IntEnum):
+class SpecialUserIndex(IntEnum):
+    UNK = 0  # corresponds to unknown id
+
+
+class SpecialItemIndex(IntEnum):
+    PAD = 0  # corresponds to padding id
+    UNK = 1  # corresponds to unknown id
+
+
+class SpecialCategoryIndex(IntEnum):
     PAD = 0  # corresponds to padding id
     UNK = 1  # corresponds to unknown id
 
@@ -129,10 +138,10 @@ def build_feature_indices(
         user_id_str: idx
         for idx, user_id_str in enumerate(
             train_users["user_id"].sort(),
-            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
+            start=len(SpecialUserIndex),  # 0 is for unknown
         )
     }
-    user2index.update({"#UNK": SpecialIndex.UNK})
+    user2index.update({"#UNK": SpecialUserIndex.UNK})
     assert user2index.get("", -1) == -1, "Empty user should not be in the user2index"
 
     # Item index
@@ -160,10 +169,10 @@ def build_feature_indices(
         item_asin: idx
         for idx, item_asin in enumerate(
             train_items["parent_asin"].sort(),
-            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
+            start=len(SpecialItemIndex),  # 0 is for padding, 1 is for unknown
         )
     }
-    item2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
+    item2index.update({"#UNK": SpecialItemIndex.UNK, "#PAD": SpecialItemIndex.PAD})
     assert item2index.get("", -1) == -1, "Empty item should not be in the item2index"
 
     # Category index
@@ -179,11 +188,14 @@ def build_feature_indices(
             "No non-null categories found in train_df for category indexing. Category index will be minimal."
         )
         # Create a minimal category2index if no categories are found to prevent errors downstream
-        category2index: dict[str, int] = {"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD}
+        category2index: dict[str, int] = {
+            "#UNK": SpecialCategoryIndex.UNK,
+            "#PAD": SpecialCategoryIndex.PAD,
+        }
         train_categories = pl.DataFrame({"category": []})  # Empty DataFrame
     elif train_df_for_category_count.is_empty() and train_df.is_empty():
         logger.warning("train_df is empty. Category index will be minimal.")
-        category2index = {"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD}
+        category2index = {"#UNK": SpecialCategoryIndex.UNK, "#PAD": SpecialCategoryIndex.PAD}
         train_categories = pl.DataFrame({"category": []})  # Empty DataFrame
     else:
         filtered_categories_df = unk_filter_by_count(
@@ -198,10 +210,10 @@ def build_feature_indices(
             cat_name: idx
             for idx, cat_name in enumerate(
                 train_categories["category"].sort(),
-                start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
+                start=len(SpecialCategoryIndex),  # 0 is for padding, 1 is for unknown
             )
         }
-        category2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
+        category2index.update({"#UNK": SpecialCategoryIndex.UNK, "#PAD": SpecialCategoryIndex.PAD})
     assert category2index.get("", -1) == -1, "Empty category should not be in the category2index"
 
     # Item index to category index mapping
@@ -219,10 +231,10 @@ def build_feature_indices(
     ).join(category2index_df, on="category", how="left", validate="m:1")
 
     item_index_2_category_index_df = item_index_2_category_index_df.with_columns(
-        pl.when(pl.col("item_index") == SpecialIndex.PAD)
-        .then(SpecialIndex.PAD)
+        pl.when(pl.col("item_index") == SpecialItemIndex.PAD)
+        .then(SpecialCategoryIndex.PAD)
         .when(pl.col("category_index").is_null())  # If category was null or not in category2index
-        .then(SpecialIndex.UNK)
+        .then(SpecialCategoryIndex.UNK)
         .otherwise(pl.col("category_index"))
         .alias("category_index")
     )
@@ -236,15 +248,15 @@ def build_feature_indices(
     # UNK items might not have a category in meta_df, or their category might be rare.
     # PAD items should map to PAD category_index.
     if (
-        SpecialIndex.UNK in item2index.values()
+        SpecialItemIndex.UNK in item2index.values()
         and item2index["#UNK"] not in item_index_2_category_index
     ):
-        item_index_2_category_index[item2index["#UNK"]] = SpecialIndex.UNK
+        item_index_2_category_index[item2index["#UNK"]] = SpecialCategoryIndex.UNK
     if (
-        SpecialIndex.PAD in item2index.values()
+        SpecialItemIndex.PAD in item2index.values()
         and item2index["#PAD"] not in item_index_2_category_index
     ):
-        item_index_2_category_index[item2index["#PAD"]] = SpecialIndex.PAD
+        item_index_2_category_index[item2index["#PAD"]] = SpecialCategoryIndex.PAD
 
     return (
         user2index,
