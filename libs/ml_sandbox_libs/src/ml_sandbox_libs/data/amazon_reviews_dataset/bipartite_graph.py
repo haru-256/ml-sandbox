@@ -30,16 +30,31 @@ def bipartite_graph_preprocess_dataset(
     dict[str, int],
     dict[int, int],
 ]:
-    """Preprocess the dataset for bipartite graph
+    """Preprocess the Amazon Reviews dataset for bipartite graph construction.
+
+    This function processes the raw Amazon Reviews dataset to create a bipartite graph
+    representation suitable for recommendation tasks. It ensures that each user-item
+    combination appears only once across all splits to maintain graph consistency.
 
     Args:
-        dataset_dict: dataset from the datasets library(transformers)
-        metadata: metadata dataset from the datasets library(transformers)
+        dataset_dict: Amazon Reviews dataset dictionary containing train/val/test splits
+            from the Hugging Face datasets library
+        metadata: Product metadata dataset containing item information and categories
 
     Returns:
-        bipartite_df: bipartite graph dataframe
-        user2index: user to index dictionary
-        item2index: item to index dictionary
+        A tuple containing:
+        - all_df (pl.DataFrame): Combined preprocessed dataframe with all splits,
+            containing columns: split, user_id, user_index, parent_asin, item_index,
+            category, category_index, rating, timestamp, num_ratings
+        - user2index (dict[str, int]): Mapping from user IDs to integer indices
+        - item2index (dict[str, int]): Mapping from item ASINs to integer indices
+        - category2index (dict[str, int]): Mapping from categories to integer indices
+        - item_index_2_category_index (dict[int, int]): Mapping from item indices
+            to their corresponding category indices
+
+    Raises:
+        ValueError: If duplicate user-item combinations are found after aggregation,
+            which would violate bipartite graph constraints
     """
 
     (
@@ -122,6 +137,30 @@ def create_bipartite_graph(
     item2index: dict[str, int],
     item_index_2_category_index: dict[int, int],
 ) -> HeteroData:
+    """Create a PyTorch Geometric heterogeneous bipartite graph for the specified split.
+
+    This function constructs a bipartite graph with users and items as different node types,
+    connected by rating edges. The graph structure varies by split:
+    - train: Only training edges
+    - valid: Training + validation edges (for inductive learning)
+    - test: Training + validation + test edges (for final evaluation)
+
+    Args:
+        split: Data split to create graph for ("train", "valid", or "test")
+        all_df: Preprocessed dataframe containing all splits with user-item interactions
+        user2index: Mapping from user IDs to integer indices
+        item2index: Mapping from item ASINs to integer indices
+        item_index_2_category_index: Mapping from item indices to category indices
+
+    Returns:
+        HeteroData: PyTorch Geometric heterogeneous graph containing:
+            - user nodes with features: x (user indices), user_index
+            - item nodes with features: x (item indices), item_index, category_index
+            - (user, rates, item) edges with edge_index and edge_label_index
+
+    Raises:
+        ValueError: If an invalid split name is provided
+    """
     user_index = torch.as_tensor(sorted(user2index.values()), dtype=torch.int64)
     item_df = pl.from_dict({"item_index": list(item2index.values())})
     item2category_df = pl.from_dict(
@@ -171,6 +210,22 @@ def create_bipartite_graph(
 
 
 class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
+    """Lightning DataModule for Amazon Reviews bipartite graph recommendation.
+
+    This DataModule creates bipartite graphs from Amazon Reviews data for graph-based
+    recommendation models. It handles data preprocessing, graph construction, and
+    provides PyTorch Geometric LinkNeighborLoader instances for training, validation,
+    and testing.
+
+    The bipartite graph structure consists of:
+    - User nodes: Represent customers who rated products
+    - Item nodes: Represent products with category information
+    - Rating edges: Connect users to items they rated
+
+    The DataModule supports negative sampling and neighbor sampling for efficient
+    training on large graphs.
+    """
+
     def __init__(
         self,
         save_dir: pathlib.Path,
@@ -182,17 +237,22 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         eval_negative_sample_size: int = 100,
         filter_no_history: bool = True,
     ):
-        """Amazon Reviews Data Module for Sequential Recommendation
+        """Initialize the Amazon Reviews Bipartite Graph DataModule.
 
         Args:
-            save_dir: save directory for preprocessed dataset
-            batch_size: batch size. Defaults to 32.
-            num_workers: number of workers. Defaults to 2.
-            max_seq_len: maximum sequence length. Defaults to 50.
-            neg_sample_size: negative sample size. Defaults to 1.
-            sampling_val_test: whether to sample validation and test dataset. Defaults to False.
-            eval_negative_sample_size: negative sample size for evaluation. Defaults to 100.
-            filter_no_history: whether to filter out the dataset which has no history. Defaults to True.
+            save_dir: Directory path for saving preprocessed dataset files
+            batch_size: Number of samples per batch for data loaders. Defaults to 32.
+            num_workers: Number of worker processes for data loading. Defaults to 2.
+            max_seq_len: Maximum sequence length (unused in bipartite graph, kept for compatibility). Defaults to 50.
+            neg_sample_size: Number of negative samples per positive sample (unused, kept for compatibility). Defaults to 1.
+            sampling_val_test: Whether to sample validation and test datasets (unused). Defaults to False.
+            eval_negative_sample_size: Number of negative samples for evaluation (unused). Defaults to 100.
+            filter_no_history: Whether to filter out users with no interaction history (unused). Defaults to True.
+
+        Note:
+            Some parameters are kept for compatibility with other DataModules but are not
+            used in the bipartite graph implementation. The actual negative sampling and
+            neighbor sampling configurations are hardcoded in the dataloader methods.
         """
         super().__init__()
         self.save_dir = save_dir
@@ -206,6 +266,19 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         self.transform = T.Compose([T.RemoveIsolatedNodes(), T.RemoveSelfLoops()])
 
     def prepare_data(self) -> None:
+        """Download and preprocess the Amazon Reviews dataset.
+
+        This method fetches the raw Amazon Reviews dataset and metadata, then
+        preprocesses them for bipartite graph construction. The preprocessed
+        data is stored as instance attributes for use in setup().
+
+        Sets the following instance attributes:
+            - all_df: Combined dataframe with all preprocessed interactions
+            - user2index: User ID to index mapping
+            - item2index: Item ASIN to index mapping
+            - category2index: Category to index mapping
+            - item_index_2_category_index: Item index to category index mapping
+        """
         dataset_dict = fetch_dataset()
         metadata = fetch_metadata()
         (
@@ -222,6 +295,25 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         self.item_index_2_category_index = item_index_2_category_index
 
     def setup(self, stage: str) -> None:
+        """Set up the bipartite graphs for the specified stage.
+
+        Creates PyTorch Geometric HeteroData graphs for the requested stage:
+        - "fit": Creates training and validation graphs with graph transformations applied
+        - "test": Creates test graph with transformations applied
+
+        The graphs are created with different edge sets based on the split:
+        - Training graph: Only training edges
+        - Validation graph: Training + validation edges
+        - Test graph: Training + validation + test edges
+
+        Transformations applied include removing isolated nodes and self-loops.
+
+        Args:
+            stage: Lightning stage ("fit", "test", etc.)
+
+        Raises:
+            NotImplementedError: If an unsupported stage is provided
+        """
         if stage == "fit":
             self.train_data = create_bipartite_graph(
                 split="train",
@@ -252,6 +344,17 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
             raise NotImplementedError(f"Invalid stage: {stage}")
 
     def train_dataloader(self) -> LinkNeighborLoader:
+        """Create the training data loader.
+
+        Returns a LinkNeighborLoader configured for training with:
+        - Triplet negative sampling (3 negative samples per positive)
+        - 2-hop neighbor sampling [10, 5] neighbors per hop
+        - Batch size of 2
+        - Shuffling enabled
+
+        Returns:
+            LinkNeighborLoader: Configured loader for training data
+        """
         neg_sampling = NegativeSampling(mode="triplet", amount=3)
         loader = LinkNeighborLoader(
             data=self.train_data,
@@ -268,6 +371,21 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         return loader
 
     def val_dataloader(self) -> LinkNeighborLoader:
+        """Create the validation data loader.
+
+        Returns a LinkNeighborLoader configured for validation with:
+        - Triplet negative sampling (3 negative samples per positive)
+        - 2-hop neighbor sampling [10, 5] neighbors per hop
+        - Batch size of 2
+        - Uses training graph structure but validation edge labels
+        - Shuffling enabled
+
+        Note: Currently uses train_data instead of val_data, which may be intentional
+        for the specific validation strategy being employed.
+
+        Returns:
+            LinkNeighborLoader: Configured loader for validation data
+        """
         neg_sampling = NegativeSampling(mode="triplet", amount=3)
         loader = LinkNeighborLoader(
             data=self.train_data,
@@ -284,6 +402,21 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         return loader
 
     def test_dataloader(self) -> LinkNeighborLoader:
+        """Create the test data loader.
+
+        Returns a LinkNeighborLoader configured for testing with:
+        - Triplet negative sampling (3 negative samples per positive)
+        - 2-hop neighbor sampling [10, 5] neighbors per hop
+        - Batch size of 2
+        - Uses training graph structure but test edge labels
+        - Shuffling enabled
+
+        Note: Currently uses train_data instead of test_data, which may be intentional
+        for the specific testing strategy being employed.
+
+        Returns:
+            LinkNeighborLoader: Configured loader for test data
+        """
         neg_sampling = NegativeSampling(mode="triplet", amount=3)
         loader = LinkNeighborLoader(
             data=self.train_data,
@@ -300,10 +433,14 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         return loader
 
     def summary(self) -> str:
-        """Summary of the dataset
+        """Generate a summary of the bipartite graph dataset.
+
+        Provides key statistics about the preprocessed dataset including:
+        - Number of edges in training and validation graphs
+        - Total number of unique users, items, and categories
 
         Returns:
-            str: summary of the dataset
+            str: Formatted summary string with dataset statistics
         """
         return f"""
         Train Data edges: {self.train_data["user", "rates", "item"].edge_index.shape[1]}
