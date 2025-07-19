@@ -1,7 +1,6 @@
 import pathlib
 import pickle
-from enum import IntEnum
-from typing import Literal, NamedTuple
+from typing import NamedTuple
 
 import datasets as D
 import lightning as L
@@ -12,88 +11,14 @@ import torch.nn.functional as F
 from loguru import logger
 from torch.utils.data import DataLoader, Dataset
 
-
-class SpecialIndex(IntEnum):
-    PAD = 0  # corresponds to padding id
-    UNK = 1  # corresponds to unknown id
-
-
-def fetch_dataset(
-    category: str = "Video_Games",
-    dataset_type: Literal[
-        "0core_timestamp_w_his", "0core_last_out_w_his", "raw_review"
-    ] = "0core_timestamp_w_his",
-) -> D.DatasetDict:
-    """Fetch Amazon Reviews 2023 dataset from the datasets library.
-
-    Args:
-        category: category name. Defaults to "Video_Games". Please refer to the dataset card for more details: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#grouped-by-category
-        dataset_type: dataset type. Defaults to "0core_last_out_w_his"
-            - "0core_last_out_w_his": user x product with reviewed history. https://amazon-reviews-2023.github.io/data_processing/0core.html
-            - "0core_timestamp_w_his": user x product with reviewed history. https://github.com/hyp1231/AmazonReviews2023/tree/main/benchmark_scripts#rating_only---timestamp
-            - "raw_review": user x product pair simply. https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-user-reviews
-
-    Returns:
-        datasets.DatasetDict, keys: ["train", "test", "unsupervised"]. Dataset Schema is the following: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-user-reviews
-    """
-    logger.info("Fetching Amazon Reviews 2023 dataset")
-    # NOTE: According to the benchmark script, last_out is widely used in research. But, it is not realistic.
-    # https://github.com/hyp1231/AmazonReviews2023/tree/main/benchmark_scripts#rating_only---timestamp
-    dataset_dict: D.DatasetDict = D.load_dataset(
-        "McAuley-Lab/Amazon-Reviews-2023",
-        f"{dataset_type}_{category}",
-        trust_remote_code=True,
-    )
-    return dataset_dict
-
-
-def fetch_metadata(category: str = "Video_Games") -> D.Dataset:
-    """Fetch Amazon Reviews 2023 metadata from the datasets library.
-
-    Args:
-        category: category name. Defaults to "Video_Games". Please refer to the dataset card for more details: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#grouped-by-category
-
-    Returns:
-        datasets.Dataset, Dataset Schema is the following: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-item-metadata
-    """
-    logger.info("Fetching Amazon Reviews 2023 metadata")
-    metadata: D.Dataset = D.load_dataset(
-        "McAuley-Lab/Amazon-Reviews-2023",
-        f"raw_meta_{category}",
-        split="full",
-        trust_remote_code=True,
-    )
-    return metadata
-
-
-def unk_filter_by_count(df: pl.DataFrame, id_column_name: str, threshold: float) -> pl.DataFrame:
-    """Filter out the items which are not in the top k% of the count.
-
-    Args:
-        df: dataframe to filter, schema: [`id_column_name`]
-        id_column_name: id column name, which is used to group by
-        threshold: threshold for filtering, the top k% of the count will be kept. For example, if threshold is 0.95, the top 95% of the count will be kept.
-
-    Returns:
-        filtered dataframe, schema: [`id_column_name`]
-    """
-    counts_df = (
-        df.group_by(id_column_name)
-        .agg(pl.len().alias("count"))
-        .sort("count", descending=True)
-        .select(
-            pl.col(id_column_name),
-            pl.col("count"),
-            pl.col("count").cum_sum().alias("cumulative_count"),
-        )
-        .with_columns(
-            (pl.col("cumulative_count") / pl.col("count").sum()).alias("cumulative_count_rate")
-        )
-    )
-    filtered_df = counts_df.filter(pl.col("cumulative_count_rate") <= threshold).select(
-        id_column_name
-    )
-    return filtered_df
+from .common import (
+    SpecialCategoryIndex,
+    SpecialItemIndex,
+    SpecialUserIndex,
+    common_preprocess_dataset,
+    fetch_dataset,
+    fetch_metadata,
+)
 
 
 def seq_rec_preprocess_dataset(
@@ -122,136 +47,16 @@ def seq_rec_preprocess_dataset(
         item2index: item to index dictionary
         category2index: category to index dictionary
     """
-    schema_overrides = {
-        "user_id": pl.String,
-        "parent_asin": pl.String,
-        "rating": pl.Float64,
-        "timestamp": pl.Int64,
-        "history": pl.String,
-    }
-    train_df: pl.DataFrame = dataset_dict["train"].to_polars(schema_overrides=schema_overrides)  # type: ignore
-    val_df: pl.DataFrame = dataset_dict["valid"].to_polars(schema_overrides=schema_overrides)  # type: ignore
-    test_df: pl.DataFrame = dataset_dict["test"].to_polars(schema_overrides=schema_overrides)  # type: ignore
-    meta_df: pl.DataFrame = metadata.to_polars()  # type: ignore
-    meta_df = meta_df[["parent_asin", "categories"]].with_columns(
-        pl.when(pl.col("categories").list.len() > 0)
-        .then(pl.col("categories").list.join("/"))
-        .otherwise(None)
-        .alias("category")
-    )[["parent_asin", "category"]]
-
-    # join metadata
-    train_df = train_df.join(meta_df, on="parent_asin", how="left", validate="m:1")
-    val_df = val_df.join(meta_df, on="parent_asin", how="left", validate="m:1")
-    test_df = test_df.join(meta_df, on="parent_asin", how="left", validate="m:1")
-
-    # filter out empty history
-    if filter_no_history:
-        train_df = train_df.filter(pl.col("history") != "")
-        val_df = val_df.filter(pl.col("history") != "")
-        test_df = test_df.filter(pl.col("history") != "")
-
-    # assign unique ID to users, items and categories
-    # 以下の条件を満たすUser/Item/CategoryはUNKに対応させるため、欠損させる。欠損したitemは後ほどUNKに対応させる
-    # - 出現回数が一定以下
-    threshold = 0.95
-    # user
-    filtered_by_count_df = unk_filter_by_count(
-        train_df, id_column_name="user_id", threshold=threshold
+    (
+        (train_df, val_df, test_df),
+        meta_df,
+        (user2index, item2index, category2index, item_index_2_category_index),
+        (user2index_df, item2index_df, category2index_df),
+    ) = common_preprocess_dataset(
+        dataset_dict=dataset_dict,
+        metadata=metadata,
+        filter_no_history=filter_no_history,
     )
-    # 出現回数が一定以下のuserを除外
-    train_users = (
-        train_df.select(pl.col("user_id"))
-        .unique()
-        .join(filtered_by_count_df, on="user_id", how="inner", validate="1:1")
-    )
-    user2index: dict[str, int] = {
-        user_id: idx
-        for idx, user_id in enumerate(
-            train_users["user_id"].sort(),
-            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
-        )
-    }
-    user2index.update({"#UNK": SpecialIndex.UNK})
-    user2index_df = pl.from_dict(
-        {"user_id": list(user2index.keys()), "user_index": list(user2index.values())}
-    )
-    assert user2index.get("", -1) == -1, "Empty user should not be in the user2index"
-    # item
-    train_item_df = (
-        pl.concat(
-            [train_df["parent_asin"], train_df["history"].str.split(" ").explode()],
-            how="vertical",
-        )
-        .rename("parent_asin")
-        .to_frame()
-        .filter(pl.col("parent_asin") != "")
-    )
-    filtered_by_count_df = unk_filter_by_count(
-        train_item_df, id_column_name="parent_asin", threshold=threshold
-    )
-    train_items = (
-        train_item_df.select(pl.col("parent_asin"))
-        .unique()
-        .join(filtered_by_count_df, on="parent_asin", how="inner", validate="1:1")
-    )
-    item2index: dict[str, int] = {
-        user_id: idx
-        for idx, user_id in enumerate(
-            train_items["parent_asin"].sort(),
-            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
-        )
-    }
-    item2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
-    item2index_df = pl.from_dict(
-        {
-            "parent_asin": list(item2index.keys()),
-            "item_index": list(item2index.values()),
-        }
-    )
-    assert item2index.get("", -1) == -1, "Empty item should not be in the item2index"
-    # category
-    filtered_by_count_df = unk_filter_by_count(
-        train_df, id_column_name="category", threshold=threshold
-    )
-    train_categorys = (
-        train_df.select(pl.col("category"))
-        .unique()
-        .join(filtered_by_count_df, on="category", how="inner", validate="1:1")
-    )
-    category2index: dict[str, int] = {
-        user_id: idx
-        for idx, user_id in enumerate(
-            train_categorys["category"].sort(),
-            start=len(SpecialIndex),  # 0 is for padding, 1 is for unknown
-        )
-    }
-    category2index.update({"#UNK": SpecialIndex.UNK, "#PAD": SpecialIndex.PAD})
-    category2index_df = pl.from_dict(
-        {
-            "category": list(category2index.keys()),
-            "category_index": list(category2index.values()),
-        }
-    )
-    assert category2index.get("", -1) == -1, "Empty category should not be in the category2index"
-    # item index to category index
-    item_index_2_category_index_df = item2index_df.join(
-        meta_df, on="parent_asin", how="left", validate="1:1"
-    ).join(category2index_df, on="category", how="left", validate="m:1")
-    item_index_2_category_index_df = item_index_2_category_index_df.with_columns(
-        pl.when(pl.col("item_index") == SpecialIndex.PAD)
-        .then(SpecialIndex.PAD)
-        .when(pl.col("category_index").is_null())
-        .then(SpecialIndex.UNK)
-        .otherwise(pl.col("category_index"))
-        .alias("category_index")
-    )
-    item_index_2_category_index = {
-        item_index: category_index
-        for item_index, category_index in item_index_2_category_index_df[
-            ["item_index", "category_index"]
-        ].iter_rows()
-    }
 
     # preprocess
     def _preprocess(df: pl.DataFrame) -> pl.DataFrame:
@@ -298,9 +103,11 @@ def seq_rec_preprocess_dataset(
             )  # add category index
             .select(["id", "idx", "history", "item_index", "category", "category_index"])
             .with_columns(
-                pl.col("item_index").fill_null(SpecialIndex.UNK).alias("item_index"),
+                pl.col("item_index").fill_null(SpecialItemIndex.UNK).alias("item_index"),
                 pl.col("category").fill_null("#UNK").alias("category"),
-                pl.col("category_index").fill_null(SpecialIndex.UNK).alias("category_index"),
+                pl.col("category_index")
+                .fill_null(SpecialCategoryIndex.UNK)
+                .alias("category_index"),
             )
         )
         history_df = history_df.group_by("id").agg(
@@ -317,10 +124,10 @@ def seq_rec_preprocess_dataset(
         df = main_df.join(history_df, on="id", how="left", validate="1:1")
         # fill null values
         df = df.with_columns(
-            pl.col("user_index").fill_null(SpecialIndex.UNK).alias("user_index"),
-            pl.col("item_index").fill_null(SpecialIndex.UNK).alias("item_index"),
+            pl.col("user_index").fill_null(SpecialUserIndex.UNK).alias("user_index"),
+            pl.col("item_index").fill_null(SpecialItemIndex.UNK).alias("item_index"),
             pl.col("category").fill_null("#UNK").alias("category"),
-            pl.col("category_index").fill_null(SpecialIndex.UNK).alias("category_index"),
+            pl.col("category_index").fill_null(SpecialCategoryIndex.UNK).alias("category_index"),
             pl.col("history").fill_null([]).alias("history"),
             pl.col("history_index").fill_null([]).alias("history_index"),
             pl.col("history_category").fill_null([]).alias("history_category"),

@@ -142,8 +142,8 @@ class TestMRR:
 
         # check reset
         mrr.reset()
-        assert len(mrr.mrr) == 0
-        assert len(mrr.num_queries) == 0
+        assert len(mrr.mrr) == 0  # type: ignore
+        assert len(mrr.num_queries) == 0  # type: ignore
 
 
 class TestHitRate:
@@ -188,5 +188,5 @@ class TestHitRate:
 
         # check reset
         hit_rate.reset()
-        assert len(hit_rate.hit_rate) == 0
-        assert len(hit_rate.num_queries) == 0
+        assert len(hit_rate.hit_rate) == 0  # type: ignore
+        assert len(hit_rate.num_queries) == 0  # type: ignore

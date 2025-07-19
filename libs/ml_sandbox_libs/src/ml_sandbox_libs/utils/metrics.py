@@ -167,8 +167,8 @@ class MRR(Metric):
         self.add_state("num_queries", default=[], dist_reduce_fx=None)
 
     def update(self, score: torch.Tensor, target: torch.Tensor) -> None:
-        self.mrr.append(mrr(score, target, self.k))
-        self.num_queries.append(score.size(0))
+        self.mrr.append(mrr(score, target, self.k))  # type: ignore
+        self.num_queries.append(score.size(0))  # type: ignore
 
     def compute(self) -> torch.Tensor:
         # mrrはqueryごとの平均なので、全体の平均値に変換
@@ -190,8 +190,8 @@ class HitRate(Metric):
         self.add_state("num_queries", default=[], dist_reduce_fx=None)
 
     def update(self, score: torch.Tensor, target: torch.Tensor) -> None:
-        self.hit_rate.append(hit_rate(score, target, self.k))
-        self.num_queries.append(score.size(0))
+        self.hit_rate.append(hit_rate(score, target, self.k))  # type: ignore
+        self.num_queries.append(score.size(0))  # type: ignore
 
     def compute(self) -> torch.Tensor:
         # hit_rateはqueryごとの平均なので、全体の平均値に変換
