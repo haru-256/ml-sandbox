@@ -355,11 +355,11 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         Returns:
             LinkNeighborLoader: Configured loader for training data
         """
-        neg_sampling = NegativeSampling(mode="triplet", amount=3)
+        neg_sampling = NegativeSampling(mode="triplet", amount=self.neg_sample_size)
         loader = LinkNeighborLoader(
             data=self.train_data,
             num_neighbors=[10, 5],
-            batch_size=2,
+            batch_size=self.batch_size,
             edge_label_index=(
                 ("user", "rates", "item"),
                 self.train_data["user", "rates", "item"].edge_label_index,
