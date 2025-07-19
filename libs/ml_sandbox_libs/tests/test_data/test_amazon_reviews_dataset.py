@@ -154,7 +154,7 @@ def test_seq_rec_preprocess_dataset(mocker: MockerFixture) -> None:
         4: 3,  # item2 -> Games/RPG
         5: 4,  # item3 -> Electronics/Computers
         SpecialItemIndex.UNK: SpecialItemIndex.UNK,
-        SpecialItemIndex.PAD: SpecialItemIndex.PAD,
+        SpecialItemIndex.PAD: SpecialCategoryIndex.PAD,
     }
 
     # Create index DataFrames
