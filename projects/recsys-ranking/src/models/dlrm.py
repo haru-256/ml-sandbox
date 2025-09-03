@@ -160,6 +160,26 @@ class DLRM(nn.Module):
 
 
 class DeepFMModule(BaseModule):
+    """PyTorch Lightning module wrapper for DLRM (Deep Learning Recommendation Model).
+
+    This module provides a complete training and evaluation framework for the DLRM model
+    using PyTorch Lightning. It handles the training loop, validation, optimizer configuration,
+    and metrics computation for recommendation tasks.
+
+    The module uses negative sampling during training and evaluation, computing:
+    - Binary cross-entropy loss for training
+    - Classification metrics (accuracy) for performance monitoring
+    - Ranking metrics (hit rate, NDCG) for recommendation quality assessment
+
+    Key features:
+    - Automatic optimization with AdamW and optional cosine learning rate scheduling
+    - Comprehensive logging of training and validation metrics
+    - Support for top-k evaluation metrics
+    - Model summary generation for architecture inspection
+
+    Note: Despite the class name "DeepFMModule", this actually implements DLRM architecture.
+    """
+
     def __init__(
         self,
         num_items: int,
@@ -170,20 +190,16 @@ class DeepFMModule(BaseModule):
         eval_top_k: int,
         optimizer_params: OptimizerParams,
     ):
-        """DLRM model module for recommendation systems.
-
-        Lightning module wrapper for the DLRM model, providing training and validation
-        logic with metrics computation. Uses binary cross-entropy loss for training
-        and computes accuracy, hit rate, and NDCG for evaluation.
+        """Initialize the DLRM Lightning module.
 
         Args:
-            num_items: Number of items in the dataset
+            num_items: Total number of items in the dataset vocabulary
             feature_embedding_dims: Embedding dimension for categorical features
-            max_seq_len: Maximum sequence length for item history
-            dropout: Dropout probability for the MLP components
-            pad_idx: Padding index for categorical features
-            eval_top_k: Number of top-k items for evaluation metrics (hit rate, NDCG)
-            optimizer_params: Optimizer configuration parameters
+            max_seq_len: Maximum sequence length for item history sequences
+            dropout: Dropout probability applied in MLP layers for regularization
+            pad_idx: Padding index used for categorical features (typically 0)
+            eval_top_k: Number of top-k items to consider for evaluation metrics
+            optimizer_params: Configuration object containing optimizer and scheduler settings
 
         """
         super().__init__()
@@ -203,18 +219,36 @@ class DeepFMModule(BaseModule):
         self.optimizer_params = optimizer_params
 
     def forward(self, item_history: torch.Tensor, target_item_ids: torch.Tensor) -> torch.Tensor:
-        """Forward pass for DeepFM model
+        """Forward pass through the DLRM model.
+
+        Computes prediction logits for given item history and target items.
+        This method delegates to the underlying DLRM model's forward pass.
 
         Args:
-            item_history: Item history, shape (batch_size, seq_len)
-            target_item_ids: Target item IDs, shape (batch_size,)
+            item_history: Tensor of item IDs representing user's interaction history,
+                         shape (batch_size, seq_len)
+            target_item_ids: Tensor of target item IDs to predict scores for,
+                           shape (batch_size,)
 
         Returns:
-            torch.Tensor: Prediction logits of shape (batch_size,)
+            torch.Tensor: Prediction logits for each target item, shape (batch_size,)
+                         Higher values indicate stronger recommendation confidence
         """
         return self.model(item_history, target_item_ids)
 
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
+        """Execute a single training step.
+
+        Performs forward pass on positive and negative samples, computes binary cross-entropy
+        loss, and logs training metrics including loss, accuracy, and logit statistics.
+
+        Args:
+            batch: Training batch containing item history, positive items, and negative samples
+            batch_idx: Index of the current batch within the epoch
+
+        Returns:
+            torch.Tensor: Computed loss value for backpropagation
+        """
         # (B, L), (B,), (B, neg_sample_size)
         (item_history, pos_item, neg_item) = (
             batch.item_history,
@@ -250,6 +284,18 @@ class DeepFMModule(BaseModule):
         return loss
 
     def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
+        """Execute a single validation step.
+
+        Performs forward pass on validation data, computes classification loss and accuracy,
+        as well as ranking metrics (hit rate and NDCG). Logs comprehensive validation metrics.
+
+        Args:
+            batch: Validation batch containing item history, positive items, and negative samples
+            batch_idx: Index of the current batch within the validation epoch
+
+        Returns:
+            torch.Tensor: Computed validation loss
+        """
         # (B, L), (B,), (B, neg_sample_size)
         (item_history, pos_item, neg_item) = (
             batch.item_history,
@@ -336,8 +382,18 @@ class DeepFMModule(BaseModule):
 
     @override
     def lr_scheduler_step(self, scheduler: CosineLRScheduler, metric: Any | None) -> None:  # type: ignore
-        """CosineLRSchedulerのstepを進める
-        CosineLRSchedulerがtorch.optim.lr_scheduler.LRSchedulerを継承していないためoverride
+        """Advance the learning rate scheduler step.
+
+        Custom scheduler step implementation for CosineLRScheduler, which doesn't inherit
+        from torch.optim.lr_scheduler.LRScheduler. Supports both epoch-based and step-based
+        scheduling based on the configured step_unit.
+
+        Args:
+            scheduler: The CosineLRScheduler instance to advance
+            metric: Optional metric value (unused for cosine scheduling)
+
+        Raises:
+            ValueError: If the configured step_unit is not 'epoch' or 'step'
         """
         match self.optimizer_params.lr_scheduler.step_unit:
             case "epoch":
@@ -359,15 +415,23 @@ class DeepFMModule(BaseModule):
         depth: int = 4,
         verbose: int = 0,
     ) -> ModelStatistics:
-        """Print model summary
+        """Generate and return model architecture summary.
+
+        Creates a detailed summary of the DLRM model architecture including layer
+        information, parameter counts, and computational requirements using torchinfo.
 
         Args:
-            batch_size: batch size
-            neg_sample_size: negative sample size
-            pos_sample_size: positive sample size
-            depth: depth. Defaults to 4.
-            verbose: verbose. Defaults to 1.
+            batch_size: Batch size to use for the summary computation
+            depth: Maximum depth of nested modules to display (default: 4)
+            verbose: Verbosity level for the summary output (default: 0)
 
+        Returns:
+            ModelStatistics: Detailed model statistics including parameter counts,
+                           memory usage, and computational complexity
+
+        Note:
+            The summary uses randomly generated input tensors with the specified
+            batch_size and the module's configured max_seq_len and num_items.
         """
         item_history = torch.randint(
             0,
