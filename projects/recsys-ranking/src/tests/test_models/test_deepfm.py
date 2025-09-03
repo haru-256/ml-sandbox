@@ -30,7 +30,12 @@ class TestDeepFM:
     @pytest.fixture
     def deepfm_model(self, model_params: dict[str, int | float]) -> DeepFM:
         """Create a DeepFM model instance for testing."""
-        return DeepFM(**model_params)
+        return DeepFM(
+            num_items=int(model_params["num_items"]),
+            feature_embedding_dims=int(model_params["feature_embedding_dims"]),
+            dropout=model_params["dropout"],
+            pad_idx=int(model_params["pad_idx"]),
+        )
 
     @pytest.fixture
     def sample_input(
@@ -43,10 +48,10 @@ class TestDeepFM:
         num_items = model_params["num_items"]
 
         # Create item history (batch_size, seq_len)
-        item_id_history = torch.randint(1, num_items, (sample_batch_size, sample_seq_len))
+        item_id_history = torch.randint(1, int(num_items), (sample_batch_size, sample_seq_len))
 
         # Create target item IDs (batch_size,)
-        target_item_ids = torch.randint(1, num_items, (sample_batch_size,))
+        target_item_ids = torch.randint(1, int(num_items), (sample_batch_size,))
 
         return item_id_history, target_item_ids
 

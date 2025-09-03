@@ -209,6 +209,7 @@ class TestFirstOrderLayer:
         output_without_bias = layer_without_bias(sample_input)
 
         # Outputs should differ by the bias value
+        assert layer_with_bias.bias is not None
         bias_value = layer_with_bias.bias.item()
         expected_diff = torch.full_like(output_without_bias, bias_value)
         torch.testing.assert_close(output_with_bias - output_without_bias, expected_diff)
