@@ -4,7 +4,8 @@ from torch import nn
 
 class IdEmbedding(nn.Module):
     def __init__(self, num_ids: int, embedding_dim: int, padding_idx: int | None):
-        """Embedding layer for transformer model, including token and position embeddings
+        """Embedding layer for IDs.
+
 
         Args:
             num_ids: number of unique token ids
