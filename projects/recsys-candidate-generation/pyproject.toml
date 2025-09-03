@@ -19,8 +19,8 @@ readme = "README.md"
 requires-python = ">=3.12"
 
 [project.optional-dependencies]
-cpu = ["torch==2.8.0", "torchvision==0.21.0"]
-gpu = ["torch==2.8.0", "torchvision==0.21.0"]
+cpu = ["torch==2.8.0", "torchvision==0.23.0"]
+gpu = ["torch==2.8.0", "torchvision==0.23.0"]
 
 [dependency-groups]
 dev = ["notebook~=7.3.2", "ipywidgets>=8.1.5", "tqdm~=4.67.1"]

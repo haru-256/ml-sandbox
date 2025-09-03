@@ -48,8 +48,6 @@ class FeatureEmbeddingDict(nn.Module):
         outputs: dict[str, torch.Tensor] = OrderedDict()
         for feature_name, x in inputs.items():
             encoder = self.feature_encoder[feature_name]
-            if encoder is None:
-                raise ValueError(f"Feature {feature_name} not found in feature_encoder")
             feature_type = self.feature_map[feature_name].type_
             match feature_type:
                 case FeatureType.CONTINUOUS:

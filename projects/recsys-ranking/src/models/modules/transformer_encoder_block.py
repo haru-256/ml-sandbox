@@ -54,7 +54,7 @@ class TransformerEncoderBlock(nn.Module):
             value=h,
             attn_mask=attn_mask,
             key_padding_mask=key_padding_mask,
-            is_causal=True,
+            is_causal=True,  # always set to True for recsys ranking, FlashAttentionを適用するため、Trueにしておく
         )
         # if attn_mask or key_padding_mask is invalid, h will contain NaN
         # for example, if key_padding_mask is all True, h will contain NaN
