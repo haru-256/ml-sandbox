@@ -7,7 +7,10 @@ import torch
 from lightning.pytorch.callbacks import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 from loguru import logger
-from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecDataModule, SpecialIndex
+from ml_sandbox_libs.data.amazon_reviews_dataset import (
+    AmazonReviewsSeqRecDataModule,
+    SpecialItemIndex,
+)
 from ml_sandbox_libs.utils import setup_logger
 from omegaconf import DictConfig
 
@@ -62,7 +65,7 @@ def main(cfg: DictConfig) -> None:
             normalization=cfg.model.normalization,
             activation=cfg.model.activation,
             dropout=cfg.model.dropout,
-            pad_idx=SpecialIndex.PAD,
+            pad_idx=SpecialItemIndex.PAD,
             # optimizer
             optimizer_params=optimizer_params,
             # eval
@@ -77,7 +80,7 @@ def main(cfg: DictConfig) -> None:
             attn_dropout=cfg.model.attn_dropout,
             ffn_dropout=cfg.model.ffn_dropout,
             max_seq_len=cfg.data.max_seq_len,
-            pad_idx=SpecialIndex.PAD,
+            pad_idx=SpecialItemIndex.PAD,
             float16=cfg.device.float16,
             # optimizer
             optimizer_params=optimizer_params,
@@ -93,7 +96,7 @@ def main(cfg: DictConfig) -> None:
             attn_dropout=cfg.model.attn_dropout,
             ffn_dropout=cfg.model.ffn_dropout,
             max_seq_len=cfg.data.max_seq_len,
-            pad_idx=SpecialIndex.PAD,
+            pad_idx=SpecialItemIndex.PAD,
             float16=cfg.device.float16,
             t=cfg.model.t,
             neg_sample_size=cfg.data.neg_sample_size,
