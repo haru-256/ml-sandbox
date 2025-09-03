@@ -184,8 +184,8 @@ class TestDeepFM:
         assert hasattr(deepfm_model, "feature_map")
 
         # Check module types
-        from models.modules.factorization_machine import FactorizationMachine
         from models.modules.feature_embedding_dict import FeatureEmbeddingDict
+        from models.modules.interaction import FactorizationMachine
         from models.modules.mlp import MLP
 
         assert isinstance(deepfm_model.feature_embedding_dict, FeatureEmbeddingDict)

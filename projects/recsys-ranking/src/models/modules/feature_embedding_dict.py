@@ -34,7 +34,7 @@ class FeatureEmbeddingDict(nn.Module):
                 case _:
                     raise ValueError(f"Unknown feature_spec type: {feature_spec.type_}")
 
-    def forward(self, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    def forward(self, inputs: dict[str, torch.Tensor]) -> OrderedDict[str, torch.Tensor]:
         """Forward pass for embedding layer
 
         Args:
