@@ -17,8 +17,8 @@ from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 from my_types import ActivationType, FeatureSpec, FeatureType, NormalizeType, OptimizerParams
 
 from .base import BaseModule
-from .modules.factorization_machine import FactorizationMachine
 from .modules.feature_embedding_dict import FeatureEmbeddingDict
+from .modules.interaction import FactorizationMachine
 from .modules.mlp import MLP
 
 

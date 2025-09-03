@@ -34,7 +34,7 @@ class FeatureEmbeddingDict(nn.Module):
                 case _:
                     raise ValueError(f"Unknown feature_spec type: {feature_spec.type_}")
 
-    def forward(self, inputs: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    def forward(self, inputs: dict[str, torch.Tensor]) -> OrderedDict[str, torch.Tensor]:
         """Forward pass for embedding layer
 
         Args:
@@ -45,7 +45,7 @@ class FeatureEmbeddingDict(nn.Module):
 
         """
         # Create position IDs for input sequence
-        outputs: dict[str, torch.Tensor] = OrderedDict()
+        outputs: OrderedDict[str, torch.Tensor] = OrderedDict()
         for feature_name, x in inputs.items():
             encoder = self.feature_encoder[feature_name]
             feature_type = self.feature_map[feature_name].type_
