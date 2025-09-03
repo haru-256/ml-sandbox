@@ -1,11 +1,12 @@
 """Tests for DLRM module (Lightning wrapper)."""
 
+from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 import torch
 
-from models.dlrm import DLRM, DeepFMModule
+from models.dlrm import DLRM, DLRMModule
 from my_types import LRSchedulerParams, OptimizerParams
 
 
@@ -30,11 +31,12 @@ class TestDLRMModule:
         )
 
     @pytest.fixture
-    def module_params(self, optimizer_params: OptimizerParams) -> dict:
+    def module_params(self, optimizer_params: OptimizerParams) -> dict[str, Any]:
         """Create module parameters for testing."""
         return {
             "num_items": 1000,
             "feature_embedding_dims": 64,
+            "dense_hidden_features_list": [128, 64],
             "max_seq_len": 10,
             "dropout": 0.1,
             "pad_idx": 0,
@@ -43,20 +45,20 @@ class TestDLRMModule:
         }
 
     @pytest.fixture
-    def dlrm_module(self, module_params: dict) -> DeepFMModule:
+    def dlrm_module(self, module_params: dict[str, Any]) -> DLRMModule:
         """Create DLRM module for testing."""
-        return DeepFMModule(**module_params)
+        return DLRMModule(**module_params)
 
-    def test_dlrm_module_can_be_created(self, module_params: dict) -> None:
+    def test_dlrm_module_can_be_created(self, module_params: dict[str, Any]) -> None:
         """Test that DLRM module can be created."""
-        module = DeepFMModule(**module_params)
+        module = DLRMModule(**module_params)
 
-        assert isinstance(module, DeepFMModule)
+        assert isinstance(module, DLRMModule)
         assert isinstance(module.model, DLRM)
         assert module.num_items == 1000
         assert module.max_seq_len == 10
 
-    def test_dlrm_module_forward_pass(self, dlrm_module: DeepFMModule) -> None:
+    def test_dlrm_module_forward_pass(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module forward pass."""
         batch_size = 4
         seq_len = 8
@@ -69,7 +71,7 @@ class TestDLRMModule:
         assert output.shape == (batch_size,)
         assert output.dtype == torch.float32
 
-    def test_dlrm_module_has_required_attributes(self, dlrm_module: DeepFMModule) -> None:
+    def test_dlrm_module_has_required_attributes(self, dlrm_module: DLRMModule) -> None:
         """Test that DLRM module has all required attributes."""
         # Check model components
         assert hasattr(dlrm_module, "model")
@@ -82,7 +84,7 @@ class TestDLRMModule:
         # Check that model is DLRM instance
         assert isinstance(dlrm_module.model, DLRM)
 
-    def test_dlrm_module_training_step(self, dlrm_module: DeepFMModule) -> None:
+    def test_dlrm_module_training_step(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module training step."""
         # Create mock batch
         batch = MagicMock()
@@ -105,7 +107,7 @@ class TestDLRMModule:
         assert loss.requires_grad
         assert torch.isfinite(loss)
 
-    def test_dlrm_module_validation_step(self, dlrm_module: DeepFMModule) -> None:
+    def test_dlrm_module_validation_step(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module validation step."""
         # Create mock batch
         batch = MagicMock()
@@ -127,7 +129,7 @@ class TestDLRMModule:
         assert isinstance(loss, torch.Tensor)
         assert torch.isfinite(loss)
 
-    def test_dlrm_module_summary(self, dlrm_module: DeepFMModule) -> None:
+    def test_dlrm_module_summary(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module summary generation."""
         batch_size = 4
 
@@ -137,7 +139,7 @@ class TestDLRMModule:
         assert summary_stats is not None
         # Summary should contain information about the model
 
-    def test_dlrm_module_configure_optimizers(self, dlrm_module: DeepFMModule) -> None:
+    def test_dlrm_module_configure_optimizers(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module optimizer configuration."""
         optimizer_config = dlrm_module.configure_optimizers()
 
@@ -168,9 +170,10 @@ class TestDLRMModule:
             ),
         )
 
-        module = DeepFMModule(
+        module = DLRMModule(
             num_items=1000,
             feature_embedding_dims=64,
+            dense_hidden_features_list=[128, 64],
             max_seq_len=10,
             dropout=0.1,
             pad_idx=0,
@@ -184,7 +187,7 @@ class TestDLRMModule:
         assert "optimizer" in optimizer_config
         assert "lr_scheduler" in optimizer_config
 
-    def test_dlrm_module_lr_scheduler_step_epoch(self, dlrm_module: DeepFMModule) -> None:
+    def test_dlrm_module_lr_scheduler_step_epoch(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module LR scheduler step with epoch-based scheduling."""
         # Mock scheduler
         mock_scheduler = MagicMock()
@@ -195,7 +198,7 @@ class TestDLRMModule:
         # Check that scheduler.step was called
         mock_scheduler.step.assert_called_once()
 
-    def test_dlrm_module_hyperparameters_saved(self, dlrm_module: DeepFMModule) -> None:
+    def test_dlrm_module_hyperparameters_saved(self, dlrm_module: DLRMModule) -> None:
         """Test that DLRM module saves hyperparameters."""
         # Check that hyperparameters are saved
         assert hasattr(dlrm_module, "hparams")
@@ -203,7 +206,7 @@ class TestDLRMModule:
         # Check that hparams is not empty
         assert len(dlrm_module.hparams) > 0
 
-    def test_dlrm_module_metrics_initialization(self, dlrm_module: DeepFMModule) -> None:
+    def test_dlrm_module_metrics_initialization(self, dlrm_module: DLRMModule) -> None:
         """Test that DLRM module initializes metrics correctly."""
         # Check metric types
         from torchmetrics.classification import BinaryAccuracy
@@ -218,7 +221,7 @@ class TestDLRMModule:
         assert dlrm_module.hit_rate.top_k == 10
         assert dlrm_module.ndcg.top_k == 10
 
-    def test_dlrm_module_loss_function(self, dlrm_module: DeepFMModule) -> None:
+    def test_dlrm_module_loss_function(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module loss function."""
         # Check loss function type
         assert isinstance(dlrm_module.loss_fn, torch.nn.BCEWithLogitsLoss)

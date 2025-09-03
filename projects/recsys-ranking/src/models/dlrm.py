@@ -47,6 +47,7 @@ class DLRM(nn.Module):
         self,
         num_items: int,
         feature_embedding_dims: int,
+        dense_hidden_features_list: list[int],
         dropout: float,
         pad_idx: int = 0,
     ):
@@ -55,6 +56,9 @@ class DLRM(nn.Module):
         Args:
             num_items: Number of items in the dataset
             feature_embedding_dims: Embedding dimension for categorical features
+            dense_hidden_features_list: List of hidden layer sizes for dense embedding MLP.
+                                      Used when dense features are present to transform them
+                                      into the same embedding space as sparse features.
             dropout: Dropout probability for the MLP components
             pad_idx: Padding index for categorical features (default: 0)
         """
@@ -81,7 +85,7 @@ class DLRM(nn.Module):
         if len(self.dense_feature_map) > 0:
             self.dense_embedding_layer = MLP(
                 in_features=len(self.dense_feature_map),
-                hidden_features_list=hidden_features_list,
+                hidden_features_list=dense_hidden_features_list,
                 out_features=feature_embedding_dims,
                 dropout=dropout,
                 normalize=NormalizeType.BATCH,
@@ -176,14 +180,13 @@ class DLRMModule(BaseModule):
     - Comprehensive logging of training and validation metrics
     - Support for top-k evaluation metrics
     - Model summary generation for architecture inspection
-
-    Note: Despite the class name "DeepFMModule", this actually implements DLRM architecture.
     """
 
     def __init__(
         self,
         num_items: int,
         feature_embedding_dims: int,
+        dense_hidden_features_list: list[int],
         max_seq_len: int,
         dropout: float,
         pad_idx: int,
@@ -195,6 +198,9 @@ class DLRMModule(BaseModule):
         Args:
             num_items: Total number of items in the dataset vocabulary
             feature_embedding_dims: Embedding dimension for categorical features
+            dense_hidden_features_list: List of hidden layer sizes for dense embedding MLP.
+                                       Used to transform dense features into the same embedding
+                                       space as sparse features when dense features are present.
             max_seq_len: Maximum sequence length for item history sequences
             dropout: Dropout probability applied in MLP layers for regularization
             pad_idx: Padding index used for categorical features (typically 0)
@@ -209,6 +215,7 @@ class DLRMModule(BaseModule):
         self.model = DLRM(
             num_items=num_items,
             feature_embedding_dims=feature_embedding_dims,
+            dense_hidden_features_list=dense_hidden_features_list,
             dropout=dropout,
             pad_idx=pad_idx,
         )
@@ -226,13 +233,13 @@ class DLRMModule(BaseModule):
 
         Args:
             item_history: Tensor of item IDs representing user's interaction history,
-                         shape (batch_size, seq_len)
+                shape (batch_size, seq_len)
             target_item_ids: Tensor of target item IDs to predict scores for,
-                           shape (batch_size,)
+                shape (batch_size,)
 
         Returns:
             torch.Tensor: Prediction logits for each target item, shape (batch_size,)
-                         Higher values indicate stronger recommendation confidence
+                Higher values indicate stronger recommendation confidence
         """
         return self.model(item_history, target_item_ids)
 

@@ -1,5 +1,7 @@
 """Tests for DLRM model."""
 
+from typing import Any
+
 import pytest
 import torch
 
@@ -10,11 +12,12 @@ class TestDLRM:
     """Test suite for DLRM model."""
 
     @pytest.fixture
-    def model_params(self) -> dict[str, int | float]:
+    def model_params(self) -> dict[str, Any]:
         """Create sample model parameters for testing."""
         return {
             "num_items": 1000,
             "feature_embedding_dims": 64,
+            "dense_hidden_features_list": [128, 64],
             "dropout": 0.1,
             "pad_idx": 0,
         }
@@ -30,12 +33,13 @@ class TestDLRM:
         return 10
 
     @pytest.fixture
-    def dlrm_model(self, model_params: dict[str, int | float]) -> DLRM:
+    def dlrm_model(self, model_params: dict[str, Any]) -> DLRM:
         """Create a DLRM model instance for testing."""
         return DLRM(
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dropout=model_params["dropout"],
+            dense_hidden_features_list=model_params["dense_hidden_features_list"],
+            dropout=float(model_params["dropout"]),
             pad_idx=int(model_params["pad_idx"]),
         )
 
@@ -60,12 +64,13 @@ class TestDLRM:
 
         return item_history, target_item_ids
 
-    def test_dlrm_initialization(self, model_params: dict[str, int | float]) -> None:
+    def test_dlrm_initialization(self, model_params: dict[str, Any]) -> None:
         """Test DLRM model initialization."""
         model = DLRM(
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dropout=model_params["dropout"],
+            dense_hidden_features_list=model_params["dense_hidden_features_list"],
+            dropout=float(model_params["dropout"]),
             pad_idx=int(model_params["pad_idx"]),
         )
 
@@ -103,12 +108,13 @@ class TestDLRM:
         assert output.shape == (sample_batch_size,)
         assert output.dtype == torch.float32
 
-    def test_dlrm_forward_values(self, model_params: dict[str, int | float]) -> None:
+    def test_dlrm_forward_values(self, model_params: dict[str, Any]) -> None:
         """Test DLRM forward pass produces reasonable values."""
         model = DLRM(
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dropout=model_params["dropout"],
+            dense_hidden_features_list=model_params["dense_hidden_features_list"],
+            dropout=float(model_params["dropout"]),
             pad_idx=int(model_params["pad_idx"]),
         )
 
@@ -222,12 +228,13 @@ class TestDLRM:
         assert isinstance(dlrm_model.interaction_layer, SecondOrderInteraction)
         assert isinstance(dlrm_model.top_mlp, MLP)
 
-    def test_dlrm_padding_handling(self, model_params: dict[str, int | float]) -> None:
+    def test_dlrm_padding_handling(self, model_params: dict[str, Any]) -> None:
         """Test DLRM handles padding indices correctly."""
         model = DLRM(
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dropout=model_params["dropout"],
+            dense_hidden_features_list=model_params["dense_hidden_features_list"],
+            dropout=float(model_params["dropout"]),
             pad_idx=0,
         )
 
@@ -250,7 +257,7 @@ class TestDLRM:
         assert output.shape == (batch_size,)
         assert torch.isfinite(output).all()
 
-    def test_dlrm_deterministic_output(self, model_params: dict[str, int | float]) -> None:
+    def test_dlrm_deterministic_output(self, model_params: dict[str, Any]) -> None:
         """Test that DLRM produces deterministic output with same input."""
         # Set seed for reproducibility
         torch.manual_seed(42)
@@ -258,6 +265,7 @@ class TestDLRM:
         model = DLRM(
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
+            dense_hidden_features_list=model_params["dense_hidden_features_list"],
             dropout=0.0,  # No dropout for deterministic behavior
             pad_idx=int(model_params["pad_idx"]),
         )
@@ -293,12 +301,13 @@ class TestDLRM:
         assert mlp_params > 0
         # Note: interaction_layer has no learnable parameters
 
-    def test_dlrm_empty_sequence_handling(self, model_params: dict[str, int | float]) -> None:
+    def test_dlrm_empty_sequence_handling(self, model_params: dict[str, Any]) -> None:
         """Test DLRM handles minimal sequence length."""
         model = DLRM(
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dropout=model_params["dropout"],
+            dense_hidden_features_list=model_params["dense_hidden_features_list"],
+            dropout=float(model_params["dropout"]),
             pad_idx=int(model_params["pad_idx"]),
         )
 
@@ -341,21 +350,23 @@ class TestDLRMIntegration:
     """Integration tests for DLRM model."""
 
     @pytest.fixture
-    def model_params(self) -> dict[str, int | float]:
+    def model_params(self) -> dict[str, Any]:
         """Create model parameters for integration testing."""
         return {
             "num_items": 100,  # Smaller for faster testing
             "feature_embedding_dims": 32,
+            "dense_hidden_features_list": [64, 32],
             "dropout": 0.1,
             "pad_idx": 0,
         }
 
-    def test_dlrm_training_loop(self, model_params: dict[str, int | float]) -> None:
+    def test_dlrm_training_loop(self, model_params: dict[str, Any]) -> None:
         """Test DLRM in a simple training loop."""
         model = DLRM(
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dropout=model_params["dropout"],
+            dense_hidden_features_list=model_params["dense_hidden_features_list"],
+            dropout=float(model_params["dropout"]),
             pad_idx=int(model_params["pad_idx"]),
         )
 
@@ -382,12 +393,13 @@ class TestDLRMIntegration:
             # Check that loss is finite
             assert torch.isfinite(loss)
 
-    def test_dlrm_inference_performance(self, model_params: dict[str, int | float]) -> None:
+    def test_dlrm_inference_performance(self, model_params: dict[str, Any]) -> None:
         """Test DLRM inference performance."""
         model = DLRM(
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dropout=model_params["dropout"],
+            dense_hidden_features_list=model_params["dense_hidden_features_list"],
+            dropout=float(model_params["dropout"]),
             pad_idx=int(model_params["pad_idx"]),
         )
 
@@ -409,12 +421,13 @@ class TestDLRMIntegration:
             for i in range(1, len(outputs)):
                 assert torch.allclose(outputs[0], outputs[i], atol=1e-6)
 
-    def test_dlrm_memory_efficiency(self, model_params: dict[str, int | float]) -> None:
+    def test_dlrm_memory_efficiency(self, model_params: dict[str, Any]) -> None:
         """Test DLRM memory usage."""
         model = DLRM(
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dropout=model_params["dropout"],
+            dense_hidden_features_list=model_params["dense_hidden_features_list"],
+            dropout=float(model_params["dropout"]),
             pad_idx=int(model_params["pad_idx"]),
         )
 

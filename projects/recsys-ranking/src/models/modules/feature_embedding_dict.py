@@ -45,7 +45,7 @@ class FeatureEmbeddingDict(nn.Module):
 
         """
         # Create position IDs for input sequence
-        outputs: dict[str, torch.Tensor] = OrderedDict()
+        outputs: OrderedDict[str, torch.Tensor] = OrderedDict()
         for feature_name, x in inputs.items():
             encoder = self.feature_encoder[feature_name]
             feature_type = self.feature_map[feature_name].type_
