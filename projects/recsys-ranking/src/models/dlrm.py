@@ -314,7 +314,9 @@ class DeepFMModule(BaseModule):
         neg_logits = neg_logits.view(-1, neg_sample_size)  # (B, neg_sample_size)
 
         # calc loss, accuracy
-        # for imbalanced, extract the first item logits, shape (batch_size, 1)
+        # To prevent the loss from being dominated by a large number of negative samples,
+        # we calculate classification metrics using only one negative sample per positive sample.
+        # All samples are used for the ranking metrics.
         _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
         logits, labels = create_classification_inputs(_pos_logits, _neg_logits)
         loss: torch.Tensor = self.loss_fn(logits, labels)
