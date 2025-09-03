@@ -7,7 +7,8 @@ class PointwiseFeedForward(nn.Module):
         """Pointwise feed-forward layer for transformer model
 
         Args:
-            config: configuration for transformer model, out_dim: embedding dimension, intermediate_size: intermediate layer dimension
+            out_dim: embedding dimension
+            intermediate_size: intermediate layer dimension
             hidden_dropout_prob: dropout probability for hidden layer
 
         """
