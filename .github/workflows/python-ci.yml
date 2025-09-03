@@ -29,7 +29,7 @@ jobs:
       projects: ${{ steps.find-target-projects.outputs.projects }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
       - uses: ./.github/actions/find_target_projects/
@@ -59,7 +59,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Install uv
         uses: astral-sh/setup-uv@v6
         with:
