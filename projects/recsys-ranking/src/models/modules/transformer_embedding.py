@@ -5,20 +5,22 @@ from .base.id_embedding import IdEmbedding
 
 
 class TransformerEmbeddings(nn.Module):
-    def __init__(self, item_num: int, embedding_dim: int, max_position: int, padding_idx: int = 0):
+    def __init__(self, item_num: int, embedding_dim: int, max_position: int, dropout: float = 0.1, padding_idx: int = 0):
         """Embedding layer for transformer model, including token and position embeddings
 
         Args:
-            id_num: size of item
+            item_num: size of item
             embedding_dim: embedding dimension
             max_position: maximum position for position
+            dropout: dropout probability
+            padding_idx: padding index
 
         """
         super().__init__()
         self.id_embeddings = IdEmbedding(item_num, embedding_dim, padding_idx=padding_idx)
         self.position_embeddings = nn.Embedding(max_position, embedding_dim)
         self.layer_norm = nn.LayerNorm(embedding_dim, eps=1e-12)
-        self.dropout = nn.Dropout(p=0.5)
+        self.dropout = nn.Dropout(p=dropout)
 
     def lookup_id_embedding(self, x: torch.Tensor) -> torch.Tensor:
         return self.id_embeddings(x)
