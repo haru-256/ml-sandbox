@@ -159,7 +159,7 @@ class DLRM(nn.Module):
         return logits
 
 
-class DeepFMModule(BaseModule):
+class DLRMModule(BaseModule):
     """PyTorch Lightning module wrapper for DLRM (Deep Learning Recommendation Model).
 
     This module provides a complete training and evaluation framework for the DLRM model
