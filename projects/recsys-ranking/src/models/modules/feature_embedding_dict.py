@@ -7,10 +7,15 @@ from my_types import FeatureSpec, FeatureType
 
 
 class FeatureEmbeddingDict(nn.Module):
-    """Feature embedding dictionary for encoding categorical and continuous features.
+    """Feature embedding dictionary for encoding categorical, categorical sequence, and continuous features.
 
-    This module creates embeddings for different types of features (categorical and continuous)
-    and supports feature grouping for shared embeddings. Similar to DeepFM feature encoding.
+    This module creates embeddings for different types of features:
+    - Categorical features: Single categorical values (e.g., user_id, item_id)
+    - Categorical sequence features: Sequences of categorical values (e.g., user's item history)
+    - Continuous features: Continuous numerical values (e.g., price, rating)
+
+    The module supports feature grouping for shared embeddings, where multiple features
+    can share the same embedding layer by specifying the same group_key.
 
     Attributes:
         feature_map: Mapping of feature names to their specifications
@@ -24,11 +29,14 @@ class FeatureEmbeddingDict(nn.Module):
         Args:
             feature_map: Dictionary mapping feature names to FeatureSpec objects.
                 Each FeatureSpec defines the feature type, embedding dimensions,
-                and other feature-specific parameters.
+                and other feature-specific parameters. Supported feature types:
+                - CATEGORICAL: Single categorical values
+                - CATEGORICAL_SEQUENCE: Sequences of categorical values
+                - CONTINUOUS: Continuous numerical values
 
         Raises:
-            ValueError: If categorical features lack num_ids or if shared features
-                have mismatched embedding dimensions.
+            ValueError: If categorical or categorical sequence features lack num_ids
+                or if shared features have mismatched embedding dimensions.
         """
         super().__init__()
         self.feature_map = feature_map
@@ -92,15 +100,16 @@ class FeatureEmbeddingDict(nn.Module):
             feature_spec: Specification containing feature type and parameters
 
         Returns:
-            nn.Module: Either nn.Embedding for categorical features or
-                nn.Linear for continuous features
+            nn.Module:
+                - nn.Embedding for categorical and categorical sequence features
+                - nn.Linear for continuous features
 
         Raises:
-            ValueError: If num_ids is not specified for categorical features
+            ValueError: If num_ids is not specified for categorical/categorical sequence features
                 or if the feature type is unknown.
         """
         match feature_spec.type_:
-            case FeatureType.CATEGORICAL:
+            case FeatureType.CATEGORICAL | FeatureType.CATEGORICAL_SEQUENCE:
                 if feature_spec.num_ids is None:
                     raise ValueError(
                         f"num_ids must be specified for categorical feature encoder: {feature_name}"
@@ -121,28 +130,42 @@ class FeatureEmbeddingDict(nn.Module):
         Args:
             inputs: Dictionary mapping feature names to input tensors.
                 - For categorical features: tensor of shape (batch_size,) containing indices
+                - For categorical sequence features: tensor of shape (batch_size, seq_len) containing indices
                 - For continuous features: tensor of shape (batch_size,) containing values
 
         Returns:
             OrderedDict[str, torch.Tensor]: Dictionary mapping feature names to their
-                embeddings. Each embedding has shape (batch_size, embedding_dim).
+                embeddings. Each embedding has shape:
+                - For categorical: (batch_size, embedding_dim)
+                - For categorical sequence: (batch_size, seq_len, embedding_dim)
+                - For continuous: (batch_size, embedding_dim)
 
         Raises:
-            AssertionError: If continuous features don't have the expected 1D shape
+            AssertionError: If input tensors don't have the expected shapes
             ValueError: If an unknown feature type is encountered
             KeyError: If input contains features not defined in feature_map
         """
-        # Create position IDs for input sequence
         outputs: OrderedDict[str, torch.Tensor] = OrderedDict()
         for feature_name, x in inputs.items():
             encoder = self.feature_encoder[feature_name]
             feature_type = self.feature_map[feature_name].type_
             match feature_type:
-                case FeatureType.CONTINUOUS:
-                    assert x.dim() == 1  # (B,)
-                    outputs[feature_name] = encoder(x.unsqueeze(-1))
                 case FeatureType.CATEGORICAL:
+                    assert x.dim() == 1, (
+                        f"Categorical feature {feature_name} should be 1D, got {x.dim()}D"
+                    )
                     outputs[feature_name] = encoder(x)
+                case FeatureType.CATEGORICAL_SEQUENCE:
+                    assert x.dim() == 2, (
+                        f"Categorical sequence feature {feature_name} should be 2D, got {x.dim()}D"
+                    )
+                    outputs[feature_name] = encoder(x)
+                case FeatureType.CONTINUOUS:
+                    assert x.dim() == 1, (
+                        f"Continuous feature {feature_name} should be 1D, got {x.dim()}D"
+                    )
+                    # Reshape for linear layer: (batch_size,) -> (batch_size, 1)
+                    outputs[feature_name] = encoder(x.unsqueeze(-1))
                 case _:
                     raise ValueError(f"Unknown feature type: {feature_type}")
 

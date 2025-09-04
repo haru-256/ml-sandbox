@@ -79,6 +79,58 @@ class TestFeatureEmbeddingDict:
         assert len(embedding_dict.feature_encoder) == 0
         assert len(embedding_dict._group_key_dict) == 0
 
+    def test_init_categorical_sequence_feature(self) -> None:
+        """Test initialization with categorical sequence features."""
+        feature_map = {
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=5000,
+                padding_idx=0,
+            )
+        }
+
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        assert "item_history" in embedding_dict.feature_encoder
+        assert isinstance(embedding_dict.feature_encoder["item_history"], nn.Embedding)
+        assert embedding_dict.feature_encoder["item_history"].num_embeddings == 5000
+        assert embedding_dict.feature_encoder["item_history"].embedding_dim == 64
+        assert embedding_dict.feature_encoder["item_history"].padding_idx == 0
+
+    def test_init_mixed_features_with_sequence(self) -> None:
+        """Test initialization with all feature types including categorical sequence."""
+        feature_map = {
+            "user_id": FeatureSpec(
+                type_=FeatureType.CATEGORICAL,
+                embedding_dims=128,
+                num_ids=1000,
+                padding_idx=0,
+            ),
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=5000,
+                padding_idx=0,
+            ),
+            "price": FeatureSpec(
+                type_=FeatureType.CONTINUOUS,
+                embedding_dims=32,
+            ),
+        }
+
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        assert len(embedding_dict.feature_encoder) == 3
+        assert "user_id" in embedding_dict.feature_encoder
+        assert "item_history" in embedding_dict.feature_encoder
+        assert "price" in embedding_dict.feature_encoder
+
+        # Check types
+        assert isinstance(embedding_dict.feature_encoder["user_id"], nn.Embedding)
+        assert isinstance(embedding_dict.feature_encoder["item_history"], nn.Embedding)
+        assert isinstance(embedding_dict.feature_encoder["price"], nn.Linear)
+
     # ================================================================================
     # Error Handling Tests
     # ================================================================================
@@ -95,6 +147,22 @@ class TestFeatureEmbeddingDict:
 
         with pytest.raises(
             ValueError, match="num_ids must be specified for categorical feature encoder: user_id"
+        ):
+            FeatureEmbeddingDict(feature_map)
+
+    def test_init_categorical_sequence_feature_without_num_ids(self) -> None:
+        """Test that initialization fails when categorical sequence feature lacks num_ids."""
+        feature_map = {
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                # num_ids is None
+            )
+        }
+
+        with pytest.raises(
+            ValueError,
+            match="num_ids must be specified for categorical feature encoder: item_history",
         ):
             FeatureEmbeddingDict(feature_map)
 
@@ -156,8 +224,33 @@ class TestFeatureEmbeddingDict:
         assert "price" in outputs
         assert outputs["price"].shape == (batch_size, 64)
 
+    def test_forward_categorical_sequence_feature(self) -> None:
+        """Test forward pass with categorical sequence features."""
+        feature_map = {
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=5000,
+                padding_idx=0,
+            )
+        }
+
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        # Create input tensor
+        batch_size = 16
+        seq_len = 10
+        item_history = torch.randint(0, 5000, (batch_size, seq_len))
+        inputs = {"item_history": item_history}
+
+        outputs = embedding_dict.forward(inputs)
+
+        assert len(outputs) == 1
+        assert "item_history" in outputs
+        assert outputs["item_history"].shape == (batch_size, seq_len, 64)
+
     def test_forward_mixed_features(self) -> None:
-        """Test forward pass with mixed feature types."""
+        """Test forward pass with all feature types."""
         feature_map = {
             "user_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
@@ -165,9 +258,15 @@ class TestFeatureEmbeddingDict:
                 num_ids=1000,
                 padding_idx=0,
             ),
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=5000,
+                padding_idx=0,
+            ),
             "price": FeatureSpec(
                 type_=FeatureType.CONTINUOUS,
-                embedding_dims=64,
+                embedding_dims=32,
             ),
             "item_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
@@ -179,25 +278,30 @@ class TestFeatureEmbeddingDict:
         embedding_dict = FeatureEmbeddingDict(feature_map)
 
         # Create input tensors
-        batch_size = 32
+        batch_size = 16
+        seq_len = 10
         user_ids = torch.randint(0, 1000, (batch_size,))
+        item_history = torch.randint(0, 5000, (batch_size, seq_len))
         prices = torch.randn(batch_size)
         item_ids = torch.randint(0, 5000, (batch_size,))
 
         inputs = {
             "user_id": user_ids,
+            "item_history": item_history,
             "price": prices,
             "item_id": item_ids,
         }
 
         outputs = embedding_dict.forward(inputs)
 
-        assert len(outputs) == 3
+        assert len(outputs) == 4
         assert "user_id" in outputs
+        assert "item_history" in outputs
         assert "price" in outputs
         assert "item_id" in outputs
         assert outputs["user_id"].shape == (batch_size, 128)
-        assert outputs["price"].shape == (batch_size, 64)
+        assert outputs["item_history"].shape == (batch_size, seq_len, 64)
+        assert outputs["price"].shape == (batch_size, 32)
         assert outputs["item_id"].shape == (batch_size, 256)
 
     def test_forward_with_empty_inputs(self) -> None:
@@ -252,6 +356,59 @@ class TestFeatureEmbeddingDict:
         inputs = {"price": prices}
 
         with pytest.raises(AssertionError):
+            embedding_dict.forward(inputs)
+
+    def test_forward_categorical_sequence_wrong_dimension(self) -> None:
+        """Test that forward pass fails when categorical sequence feature has wrong dimensions."""
+        feature_map = {
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=5000,
+                padding_idx=0,
+            )
+        }
+
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        # Test with 1D input (should be 2D)
+        batch_size = 32
+        item_history_1d = torch.randint(0, 5000, (batch_size,))
+        inputs = {"item_history": item_history_1d}
+
+        with pytest.raises(
+            AssertionError, match="Categorical sequence feature item_history should be 2D"
+        ):
+            embedding_dict.forward(inputs)
+
+        # Test with 3D input (should be 2D)
+        item_history_3d = torch.randint(0, 5000, (batch_size, 10, 5))
+        inputs = {"item_history": item_history_3d}
+
+        with pytest.raises(
+            AssertionError, match="Categorical sequence feature item_history should be 2D"
+        ):
+            embedding_dict.forward(inputs)
+
+    def test_forward_categorical_wrong_dimension(self) -> None:
+        """Test that forward pass fails when categorical feature has wrong dimensions."""
+        feature_map = {
+            "user_id": FeatureSpec(
+                type_=FeatureType.CATEGORICAL,
+                embedding_dims=128,
+                num_ids=1000,
+                padding_idx=0,
+            )
+        }
+
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        # Test with 2D input (should be 1D)
+        batch_size = 32
+        user_ids_2d = torch.randint(0, 1000, (batch_size, 10))
+        inputs = {"user_id": user_ids_2d}
+
+        with pytest.raises(AssertionError, match="Categorical feature user_id should be 1D"):
             embedding_dict.forward(inputs)
 
     def test_forward_unknown_feature_type_in_forward(self) -> None:
@@ -590,6 +747,112 @@ class TestFeatureEmbeddingDict:
         assert embedding_dict_1._group_key_dict["shared_group"] == "feature_a"
         assert embedding_dict_2._group_key_dict["shared_group"] == "feature_b"
 
+    def test_shared_categorical_sequence_embeddings(self) -> None:
+        """Test that categorical sequence features with the same group_key share embeddings."""
+        feature_map = {
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=5000,
+                padding_idx=0,
+                group_key="item_embedding",
+            ),
+            "item_candidates": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=5000,
+                padding_idx=0,
+                group_key="item_embedding",
+            ),
+        }
+
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        # Check that both features share the same embedding layer
+        assert (
+            embedding_dict.feature_encoder["item_history"]
+            is embedding_dict.feature_encoder["item_candidates"]
+        )
+
+        # Check that the group key mapping is correct
+        assert embedding_dict._group_key_dict["item_embedding"] == "item_history"
+
+    def test_mixed_categorical_and_sequence_shared_embeddings(self) -> None:
+        """Test that categorical and categorical sequence features can share embeddings."""
+        feature_map = {
+            "item_id": FeatureSpec(
+                type_=FeatureType.CATEGORICAL,
+                embedding_dims=128,
+                num_ids=5000,
+                padding_idx=0,
+                group_key="item_embedding",
+            ),
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=128,
+                num_ids=5000,
+                padding_idx=0,
+                group_key="item_embedding",
+            ),
+        }
+
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        # Check that both features share the same embedding layer
+        assert (
+            embedding_dict.feature_encoder["item_id"]
+            is embedding_dict.feature_encoder["item_history"]
+        )
+
+        # Check that the group key mapping is correct
+        assert embedding_dict._group_key_dict["item_embedding"] == "item_id"
+
+    def test_shared_categorical_sequence_forward_pass(self) -> None:
+        """Test forward pass with shared categorical sequence embeddings."""
+        feature_map = {
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=1000,
+                padding_idx=0,
+                group_key="item_embedding",
+            ),
+            "item_candidates": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=1000,
+                padding_idx=0,
+                group_key="item_embedding",
+            ),
+        }
+
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        batch_size = 16
+        seq_len = 10
+        inputs = {
+            "item_history": torch.randint(1, 1000, (batch_size, seq_len)),
+            "item_candidates": torch.randint(1, 1000, (batch_size, seq_len)),
+        }
+
+        outputs = embedding_dict.forward(inputs)
+
+        # Check output shapes
+        assert outputs["item_history"].shape == (batch_size, seq_len, 64)
+        assert outputs["item_candidates"].shape == (batch_size, seq_len, 64)
+
+        # Verify that shared embeddings produce different outputs for different inputs
+        history_out = outputs["item_history"]
+        candidates_out = outputs["item_candidates"]
+
+        # They should be different unless inputs are identical
+        if not torch.equal(inputs["item_history"], inputs["item_candidates"]):
+            assert not torch.allclose(history_out, candidates_out)
+
+    # ================================================================================
+    # Behavior and Property Tests
+    # ================================================================================
+
     def test_embedding_parameters_gradient(self) -> None:
         """Test that embeddings have gradients and can be trained."""
         feature_map = {
@@ -689,6 +952,48 @@ class TestFeatureEmbeddingDict:
         assert torch.allclose(padding_embedding, torch.zeros_like(padding_embedding))
         assert torch.allclose(last_padding_embedding, torch.zeros_like(last_padding_embedding))
         assert torch.allclose(padding_embedding, last_padding_embedding)
+
+    def test_padding_idx_behavior_categorical_sequence(self) -> None:
+        """Test that padding_idx behaves correctly for categorical sequence features."""
+        feature_map = {
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=1000,
+                padding_idx=0,
+            )
+        }
+
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        # Test with padding indices in sequences
+        batch_size = 3
+        seq_len = 5
+        # Create sequences with padding (0 is padding)
+        item_history_with_padding = torch.tensor(
+            [
+                [1, 2, 3, 0, 0],  # Padded sequence
+                [4, 5, 6, 7, 8],  # Full sequence
+                [0, 0, 0, 0, 0],  # All padding
+            ]
+        )
+        inputs = {"item_history": item_history_with_padding}
+
+        outputs = embedding_dict.forward(inputs)
+
+        # Check output shape
+        assert outputs["item_history"].shape == (batch_size, seq_len, 64)
+
+        # The embeddings for padding_idx should be zero
+        padding_embeddings = outputs["item_history"][0, 3:5]  # Last 2 positions in first sequence
+        all_padding_embeddings = outputs["item_history"][2]  # All positions in third sequence
+
+        zero_embedding = torch.zeros(64)
+        for padding_emb in padding_embeddings:
+            assert torch.allclose(padding_emb, zero_embedding)
+
+        for padding_emb in all_padding_embeddings:
+            assert torch.allclose(padding_emb, zero_embedding)
 
     def test_deterministic_output_with_same_input(self) -> None:
         """Test that the same input produces the same output."""
@@ -796,6 +1101,25 @@ class TestFeatureEmbeddingDict:
         assert outputs["categorical"].shape == (1, 128)
         assert outputs["continuous"].shape == (1, 64)
 
+    def test_single_element_batch_categorical_sequence(self) -> None:
+        """Test categorical sequence features with batch size of 1."""
+        feature_map = {
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=1000,
+                padding_idx=0,
+            )
+        }
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        # Single batch, multiple sequence elements
+        seq_len = 5
+        inputs = {"item_history": torch.tensor([[1, 2, 3, 4, 5]])}
+        outputs = embedding_dict.forward(inputs)
+
+        assert outputs["item_history"].shape == (1, seq_len, 64)
+
     def test_very_large_batch(self) -> None:
         """Test with large batch size."""
         feature_map = {
@@ -812,6 +1136,25 @@ class TestFeatureEmbeddingDict:
         outputs = embedding_dict.forward(inputs)
 
         assert outputs["feature"].shape == (large_batch_size, 64)
+
+    def test_large_batch_categorical_sequence(self) -> None:
+        """Test categorical sequence features with large batch size."""
+        feature_map = {
+            "item_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=64,
+                num_ids=1000,
+                padding_idx=0,
+            )
+        }
+        embedding_dict = FeatureEmbeddingDict(feature_map)
+
+        large_batch_size = 1000
+        seq_len = 20
+        inputs = {"item_history": torch.randint(0, 1000, (large_batch_size, seq_len))}
+        outputs = embedding_dict.forward(inputs)
+
+        assert outputs["item_history"].shape == (large_batch_size, seq_len, 64)
 
     def test_feature_names_with_special_characters(self) -> None:
         """Test feature names with special characters and numbers."""

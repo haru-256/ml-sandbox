@@ -27,6 +27,7 @@ class LRSchedulerParams:
 class FeatureType(StrEnum):
     CATEGORICAL = "categorical"
     CONTINUOUS = "continuous"
+    CATEGORICAL_SEQUENCE = "categorical_sequence"
 
 
 @dataclass(frozen=True)
