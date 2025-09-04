@@ -57,8 +57,7 @@ class DIN(nn.Module):
             num_items: Number of items in the dataset
             feature_embedding_dims: Embedding dimension for categorical features
             dense_hidden_features_list: List of hidden layer sizes for dense embedding MLP.
-                                      Used when dense features are present to transform them
-                                      into the same embedding space as sparse features.
+                Used when dense features are present to transform them into the same embedding space as sparse features.
             dropout: Dropout probability for the MLP components
             pad_idx: Padding index for categorical features (default: 0)
         """
@@ -69,12 +68,14 @@ class DIN(nn.Module):
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
                 padding_idx=pad_idx,
+                group_key="item_id",
             ),
             "target_item_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
                 padding_idx=pad_idx,
+                group_key="item_id",
             ),
         }
         self.dense_feature_map: dict[str, FeatureSpec] = {}
