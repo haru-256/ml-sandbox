@@ -35,6 +35,7 @@ class FeatureSpec:
     embedding_dims: int
     num_ids: int | None = None  # for categorical feature
     padding_idx: int | None = None  # for categorical feature
+    group_key: str | None = None  # for feature grouping (e.g., for shared embeddings)
 
 
 class NormalizeType(StrEnum):

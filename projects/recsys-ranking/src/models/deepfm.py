@@ -55,12 +55,14 @@ class DeepFM(nn.Module):
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
                 padding_idx=pad_idx,
+                group_key="item_id",
             ),
             "target_item_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
                 padding_idx=pad_idx,
+                group_key="item_id",
             ),
         }
         self.feature_embedding_dict = FeatureEmbeddingDict(self.feature_map)

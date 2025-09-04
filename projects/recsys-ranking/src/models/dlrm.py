@@ -69,12 +69,14 @@ class DLRM(nn.Module):
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
                 padding_idx=pad_idx,
+                group_key="item_id",
             ),
             "target_item_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
                 padding_idx=pad_idx,
+                group_key="item_id",
             ),
         }
         self.dense_feature_map: dict[str, FeatureSpec] = {}
@@ -199,8 +201,8 @@ class DLRMModule(BaseModule):
             num_items: Total number of items in the dataset vocabulary
             feature_embedding_dims: Embedding dimension for categorical features
             dense_hidden_features_list: List of hidden layer sizes for dense embedding MLP.
-                                       Used to transform dense features into the same embedding
-                                       space as sparse features when dense features are present.
+                Used to transform dense features into the same embedding
+                space as sparse features when dense features are present.
             max_seq_len: Maximum sequence length for item history sequences
             dropout: Dropout probability applied in MLP layers for regularization
             pad_idx: Padding index used for categorical features (typically 0)
@@ -436,7 +438,7 @@ class DLRMModule(BaseModule):
 
         Returns:
             ModelStatistics: Detailed model statistics including parameter counts,
-                           memory usage, and computational complexity
+                memory usage, and computational complexity
 
         Note:
             The summary uses randomly generated input tensors with the specified
