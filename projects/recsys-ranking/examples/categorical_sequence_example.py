@@ -13,7 +13,7 @@ from models.modules.feature_embedding_dict import FeatureEmbeddingDict
 from my_types import FeatureSpec, FeatureType
 
 
-def main():
+def main() -> None:
     """Demonstrate categorical sequence feature support."""
 
     # Define feature specifications including categorical sequence
