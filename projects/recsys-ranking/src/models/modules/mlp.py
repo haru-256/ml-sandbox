@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from typing import Any
 
 import torch
@@ -53,8 +54,8 @@ class MLP(nn.Module):
         hidden_features_list: list[int],
         out_features: int,
         normalize: NormalizeType | None = None,
-        hidden_activation: ActivationType | None = None,
-        hidden_activation_kwargs: dict[str, Any] | None = None,
+        hidden_activation: list[ActivationType] | ActivationType | None = None,
+        hidden_activation_kwargs: list[dict[str, Any]] | dict[str, Any] | None = None,
         out_activation: ActivationType | None = None,
         out_activation_kwargs: dict[str, Any] | None = None,
         dropout: float = 0.0,
@@ -63,16 +64,37 @@ class MLP(nn.Module):
     ) -> None:
         super().__init__()
 
+        if not isinstance(hidden_activation, list):
+            _hidden_activation: Sequence[ActivationType | None] = [hidden_activation] * len(
+                hidden_features_list
+            )
+        else:
+            _hidden_activation = hidden_activation
+
+        if not isinstance(hidden_activation_kwargs, list):
+            _hidden_activation_kwargs: Sequence[dict[str, Any] | None] = [
+                hidden_activation_kwargs
+            ] * len(hidden_features_list)
+        else:
+            _hidden_activation_kwargs = hidden_activation_kwargs
+
         # Validate inputs
-        self._validate_inputs(in_features, out_features, hidden_features_list, dropout)
+        self._validate_inputs(
+            in_features,
+            out_features,
+            hidden_features_list,
+            dropout,
+            _hidden_activation,
+            _hidden_activation_kwargs,
+        )
 
         # Store configuration
         self.in_features = in_features
         self.hidden_features_list = hidden_features_list
         self.out_features = out_features
         self.normalize = normalize
-        self.hidden_activation = hidden_activation
-        self.hidden_activation_kwargs = hidden_activation_kwargs or {}
+        self.hidden_activation = _hidden_activation
+        self.hidden_activation_kwargs = _hidden_activation_kwargs
         self.out_activation = out_activation
         self.out_activation_kwargs = out_activation_kwargs or {}
         self.dropout = dropout
@@ -87,6 +109,8 @@ class MLP(nn.Module):
         out_features: int,
         hidden_features_list: list[int],
         dropout: float,
+        hidden_activation: Sequence[ActivationType | None],
+        hidden_activation_kwargs: Sequence[dict[str, Any] | None],
     ) -> None:
         """Validate input parameters."""
         if dropout < 0.0 or dropout > 1.0:
@@ -97,6 +121,16 @@ class MLP(nn.Module):
             raise ValueError(f"out_features must be positive, got {out_features}")
         if any(h <= 0 for h in hidden_features_list):
             raise ValueError("All hidden layer sizes must be positive")
+        if isinstance(hidden_activation, list) and len(hidden_activation) != len(
+            hidden_features_list
+        ):
+            raise ValueError("Length of hidden_activation list must match number of hidden layers")
+        if isinstance(hidden_activation_kwargs, list) and len(hidden_activation_kwargs) != len(
+            hidden_features_list
+        ):
+            raise ValueError(
+                "Length of hidden_activation_kwargs list must match number of hidden layers"
+            )
 
     def _build_model(self) -> nn.Sequential:
         """Build the sequential model with all layers."""
@@ -115,9 +149,8 @@ class MLP(nn.Module):
                 activation = self.out_activation
                 activation_kwargs = self.out_activation_kwargs
             else:
-                activation = self.hidden_activation
-                activation_kwargs = self.hidden_activation_kwargs
-
+                activation = self.hidden_activation[i]
+                activation_kwargs = self.hidden_activation_kwargs[i]
             layer = LinearBlock(
                 in_features=layer_sizes[i],
                 out_features=layer_sizes[i + 1],

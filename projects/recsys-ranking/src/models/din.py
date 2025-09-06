@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from collections.abc import Sequence
 from typing import Any, override
 
 import torch
@@ -18,57 +19,66 @@ from my_types import ActivationType, FeatureSpec, FeatureType, NormalizeType, Op
 
 from .base import BaseModule
 from .modules.feature_embedding_dict import FeatureEmbeddingDict
-from .modules.interaction import SecondOrderInteraction
 from .modules.mlp import MLP
+from .modules.target_attention import DINAttention
 
 
 class DIN(nn.Module):
-    """Deep Learning Recommendation Model (DLRM) for recommendation systems.
+    """Deep Interest Network (DIN) for click-through rate prediction.
 
-    DLRM is a neural network model specifically designed for personalized recommendation
-    tasks. The model processes sparse categorical features and dense numerical features
-    differently, combining them through feature interactions to make predictions.
+    DIN uses target-aware attention to adaptively learn user interest representations
+    from historical behaviors. The key innovation is attention-based pooling that
+    considers both the target item and user's interaction history.
 
     Architecture:
-    1. Embedding layer: Maps sparse categorical features to dense embeddings
-    2. MLP layer: Processes dense features (if any) into embeddings
-    3. Interaction layer: Computes pairwise interactions between feature embeddings
-    4. Top MLP: Final prediction layer that processes interaction outputs
+    1. Embedding layer: Maps categorical features (items, categories) to dense embeddings
+    2. Attention layer: Computes target-aware attention weights for history sequences
+    3. DNN layer: Final prediction MLP that processes concatenated embeddings
 
     Key characteristics:
-    - Separates sparse and dense feature processing
-    - Uses inner product for feature interactions
-    - Designed for recommendation and ranking tasks
+    - Target-aware attention mechanism for adaptive user interest modeling
+    - Handles both item and category features
+    - Designed specifically for recommendation and CTR prediction tasks
 
-    Reference: https://arxiv.org/abs/1906.00091
+    Reference: Zhou et al. (2018) "Deep Interest Network for Click-Through Rate Prediction", https://arxiv.org/abs/1706.06978
     """
 
     def __init__(
         self,
         num_items: int,
         feature_embedding_dims: int,
-        dense_hidden_features_list: list[int],
-        dropout: float,
+        din_hidden_dims: list[int],
+        dnn_hidden_dims: list[int],
+        normalize: NormalizeType | None = None,
+        dropout: float = 0.0,
         pad_idx: int = 0,
     ):
-        """Initialize DLRM model.
+        """Initialize DIN model.
 
         Args:
             num_items: Number of items in the dataset
             feature_embedding_dims: Embedding dimension for categorical features
-            dense_hidden_features_list: List of hidden layer sizes for dense embedding MLP.
-                Used when dense features are present to transform them into the same embedding space as sparse features.
+            din_hidden_dims: List of hidden layer sizes for DIN attention MLP
+            dnn_hidden_dims: List of hidden layer sizes for final prediction MLP
+            normalize: Normalization type for MLP layers
             dropout: Dropout probability for the MLP components
             pad_idx: Padding index for categorical features (default: 0)
         """
         super().__init__()
-        self.sparse_feature_map = {
-            "last_item_id": FeatureSpec(
-                type_=FeatureType.CATEGORICAL,
+        self.feature_map = {
+            "item_id_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
                 padding_idx=pad_idx,
                 group_key="item_id",
+            ),
+            "category_id_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
+                embedding_dims=feature_embedding_dims,
+                num_ids=num_items,
+                padding_idx=pad_idx,
+                group_key="category_id",
             ),
             "target_item_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
@@ -77,99 +87,127 @@ class DIN(nn.Module):
                 padding_idx=pad_idx,
                 group_key="item_id",
             ),
+            "target_category_id": FeatureSpec(
+                type_=FeatureType.CATEGORICAL,
+                embedding_dims=feature_embedding_dims,
+                num_ids=num_items,
+                padding_idx=pad_idx,
+                group_key="category_id",
+            ),
         }
-        self.dense_feature_map: dict[str, FeatureSpec] = {}
+        self.target_fields = [("target_item_id", "target_category_id")]
+        self.sequence_fields = [("item_id_history", "category_id_history")]
 
-        # NOTE: DLRMはsparse feature(categorical feature)のみをembeddingし、dense featureはMLPでembeddingする
-        self.sparse_embedding_layer = FeatureEmbeddingDict(self.sparse_feature_map)
-        hidden_features_list = [feature_embedding_dims, feature_embedding_dims]
-        if len(self.dense_feature_map) > 0:
-            self.dense_embedding_layer = MLP(
-                in_features=len(self.dense_feature_map),
-                hidden_features_list=dense_hidden_features_list,
-                out_features=feature_embedding_dims,
-                dropout=dropout,
-                normalize=NormalizeType.BATCH,
-                hidden_activation=ActivationType.RELU,
-                out_activation=None,
-            )
+        for field_tuple in self.target_fields + self.sequence_fields:
+            if isinstance(field_tuple, str):
+                field_tuple = (field_tuple,)
+            for field_name in field_tuple:
+                if field_name not in self.feature_map:
+                    raise ValueError(f"Field '{field_name}' not found in feature_map")
 
-        self.interaction_layer = SecondOrderInteraction(
-            num_fields=len(self.sparse_feature_map) + len(self.dense_feature_map),
-            output_type="inner_product",
+        assert len(self.target_fields) == len(self.sequence_fields)
+
+        self.embedding_layer = FeatureEmbeddingDict(self.feature_map)
+        self.attention_layers = nn.ModuleList(
+            [
+                DINAttention(
+                    input_dims=feature_embedding_dims * len(target_field)
+                    if isinstance(target_field, tuple)
+                    else feature_embedding_dims,
+                    hidden_dims=din_hidden_dims,
+                    hidden_activation=ActivationType.DICE,
+                    use_softmax=False,
+                )
+                for target_field in self.target_fields
+            ]
         )
-        top_mlp_in_features = self.interaction_layer.output_dims + feature_embedding_dims * int(
-            len(self.dense_feature_map) > 0
-        )
-        self.top_mlp = MLP(
-            in_features=top_mlp_in_features,
-            hidden_features_list=hidden_features_list,
+        self.dnn_layer = MLP(
+            in_features=self.embedding_layer.output_dims,
+            hidden_features_list=dnn_hidden_dims,
+            hidden_activation=ActivationType.RELU,
             out_features=1,
             dropout=dropout,
-            normalize=NormalizeType.BATCH,
-            hidden_activation=ActivationType.RELU,
-            out_activation=None,
+            normalize=normalize,
         )
 
     def forward(
         self,
         item_id_history: torch.Tensor,
+        category_id_history: torch.Tensor,
         target_item_ids: torch.Tensor,
+        target_category_ids: torch.Tensor,
     ) -> torch.Tensor:
-        """Forward pass for DLRM model.
+        """Forward pass for DIN model.
 
         Args:
             item_id_history: Item history tensor of shape (batch_size, seq_len)
+            category_id_history: Category history tensor of shape (batch_size, seq_len)
             target_item_ids: Target item IDs tensor of shape (batch_size,)
+            target_category_ids: Target category IDs tensor of shape (batch_size,)
 
         Returns:
             torch.Tensor: Prediction logits of shape (batch_size,)
         """
 
-        last_item_ids = item_id_history[:, -1]  # (B,)
-        sparse_feature_dict: dict[str, torch.Tensor] = OrderedDict()
-        sparse_feature_dict["last_item_id"] = last_item_ids
-        sparse_feature_dict["target_item_id"] = target_item_ids
-        dense_feature_dict: dict[str, torch.Tensor] = OrderedDict()
+        feature_dict: dict[str, torch.Tensor] = OrderedDict()
+        feature_dict["item_id_history"] = item_id_history
+        feature_dict["category_id_history"] = category_id_history
+        feature_dict["target_item_id"] = target_item_ids
+        feature_dict["target_category_id"] = target_category_ids
 
-        # element shape: (B, D)
-        sparse_emb_dict: OrderedDict[str, torch.Tensor] = self.sparse_embedding_layer(
-            sparse_feature_dict
-        )
-        # (B, num_sparse_features * D)
-        sparse_embs = torch.stack(list(sparse_emb_dict.values()), dim=1)
-        if len(self.dense_feature_map) > 0:
-            # (B, num_dense_features)
-            dense_features = torch.hstack(list(dense_feature_dict.values()))
-            dense_embs = self.dense_embedding_layer(dense_features)  # (B, D)
-            # (B, num_sparse_features + 1, D)
-            feature_embs = torch.cat([sparse_embs, dense_embs.unsqueeze(1)], dim=1)
-        else:
-            feature_embs = sparse_embs
+        # DIN attention pooling for each (target, history) field pair
+        feature_emb_dict: OrderedDict[str, torch.Tensor] = self.embedding_layer(feature_dict)
+        for i, (target_field, sequence_field) in enumerate(
+            zip(self.target_fields, self.sequence_fields, strict=True)
+        ):
+            # (B, len(target_field)*D)
+            target_emb = _get_embedding(target_field, feature_emb_dict)
+            # (B, H, len(sequence_field)*D)
+            sequence_emb = _get_embedding(sequence_field, feature_emb_dict)
+            if not isinstance(sequence_field, str):
+                rep_sequence_field = sequence_field[0]
+            else:
+                rep_sequence_field = sequence_field
+            padding_mask = (
+                feature_dict[rep_sequence_field] != self.feature_map[rep_sequence_field].padding_idx
+            )
+            # (B, len(target_field)*D)
+            pooling_emb = self.attention_layers[i](
+                target_emb, sequence_emb, padding_mask=padding_mask
+            )
+            # update pooled embedding
+            # NOTE: split and assign to each field in sequence_field. Attentionはitem-idとcategory-idの両方を考慮してweightを計算しpoolingするが、embeddingはそれぞれ別々に扱う
+            for field, field_emb in zip(
+                sequence_field,
+                pooling_emb.split(self.feature_map[rep_sequence_field].embedding_dims, dim=-1),
+                strict=True,
+            ):
+                feature_emb_dict[field] = field_emb
+        # (B, D * num_features)
+        embs = torch.cat(list(feature_emb_dict.values()), dim=-1)
 
-        # Interaction Layer
-        # (B, self.interaction_layer.output_dims)
-        interaction_out = self.interaction_layer(feature_embs)
-
-        # Top MLP Layer
-        if len(self.dense_feature_map) > 0:
-            # (B, self.interaction_layer.output_dims + D)
-            deep_in = torch.cat([interaction_out, dense_embs], dim=1)
-        else:
-            # (B, self.interaction_layer.output_dims)
-            deep_in = interaction_out
-        deep_out = self.top_mlp(deep_in)  # (B, 1)
-        logits = deep_out.squeeze(-1)  # (B,)
+        # DNN layer
+        logits = self.dnn_layer(embs).squeeze(-1)  # (B,)
 
         return logits
 
 
-class DINModule(BaseModule):
-    """PyTorch Lightning module wrapper for DLRM (Deep Learning Recommendation Model).
+def _get_embedding(
+    field: Sequence[str] | str, feature_emb_dict: OrderedDict[str, torch.Tensor]
+) -> torch.Tensor:
+    if isinstance(field, str):
+        return feature_emb_dict[field]
+    else:
+        emb_list = [feature_emb_dict[f] for f in field]
+        return torch.cat(emb_list, dim=-1)
 
-    This module provides a complete training and evaluation framework for the DLRM model
+
+class DINModule(BaseModule):
+    """PyTorch Lightning module wrapper for DIN (Deep Interest Network).
+
+    This module provides a complete training and evaluation framework for the DIN model
     using PyTorch Lightning. It handles the training loop, validation, optimizer configuration,
-    and metrics computation for recommendation tasks.
+    and metrics computation for click-through rate prediction tasks.
 
     The module uses negative sampling during training and evaluation, computing:
     - Binary cross-entropy loss for training
@@ -187,27 +225,28 @@ class DINModule(BaseModule):
         self,
         num_items: int,
         feature_embedding_dims: int,
-        dense_hidden_features_list: list[int],
+        din_hidden_dims: list[int],
+        dnn_hidden_dims: list[int],
+        normalize: NormalizeType | None,
         max_seq_len: int,
         dropout: float,
         pad_idx: int,
         eval_top_k: int,
         optimizer_params: OptimizerParams,
     ):
-        """Initialize the DLRM Lightning module.
+        """Initialize the DIN Lightning module.
 
         Args:
             num_items: Total number of items in the dataset vocabulary
             feature_embedding_dims: Embedding dimension for categorical features
-            dense_hidden_features_list: List of hidden layer sizes for dense embedding MLP.
-                Used to transform dense features into the same embedding
-                space as sparse features when dense features are present.
+            din_hidden_dims: List of hidden layer sizes for DIN attention MLP
+            dnn_hidden_dims: List of hidden layer sizes for final prediction MLP
+            normalize: Normalization type for MLP layers
             max_seq_len: Maximum sequence length for item history sequences
             dropout: Dropout probability applied in MLP layers for regularization
             pad_idx: Padding index used for categorical features (typically 0)
             eval_top_k: Number of top-k items to consider for evaluation metrics
             optimizer_params: Configuration object containing optimizer and scheduler settings
-
         """
         super().__init__()
         self.save_hyperparameters()
@@ -216,7 +255,9 @@ class DINModule(BaseModule):
         self.model = DIN(
             num_items=num_items,
             feature_embedding_dims=feature_embedding_dims,
-            dense_hidden_features_list=dense_hidden_features_list,
+            din_hidden_dims=din_hidden_dims,
+            dnn_hidden_dims=dnn_hidden_dims,
+            normalize=normalize,
             dropout=dropout,
             pad_idx=pad_idx,
         )
@@ -226,23 +267,35 @@ class DINModule(BaseModule):
         self.ndcg = RetrievalNormalizedDCG(top_k=eval_top_k)
         self.optimizer_params = optimizer_params
 
-    def forward(self, item_history: torch.Tensor, target_item_ids: torch.Tensor) -> torch.Tensor:
-        """Forward pass through the DLRM model.
-
-        Computes prediction logits for given item history and target items.
-        This method delegates to the underlying DLRM model's forward pass.
+    def forward(
+        self,
+        item_history: torch.Tensor,
+        category_history: torch.Tensor,
+        target_item_ids: torch.Tensor,
+        target_category_ids: torch.Tensor,
+    ) -> torch.Tensor:
+        """Forward pass through the DIN model.
 
         Args:
             item_history: Tensor of item IDs representing user's interaction history,
                 shape (batch_size, seq_len)
+            category_history: Tensor of category IDs representing user's category history,
+                shape (batch_size, seq_len)
             target_item_ids: Tensor of target item IDs to predict scores for,
+                shape (batch_size,)
+            target_category_ids: Tensor of target category IDs to predict scores for,
                 shape (batch_size,)
 
         Returns:
             torch.Tensor: Prediction logits for each target item, shape (batch_size,)
                 Higher values indicate stronger recommendation confidence
         """
-        return self.model(item_history, target_item_ids)
+        return self.model(
+            item_id_history=item_history,
+            category_id_history=category_history,
+            target_item_ids=target_item_ids,
+            target_category_ids=target_category_ids,
+        )
 
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Execute a single training step.
@@ -258,19 +311,31 @@ class DINModule(BaseModule):
             torch.Tensor: Computed loss value for backpropagation
         """
         # (B, L), (B,), (B, neg_sample_size)
-        (item_history, pos_item, neg_item) = (
+        (item_history, category_history, pos_item, pos_category, neg_item, neg_category) = (
             batch.item_history,
+            batch.category_history,
             batch.pos_item_index,
+            batch.pos_category_index,
             batch.neg_item_indexes,
+            batch.neg_category_indexes,
         )
         neg_sample_size = neg_item.size(1)
         # (B,)
-        pos_logits = self.forward(item_history=item_history, target_item_ids=pos_item)
+        pos_logits = self.forward(
+            item_history=item_history,
+            category_history=category_history,
+            target_item_ids=pos_item,
+            target_category_ids=pos_category,
+        )
         pos_logits = pos_logits.view(-1, 1)  # (B, 1)
         # (B * neg_sample_size,)
         neg_logits = self.forward(
             item_history=torch.repeat_interleave(item_history, repeats=neg_sample_size, dim=0),
+            category_history=torch.repeat_interleave(
+                category_history, repeats=neg_sample_size, dim=0
+            ),
             target_item_ids=torch.flatten(neg_item, start_dim=0),
+            target_category_ids=torch.flatten(neg_category, start_dim=0),
         )
         neg_logits = neg_logits.view(-1, neg_sample_size)  # (B, neg_sample_size)
 
@@ -305,19 +370,31 @@ class DINModule(BaseModule):
             torch.Tensor: Computed validation loss
         """
         # (B, L), (B,), (B, neg_sample_size)
-        (item_history, pos_item, neg_item) = (
+        (item_history, category_history, pos_item, pos_category, neg_item, neg_category) = (
             batch.item_history,
+            batch.category_history,
             batch.pos_item_index,
+            batch.pos_category_index,
             batch.neg_item_indexes,
+            batch.neg_category_indexes,
         )
         neg_sample_size = neg_item.size(1)
         # (B,)
-        pos_logits = self.forward(item_history=item_history, target_item_ids=pos_item)
+        pos_logits = self.forward(
+            item_history=item_history,
+            category_history=category_history,
+            target_item_ids=pos_item,
+            target_category_ids=pos_category,
+        )
         pos_logits = pos_logits.view(-1, 1)  # (B, 1)
         # (B * neg_sample_size,)
         neg_logits = self.forward(
             item_history=torch.repeat_interleave(item_history, repeats=neg_sample_size, dim=0),
+            category_history=torch.repeat_interleave(
+                category_history, repeats=neg_sample_size, dim=0
+            ),
             target_item_ids=torch.flatten(neg_item, start_dim=0),
+            target_category_ids=torch.flatten(neg_category, start_dim=0),
         )
         neg_logits = neg_logits.view(-1, neg_sample_size)  # (B, neg_sample_size)
 
@@ -449,12 +526,21 @@ class DINModule(BaseModule):
             (batch_size, self.max_seq_len),
             dtype=torch.long,
         )
+        category_history = torch.randint(
+            0,
+            self.num_items,  # Assuming same vocab size for simplicity
+            (batch_size, self.max_seq_len),
+            dtype=torch.long,
+        )
         target_item_ids = torch.randint(0, self.num_items, (batch_size,), dtype=torch.long)
+        target_category_ids = torch.randint(0, self.num_items, (batch_size,), dtype=torch.long)
         return summary(
             self.model,
             input_data={
                 "item_id_history": item_history,
+                "category_id_history": category_history,
                 "target_item_ids": target_item_ids,
+                "target_category_ids": target_category_ids,
             },
             depth=depth,
             verbose=verbose,

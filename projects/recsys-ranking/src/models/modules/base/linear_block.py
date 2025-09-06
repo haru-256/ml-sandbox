@@ -5,6 +5,8 @@ from torch import nn
 
 from my_types import ActivationType, LinearOpOrderType, LinearOpType, NormalizeType
 
+from .activation import Dice
+
 
 def build_normalization(
     normalize: NormalizeType,
@@ -59,8 +61,14 @@ def build_activation(
             return nn.Tanh()
         case ActivationType.GELU:
             return nn.GELU(**kwargs) if kwargs else nn.GELU()
+        case ActivationType.PRELU:
+            return nn.PReLU(**kwargs) if kwargs else nn.PReLU()
         case ActivationType.SILU:
             return nn.SiLU()
+        case ActivationType.DICE:
+            if kwargs is not None and "num_features" not in kwargs:
+                raise ValueError("num_features must be specified in kwargs for Dice activation")
+            return Dice(**kwargs)
         case _:
             raise ValueError(f"Unknown activation type: {activation}")
 

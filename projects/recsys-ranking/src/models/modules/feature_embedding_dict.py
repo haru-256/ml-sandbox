@@ -61,6 +61,18 @@ class FeatureEmbeddingDict(nn.Module):
                     feature_name, feature_spec
                 )
 
+    @property
+    def output_dims(self) -> int:
+        """Calculate the total embedding dimension across all features.
+
+        Returns:
+            int: Sum of embedding dimensions for all features in the feature_map.
+        """
+        total_dim = 0
+        for feature_spec in self.feature_map.values():
+            total_dim += feature_spec.embedding_dims
+        return total_dim
+
     def _validate_shared_feature_map(self, feature_spec: FeatureSpec) -> None:
         """Validate feature specifications for shared embeddings.
 
