@@ -108,7 +108,7 @@ class DINAttention(nn.Module):
             are set to a large negative value (-1e9) before softmax to ensure
             they receive near-zero attention weights.
         """
-        assert padding_mask.dtype == torch.bool if padding_mask is not None else True
+        assert padding_mask is None or padding_mask.dtype == torch.bool, "padding_mask must be a boolean tensor or None"
 
         seq_len = history_sequence.size(1)
         target_item = target_item.unsqueeze(1).expand(-1, seq_len, -1)  # (B, H, D)
