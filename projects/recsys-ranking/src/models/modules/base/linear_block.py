@@ -66,7 +66,7 @@ def build_activation(
         case ActivationType.SILU:
             return nn.SiLU()
         case ActivationType.DICE:
-            if kwargs is not None and "num_features" not in kwargs:
+            if kwargs is None or "num_features" not in kwargs:
                 raise ValueError("num_features must be specified in kwargs for Dice activation")
             return Dice(**kwargs)
         case _:
