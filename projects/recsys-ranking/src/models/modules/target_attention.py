@@ -128,11 +128,11 @@ class DINAttention(nn.Module):
             activation_input.view(-1, self.activation_unit.in_features)
         )
         activation_weight = activation_weight.view(-1, seq_len)
-        if padding_mask is not None:
-            activation_weight = activation_weight * padding_mask.float()
         if self.use_softmax:
             if padding_mask is not None:
-                activation_weight += -1.0e9 * (1 - padding_mask.float())
+                activation_weight = activation_weight.masked_fill(~padding_mask, -1.0e9)
             activation_weight = activation_weight.softmax(dim=-1)
+        elif padding_mask is not None:
+            activation_weight = activation_weight * padding_mask.float()
         output = (activation_weight.unsqueeze(-1) * history_sequence).sum(dim=1)
         return output
