@@ -297,19 +297,7 @@ class DINModule(BaseModule):
             target_category_ids=target_category_ids,
         )
 
-    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
-        """Execute a single training step.
-
-        Performs forward pass on positive and negative samples, computes binary cross-entropy
-        loss, and logs training metrics including loss, accuracy, and logit statistics.
-
-        Args:
-            batch: Training batch containing item history, positive items, and negative samples
-            batch_idx: Index of the current batch within the epoch
-
-        Returns:
-            torch.Tensor: Computed loss value for backpropagation
-        """
+    def _calc_logits(self, batch: AmazonReviewsSeqRecBatch) -> tuple[torch.Tensor, torch.Tensor]:
         # (B, L), (B,), (B, neg_sample_size)
         (item_history, category_history, pos_item, pos_category, neg_item, neg_category) = (
             batch.item_history,
@@ -338,6 +326,23 @@ class DINModule(BaseModule):
             target_category_ids=torch.flatten(neg_category, start_dim=0),
         )
         neg_logits = neg_logits.view(-1, neg_sample_size)  # (B, neg_sample_size)
+
+        return pos_logits, neg_logits
+
+    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
+        """Execute a single training step.
+
+        Performs forward pass on positive and negative samples, computes binary cross-entropy
+        loss, and logs training metrics including loss, accuracy, and logit statistics.
+
+        Args:
+            batch: Training batch containing item history, positive items, and negative samples
+            batch_idx: Index of the current batch within the epoch
+
+        Returns:
+            torch.Tensor: Computed loss value for backpropagation
+        """
+        pos_logits, neg_logits = self._calc_logits(batch)
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
         loss: torch.Tensor = self.loss_fn(logits, labels)
@@ -369,34 +374,7 @@ class DINModule(BaseModule):
         Returns:
             torch.Tensor: Computed validation loss
         """
-        # (B, L), (B,), (B, neg_sample_size)
-        (item_history, category_history, pos_item, pos_category, neg_item, neg_category) = (
-            batch.item_history,
-            batch.category_history,
-            batch.pos_item_index,
-            batch.pos_category_index,
-            batch.neg_item_indexes,
-            batch.neg_category_indexes,
-        )
-        neg_sample_size = neg_item.size(1)
-        # (B,)
-        pos_logits = self.forward(
-            item_history=item_history,
-            category_history=category_history,
-            target_item_ids=pos_item,
-            target_category_ids=pos_category,
-        )
-        pos_logits = pos_logits.view(-1, 1)  # (B, 1)
-        # (B * neg_sample_size,)
-        neg_logits = self.forward(
-            item_history=torch.repeat_interleave(item_history, repeats=neg_sample_size, dim=0),
-            category_history=torch.repeat_interleave(
-                category_history, repeats=neg_sample_size, dim=0
-            ),
-            target_item_ids=torch.flatten(neg_item, start_dim=0),
-            target_category_ids=torch.flatten(neg_category, start_dim=0),
-        )
-        neg_logits = neg_logits.view(-1, neg_sample_size)  # (B, neg_sample_size)
+        pos_logits, neg_logits = self._calc_logits(batch)
 
         # calc loss, accuracy
         # To prevent the loss from being dominated by a large number of negative samples,
