@@ -18,8 +18,10 @@ class TestDLRM:
             "num_items": 1000,
             "feature_embedding_dims": 64,
             "dense_hidden_features_list": [128, 64],
-            "dropout": 0.1,
-            "pad_idx": 0,
+            "dense_dropout": 0.1,
+            "top_hidden_features_list": [64, 32],
+            "top_dropout": 0.1,
+            "item_pad_idx": 0,
         }
 
     @pytest.fixture
@@ -39,8 +41,10 @@ class TestDLRM:
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
             dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dropout=float(model_params["dropout"]),
-            pad_idx=int(model_params["pad_idx"]),
+            dense_dropout=float(model_params["dense_dropout"]),
+            top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_dropout=float(model_params["top_dropout"]),
+            item_pad_idx=int(model_params["item_pad_idx"]),
         )
 
     @pytest.fixture
@@ -70,8 +74,10 @@ class TestDLRM:
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
             dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dropout=float(model_params["dropout"]),
-            pad_idx=int(model_params["pad_idx"]),
+            dense_dropout=float(model_params["dense_dropout"]),
+            top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_dropout=float(model_params["top_dropout"]),
+            item_pad_idx=int(model_params["item_pad_idx"]),
         )
 
         # Check that all components are properly initialized
@@ -114,8 +120,10 @@ class TestDLRM:
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
             dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dropout=float(model_params["dropout"]),
-            pad_idx=int(model_params["pad_idx"]),
+            dense_dropout=float(model_params["dense_dropout"]),
+            top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_dropout=float(model_params["top_dropout"]),
+            item_pad_idx=int(model_params["item_pad_idx"]),
         )
 
         batch_size = 2
@@ -234,8 +242,10 @@ class TestDLRM:
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
             dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dropout=float(model_params["dropout"]),
-            pad_idx=0,
+            dense_dropout=float(model_params["dense_dropout"]),
+            top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_dropout=float(model_params["top_dropout"]),
+            item_pad_idx=0,
         )
 
         batch_size = 4
@@ -266,8 +276,10 @@ class TestDLRM:
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
             dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dropout=0.0,  # No dropout for deterministic behavior
-            pad_idx=int(model_params["pad_idx"]),
+            dense_dropout=0.0,
+            top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_dropout=0.0,  # No dropout for deterministic behavior
+            item_pad_idx=int(model_params["item_pad_idx"]),
         )
 
         item_history = torch.tensor([[1, 2, 3, 4, 5]], dtype=torch.long)
@@ -307,8 +319,10 @@ class TestDLRM:
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
             dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dropout=float(model_params["dropout"]),
-            pad_idx=int(model_params["pad_idx"]),
+            dense_dropout=float(model_params["dense_dropout"]),
+            top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_dropout=float(model_params["top_dropout"]),
+            item_pad_idx=int(model_params["item_pad_idx"]),
         )
 
         batch_size = 2
@@ -356,8 +370,10 @@ class TestDLRMIntegration:
             "num_items": 100,  # Smaller for faster testing
             "feature_embedding_dims": 32,
             "dense_hidden_features_list": [64, 32],
-            "dropout": 0.1,
-            "pad_idx": 0,
+            "dense_dropout": 0.1,
+            "top_hidden_features_list": [32, 16],
+            "top_dropout": 0.1,
+            "item_pad_idx": 0,
         }
 
     def test_dlrm_training_loop(self, model_params: dict[str, Any]) -> None:
@@ -366,8 +382,10 @@ class TestDLRMIntegration:
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
             dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dropout=float(model_params["dropout"]),
-            pad_idx=int(model_params["pad_idx"]),
+            dense_dropout=float(model_params["dense_dropout"]),
+            top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_dropout=float(model_params["top_dropout"]),
+            item_pad_idx=int(model_params["item_pad_idx"]),
         )
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -399,8 +417,10 @@ class TestDLRMIntegration:
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
             dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dropout=float(model_params["dropout"]),
-            pad_idx=int(model_params["pad_idx"]),
+            dense_dropout=float(model_params["dense_dropout"]),
+            top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_dropout=float(model_params["top_dropout"]),
+            item_pad_idx=int(model_params["item_pad_idx"]),
         )
 
         model.eval()
@@ -427,8 +447,10 @@ class TestDLRMIntegration:
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
             dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dropout=float(model_params["dropout"]),
-            pad_idx=int(model_params["pad_idx"]),
+            dense_dropout=float(model_params["dense_dropout"]),
+            top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_dropout=float(model_params["top_dropout"]),
+            item_pad_idx=int(model_params["item_pad_idx"]),
         )
 
         # Test with larger batch sizes (skip batch_size=1 for BatchNorm)

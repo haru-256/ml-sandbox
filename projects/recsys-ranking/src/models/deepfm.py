@@ -27,26 +27,54 @@ class DeepFM(nn.Module):
 
     DeepFM combines the strengths of factorization machines and deep neural networks
     for recommendation tasks. It consists of:
-    1. FM component: Captures low-order feature interactions
-    2. Deep component: Captures high-order feature interactions through neural networks
+    1. FM component: Captures low-order feature interactions using factorization machines
+    2. Deep component: Captures high-order feature interactions through deep neural networks
 
-    Reference: https://arxiv.org/abs/1703.04247
+    The model processes item history and target items through shared embeddings,
+    then combines FM and deep learning predictions for the final output.
+
+    Args:
+        num_items: Number of items in the dataset
+        feature_embedding_dims: Embedding dimension for categorical features
+        deep_hidden_features_list: List of hidden layer sizes for the deep component.
+            For example, [128, 64] creates a 2-layer MLP with 128 and 64 units.
+        deep_dropout: Dropout probability for the deep component hidden layers
+        item_pad_idx: Padding index for categorical features (default: 0)
+
+    Example:
+        >>> model = DeepFM(
+        ...     num_items=10000,
+        ...     feature_embedding_dims=64,
+        ...     deep_hidden_features_list=[128, 64],
+        ...     deep_dropout=0.1,
+        ...     item_pad_idx=0
+        ... )
+        >>> item_history = torch.randint(0, 10000, (32, 20))
+        >>> target_items = torch.randint(0, 10000, (32,))
+        >>> logits = model(item_history, target_items)  # Shape: (32,)
+
+    Reference:
+        Guo et al. "DeepFM: A Factorization-Machine based Neural Network for CTR Prediction"
+        https://arxiv.org/abs/1703.04247
     """
 
     def __init__(
         self,
         num_items: int,
         feature_embedding_dims: int,
-        dropout: float,
-        pad_idx: int = 0,
+        deep_hidden_features_list: list[int],
+        deep_dropout: float,
+        item_pad_idx: int = 0,
     ):
         """Initialize DeepFM model.
 
         Args:
             num_items: Number of items in the dataset
             feature_embedding_dims: Embedding dimension for categorical features
-            dropout: Dropout probability for the deep component
-            pad_idx: Padding index for categorical features (default: 0)
+            deep_hidden_features_list: List of hidden layer sizes for the deep component.
+                For example, [128, 64] creates a 2-layer MLP with 128 and 64 units.
+            deep_dropout: Dropout probability for the deep component hidden layers
+            item_pad_idx: Padding index for categorical features (default: 0)
         """
         super().__init__()
         self.feature_map = {
@@ -54,27 +82,28 @@ class DeepFM(nn.Module):
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
-                padding_idx=pad_idx,
+                padding_idx=item_pad_idx,
                 group_key="item_id",
             ),
             "target_item_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
-                padding_idx=pad_idx,
+                padding_idx=item_pad_idx,
                 group_key="item_id",
             ),
         }
         self.feature_embedding_dict = FeatureEmbeddingDict(self.feature_map)
-        hidden_features_list = [feature_embedding_dims, feature_embedding_dims]
         self.fm_layer = FactorizationMachine(self.feature_map)
         self.deep_layer = MLP(
             in_features=feature_embedding_dims * len(self.feature_map),
-            hidden_features_list=hidden_features_list,
+            hidden_features_list=deep_hidden_features_list,
             out_features=1,
-            dropout=dropout,
-            normalize=NormalizeType.BATCH,
+            hidden_dropout=deep_dropout,
+            hidden_normalize=NormalizeType.BATCH,
             hidden_activation=ActivationType.RELU,
+            out_dropout=0,
+            out_normalize=None,
             out_activation=None,
         )
 
@@ -118,9 +147,10 @@ class DeepFMModule(BaseModule):
         self,
         num_items: int,
         feature_embedding_dims: int,
+        deep_hidden_features_list: list[int],
         max_seq_len: int,
-        dropout: float,
-        pad_idx: int,
+        deep_dropout: float,
+        item_pad_idx: int,
         eval_top_k: int,
         optimizer_params: OptimizerParams,
     ):
@@ -133,9 +163,10 @@ class DeepFMModule(BaseModule):
         Args:
             num_items: Number of items in the dataset
             feature_embedding_dims: Embedding dimension for categorical features
+            deep_hidden_features_list: List of hidden layer sizes for the deep component
             max_seq_len: Maximum sequence length for item history
-            dropout: Dropout probability for the deep component
-            pad_idx: Padding index for categorical features
+            deep_dropout: Dropout probability for the deep component hidden layers
+            item_pad_idx: Padding index for categorical features
             eval_top_k: Number of top-k items for evaluation metrics (hit rate, NDCG)
             optimizer_params: Optimizer configuration parameters
 
@@ -147,8 +178,9 @@ class DeepFMModule(BaseModule):
         self.model = DeepFM(
             num_items=num_items,
             feature_embedding_dims=feature_embedding_dims,
-            dropout=dropout,
-            pad_idx=pad_idx,
+            item_pad_idx=item_pad_idx,
+            deep_hidden_features_list=deep_hidden_features_list,
+            deep_dropout=deep_dropout,
         )
         self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
         self.accuracy = BinaryAccuracy(threshold=0.5)

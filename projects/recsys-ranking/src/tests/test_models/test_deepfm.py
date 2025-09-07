@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 import torch
 
@@ -8,13 +10,14 @@ class TestDeepFM:
     """Test suite for DeepFM model."""
 
     @pytest.fixture
-    def model_params(self) -> dict[str, int | float]:
+    def model_params(self) -> dict[str, Any]:
         """Create sample model parameters for testing."""
         return {
             "num_items": 1000,
             "feature_embedding_dims": 64,
-            "dropout": 0.1,
-            "pad_idx": 0,
+            "deep_hidden_features_list": [128, 64],
+            "deep_dropout": 0.1,
+            "item_pad_idx": 0,
         }
 
     @pytest.fixture
@@ -28,13 +31,14 @@ class TestDeepFM:
         return 10
 
     @pytest.fixture
-    def deepfm_model(self, model_params: dict[str, int | float]) -> DeepFM:
+    def deepfm_model(self, model_params: dict[str, Any]) -> DeepFM:
         """Create a DeepFM model instance for testing."""
         return DeepFM(
-            num_items=int(model_params["num_items"]),
-            feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dropout=model_params["dropout"],
-            pad_idx=int(model_params["pad_idx"]),
+            num_items=model_params["num_items"],
+            feature_embedding_dims=model_params["feature_embedding_dims"],
+            deep_hidden_features_list=model_params["deep_hidden_features_list"],
+            deep_dropout=model_params["deep_dropout"],
+            item_pad_idx=model_params["item_pad_idx"],
         )
 
     @pytest.fixture
@@ -42,7 +46,7 @@ class TestDeepFM:
         self,
         sample_batch_size: int,
         sample_seq_len: int,
-        model_params: dict[str, int | float],
+        model_params: dict[str, Any],
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Create sample input tensors for testing."""
         num_items = model_params["num_items"]
@@ -56,7 +60,7 @@ class TestDeepFM:
         return item_id_history, target_item_ids
 
     def test_deepfm_initialization(
-        self, deepfm_model: DeepFM, model_params: dict[str, int | float]
+        self, deepfm_model: DeepFM, model_params: dict[str, Any]
     ) -> None:
         """Test DeepFM model initialization."""
         assert isinstance(deepfm_model, DeepFM)
@@ -68,7 +72,7 @@ class TestDeepFM:
         for feature_spec in deepfm_model.feature_map.values():
             assert feature_spec.embedding_dims == model_params["feature_embedding_dims"]
             assert feature_spec.num_ids == model_params["num_items"]
-            assert feature_spec.padding_idx == model_params["pad_idx"]
+            assert feature_spec.padding_idx == model_params["item_pad_idx"]
 
     def test_deepfm_forward_shape(
         self,
@@ -227,7 +231,7 @@ class TestDeepFM:
         torch.testing.assert_close(output1, output2)
 
     def test_deepfm_parameter_count(
-        self, deepfm_model: DeepFM, model_params: dict[str, int | float]
+        self, deepfm_model: DeepFM, model_params: dict[str, Any]
     ) -> None:
         """Test that DeepFM has reasonable number of parameters."""
         total_params = sum(p.numel() for p in deepfm_model.parameters())
@@ -309,8 +313,9 @@ class TestDeepFMIntegration:
         model = DeepFM(
             num_items=100,
             feature_embedding_dims=32,
-            dropout=0.1,
-            pad_idx=0,
+            deep_hidden_features_list=[64, 32],
+            deep_dropout=0.1,
+            item_pad_idx=0,
         )
 
         optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -342,8 +347,9 @@ class TestDeepFMIntegration:
         model = DeepFM(
             num_items=1000,
             feature_embedding_dims=64,
-            dropout=0.0,  # No dropout for inference
-            pad_idx=0,
+            deep_hidden_features_list=[128, 64],
+            deep_dropout=0.0,  # No dropout for inference
+            item_pad_idx=0,
         )
         model.eval()
 
@@ -370,8 +376,9 @@ class TestDeepFMIntegration:
         model = DeepFM(
             num_items=5000,
             feature_embedding_dims=128,
-            dropout=0.1,
-            pad_idx=0,
+            deep_hidden_features_list=[256, 128],
+            deep_dropout=0.1,
+            item_pad_idx=0,
         )
 
         batch_size = 32
@@ -387,3 +394,90 @@ class TestDeepFMIntegration:
         # Clean up
         del model, output
         gc.collect()
+
+    def test_deepfm_with_different_hidden_layers(self) -> None:
+        """Test DeepFM with different hidden layer configurations."""
+        configs = [
+            [],  # No hidden layers
+            [32],  # Single hidden layer
+            [64, 32],  # Two hidden layers
+            [128, 64, 32],  # Three hidden layers
+        ]
+
+        batch_size, seq_len = 4, 5
+        for hidden_layers in configs:
+            model = DeepFM(
+                num_items=100,
+                feature_embedding_dims=32,
+                deep_hidden_features_list=hidden_layers,
+                deep_dropout=0.1,
+                item_pad_idx=0,
+            )
+
+            item_history = torch.randint(0, 100, (batch_size, seq_len))
+            target_items = torch.randint(0, 100, (batch_size,))
+
+            output = model(item_history, target_items)
+            assert output.shape == (batch_size,), f"Failed for hidden layers: {hidden_layers}"
+
+    def test_deepfm_dropout_configurations(self) -> None:
+        """Test DeepFM with different dropout configurations."""
+        dropout_rates = [0.0, 0.1, 0.3, 0.5]
+
+        batch_size, seq_len = 4, 5
+        for dropout_rate in dropout_rates:
+            model = DeepFM(
+                num_items=100,
+                feature_embedding_dims=32,
+                deep_hidden_features_list=[64, 32],
+                deep_dropout=dropout_rate,
+                item_pad_idx=0,
+            )
+
+            item_history = torch.randint(0, 100, (batch_size, seq_len))
+            target_items = torch.randint(0, 100, (batch_size,))
+
+            # Test training mode (dropout active)
+            model.train()
+            train_output = model(item_history, target_items)
+            assert train_output.shape == (batch_size,)
+
+            # Test evaluation mode (dropout inactive)
+            model.eval()
+            eval_output = model(item_history, target_items)
+            assert eval_output.shape == (batch_size,)
+
+    def test_deepfm_component_interaction(self) -> None:
+        """Test that FM and Deep components contribute to final output."""
+        model = DeepFM(
+            num_items=100,
+            feature_embedding_dims=16,
+            deep_hidden_features_list=[32, 16],
+            deep_dropout=0.0,  # No dropout for stable testing
+            item_pad_idx=0,
+        )
+
+        batch_size, seq_len = 2, 3
+        item_history = torch.randint(1, 100, (batch_size, seq_len))
+        target_items = torch.randint(1, 100, (batch_size,))
+
+        # Get full model output
+        full_output = model(item_history, target_items)
+
+        # Test FM component alone (by checking it has its own contribution)
+        last_item_ids = item_history[:, -1]
+        inputs = {"last_item_id": last_item_ids, "target_item_id": target_items}
+        feature_emb_dict = model.feature_embedding_dict(inputs)
+        feature_embs = torch.stack(list(feature_emb_dict.values()), dim=1)
+
+        fm_output = model.fm_layer(inputs, feature_embs)
+        deep_output = model.deep_layer(torch.flatten(feature_embs, start_dim=1)).squeeze(-1)
+
+        # Verify outputs have expected shapes
+        assert fm_output.shape == (batch_size,)
+        assert deep_output.shape == (batch_size,)
+        assert full_output.shape == (batch_size,)
+
+        # Verify full output is sum of components
+        expected_output = fm_output + deep_output
+        assert torch.allclose(full_output, expected_output, atol=1e-6)

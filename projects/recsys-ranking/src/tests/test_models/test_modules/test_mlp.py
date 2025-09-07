@@ -1,4 +1,4 @@
-from typing import cast
+from typing import Any, cast
 
 import pytest
 import torch
@@ -67,7 +67,7 @@ class TestMLP:
             in_features=10,
             hidden_features_list=[20],
             out_features=5,
-            normalize=NormalizeType.BATCH,
+            hidden_normalize=NormalizeType.BATCH,
             hidden_activation=ActivationType.RELU,
         )
 
@@ -79,7 +79,7 @@ class TestMLP:
 
         # Output layer should have normalization but no activation by default
         output_layer = cast(LinearBlock, mlp.model[1])
-        assert output_layer.apply_normalize is True
+        assert output_layer.apply_normalize is False  # No out_normalize specified
         assert output_layer.apply_activation is False
 
     def test_init_with_dropout(self) -> None:
@@ -89,23 +89,26 @@ class TestMLP:
             in_features=10,
             hidden_features_list=[20],
             out_features=5,
-            dropout=dropout_rate,
+            hidden_dropout=dropout_rate,
         )
 
         for i in range(len(mlp.model)):
             layer = cast(LinearBlock, mlp.model[i])
-            assert layer.apply_dropout is True
-            assert layer.dropout_layer.p == dropout_rate
+            if i == len(mlp.model) - 1:  # Output layer
+                assert layer.apply_dropout is False  # No out_dropout specified
+            else:  # Hidden layer
+                assert layer.apply_dropout is True
+                assert layer.dropout_layer.p == dropout_rate
 
     def test_validation_errors(self) -> None:
         """Test that initialization fails with invalid parameters."""
         # Test negative dropout
         with pytest.raises(ValueError, match="Dropout must be between 0.0 and 1.0"):
-            MLP(in_features=10, hidden_features_list=[], out_features=5, dropout=-0.1)
+            MLP(in_features=10, hidden_features_list=[], out_features=5, hidden_dropout=-0.1)
 
         # Test dropout > 1.0
         with pytest.raises(ValueError, match="Dropout must be between 0.0 and 1.0"):
-            MLP(in_features=10, hidden_features_list=[], out_features=5, dropout=1.5)
+            MLP(in_features=10, hidden_features_list=[], out_features=5, out_dropout=1.5)
 
         # Test negative in_features
         with pytest.raises(ValueError, match="in_features must be positive"):
@@ -157,9 +160,9 @@ class TestMLP:
             in_features=10,
             hidden_features_list=[20],
             out_features=5,
-            normalize=NormalizeType.BATCH,
+            hidden_normalize=NormalizeType.BATCH,
             hidden_activation=ActivationType.RELU,
-            dropout=0.2,
+            hidden_dropout=0.2,
         )
 
         batch_size = 32
@@ -260,12 +263,89 @@ class TestMLP:
                 in_features=10,
                 hidden_features_list=[20],
                 out_features=5,
-                normalize=NormalizeType.BATCH,
+                hidden_normalize=NormalizeType.BATCH,
                 hidden_activation=ActivationType.RELU,
-                dropout=0.1,
+                hidden_dropout=0.1,
                 apply_order=order,
             )
 
             x = torch.randn(32, 10)
             output = mlp(x)
             assert output.shape == (32, 5)
+
+    def test_separate_hidden_and_output_parameters(self) -> None:
+        """Test MLP with different parameters for hidden and output layers."""
+        mlp = MLP(
+            in_features=10,
+            hidden_features_list=[20, 15],
+            out_features=5,
+            hidden_normalize=NormalizeType.BATCH,
+            hidden_activation=ActivationType.RELU,
+            hidden_dropout=0.2,
+            out_normalize=NormalizeType.LAYER,
+            out_activation=ActivationType.SIGMOID,
+            out_dropout=0.1,
+        )
+
+        batch_size = 32
+        x = torch.randn(batch_size, 10)
+        output = mlp(x)
+        assert output.shape == (batch_size, 5)
+
+        # Check layer configurations
+        assert len(mlp.model) == 3
+        # Hidden layers
+        for i in range(2):
+            layer = cast(LinearBlock, mlp.model[i])
+            assert layer.apply_normalize is True
+            assert layer.apply_activation is True
+            assert layer.apply_dropout is True
+            assert layer.dropout_layer.p == 0.2
+
+        # Output layer
+        output_layer = cast(LinearBlock, mlp.model[2])
+        assert output_layer.apply_normalize is True
+        assert output_layer.apply_activation is True
+        assert output_layer.apply_dropout is True
+        assert output_layer.dropout_layer.p == 0.1
+
+    def test_list_activations(self) -> None:
+        """Test MLP with different activations for each hidden layer."""
+        activations = [ActivationType.RELU, ActivationType.TANH]
+        activation_kwargs: list[dict[str, Any] | None] = [
+            None,
+            {"dim": -1},
+        ]  # tanh doesn't actually use dim, but testing structure
+
+        mlp = MLP(
+            in_features=10,
+            hidden_features_list=[20, 15],
+            out_features=5,
+            hidden_activation=activations,
+            hidden_activation_kwargs=activation_kwargs,
+        )
+
+        batch_size = 32
+        x = torch.randn(batch_size, 10)
+        output = mlp(x)
+        assert output.shape == (batch_size, 5)
+
+    def test_validation_list_lengths(self) -> None:
+        """Test validation of list parameter lengths."""
+        # Mismatched activation list length
+        with pytest.raises(ValueError, match="Length of hidden_activation list must match"):
+            MLP(
+                in_features=10,
+                hidden_features_list=[20, 15],
+                out_features=5,
+                hidden_activation=[ActivationType.RELU],  # Only 1 activation for 2 layers
+            )
+
+        # Mismatched activation kwargs list length
+        with pytest.raises(ValueError, match="Length of hidden_activation_kwargs list must match"):
+            MLP(
+                in_features=10,
+                hidden_features_list=[20, 15],
+                out_features=5,
+                hidden_activation_kwargs=[{"negative_slope": 0.1}],  # Only 1 kwargs for 2 layers
+            )

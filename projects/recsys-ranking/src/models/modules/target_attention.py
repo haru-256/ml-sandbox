@@ -62,13 +62,15 @@ class DINAttention(nn.Module):
             in_features=4 * self.input_dims,
             hidden_features_list=hidden_dims,
             out_features=1,
-            normalize=None,
+            hidden_normalize=None,
             hidden_activation=hidden_activation,
             hidden_activation_kwargs=[
                 {"num_features": num_features} for num_features in hidden_dims
             ],
+            out_normalize=None,
             out_activation=None,
-            dropout=0,
+            hidden_dropout=0.0,
+            out_dropout=0.0,
             bias=True,
         )
 
@@ -108,7 +110,9 @@ class DINAttention(nn.Module):
             are set to a large negative value (-1e9) before softmax to ensure
             they receive near-zero attention weights.
         """
-        assert padding_mask is None or padding_mask.dtype == torch.bool, "padding_mask must be a boolean tensor or None"
+        assert padding_mask is None or padding_mask.dtype == torch.bool, (
+            "padding_mask must be a boolean tensor or None"
+        )
 
         seq_len = history_sequence.size(1)
         target_item = target_item.unsqueeze(1).expand(-1, seq_len, -1)  # (B, H, D)

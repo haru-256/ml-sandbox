@@ -1,0 +1,7 @@
+name: "DeepFM"
+
+feature_embedding_dims: 32 # 1 fieldあたりのembedding次元数
+
+# Deep Layer部分
+deep_dropout: 0.5
+deep_hidden_features_list: [128, 64] # Deep Layerの隠れ層のユニット数

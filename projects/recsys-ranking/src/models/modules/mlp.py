@@ -21,15 +21,19 @@ class MLP(nn.Module):
         hidden_features_list: List of hidden layer sizes. If empty, creates a single
             linear layer from input to output.
         out_features: Number of output features.
-        normalize: Type of normalization to apply (BatchNorm, LayerNorm, etc.).
+        hidden_normalize: Type of normalization to apply to hidden layers (BatchNorm, LayerNorm, etc.).
             None means no normalization.
-        hidden_activation: Type of activation function for hidden layers.
-            None means no activation.
-        hidden_activation_kwargs: Additional keyword arguments for hidden layer activation.
+        hidden_activation: Type of activation function for hidden layers, or list of activation
+            functions for each hidden layer. None means no activation.
+        hidden_activation_kwargs: Additional keyword arguments for hidden layer activations,
+            or list of kwargs for each hidden layer.
+        hidden_dropout: Dropout probability for hidden layers between 0.0 and 1.0.
+        out_normalize: Type of normalization to apply to output layer.
+            None means no normalization.
         out_activation: Type of activation function for output layer.
             None means no activation.
         out_activation_kwargs: Additional keyword arguments for output layer activation.
-        dropout: Dropout probability between 0.0 and 1.0.
+        out_dropout: Dropout probability for output layer between 0.0 and 1.0.
         bias: Whether to include bias terms in linear layers.
         apply_order: Order in which to apply normalization, activation, and dropout.
 
@@ -39,10 +43,10 @@ class MLP(nn.Module):
         ...     in_features=784,
         ...     hidden_features_list=[256, 128],
         ...     out_features=10,
-        ...     normalize=NormalizeType.BATCH,
+        ...     hidden_normalize=NormalizeType.BATCH,
         ...     hidden_activation=ActivationType.RELU,
         ...     out_activation=ActivationType.SIGMOID,
-        ...     dropout=0.1
+        ...     hidden_dropout=0.1
         ... )
         >>> x = torch.randn(32, 784)
         >>> output = mlp(x)  # Shape: (32, 10)
@@ -53,12 +57,14 @@ class MLP(nn.Module):
         in_features: int,
         hidden_features_list: list[int],
         out_features: int,
-        normalize: NormalizeType | None = None,
+        hidden_normalize: NormalizeType | None = None,
         hidden_activation: list[ActivationType] | ActivationType | None = None,
-        hidden_activation_kwargs: list[dict[str, Any]] | dict[str, Any] | None = None,
+        hidden_activation_kwargs: list[dict[str, Any] | None] | dict[str, Any] | None = None,
+        hidden_dropout: float = 0.0,
+        out_normalize: NormalizeType | None = None,
         out_activation: ActivationType | None = None,
         out_activation_kwargs: dict[str, Any] | None = None,
-        dropout: float = 0.0,
+        out_dropout: float = 0.0,
         bias: bool = True,
         apply_order: LinearOpOrderType = LinearOpOrderType.NORM_ACT_DROPOUT,
     ) -> None:
@@ -83,7 +89,8 @@ class MLP(nn.Module):
             in_features,
             out_features,
             hidden_features_list,
-            dropout,
+            hidden_dropout,
+            out_dropout,
             _hidden_activation,
             _hidden_activation_kwargs,
         )
@@ -92,12 +99,14 @@ class MLP(nn.Module):
         self.in_features = in_features
         self.hidden_features_list = hidden_features_list
         self.out_features = out_features
-        self.normalize = normalize
+        self.hidden_normalize = hidden_normalize
         self.hidden_activation = _hidden_activation
         self.hidden_activation_kwargs = _hidden_activation_kwargs
+        self.hidden_dropout = hidden_dropout
+        self.out_normalize = out_normalize
         self.out_activation = out_activation
         self.out_activation_kwargs = out_activation_kwargs or {}
-        self.dropout = dropout
+        self.out_dropout = out_dropout
         self.bias = bias
         self.apply_order = apply_order
 
@@ -108,13 +117,16 @@ class MLP(nn.Module):
         in_features: int,
         out_features: int,
         hidden_features_list: list[int],
-        dropout: float,
+        hidden_dropout: float,
+        out_dropout: float,
         hidden_activation: Sequence[ActivationType | None],
         hidden_activation_kwargs: Sequence[dict[str, Any] | None],
     ) -> None:
         """Validate input parameters."""
-        if dropout < 0.0 or dropout > 1.0:
-            raise ValueError(f"Dropout must be between 0.0 and 1.0, got {dropout}")
+        if not (0.0 <= hidden_dropout <= 1.0) or not (0.0 <= out_dropout <= 1.0):
+            raise ValueError(
+                f"Dropout must be between 0.0 and 1.0, got {out_dropout=}, {hidden_dropout=}"
+            )
         if in_features <= 0:
             raise ValueError(f"in_features must be positive, got {in_features}")
         if out_features <= 0:
@@ -148,16 +160,20 @@ class MLP(nn.Module):
             if is_output_layer:
                 activation = self.out_activation
                 activation_kwargs = self.out_activation_kwargs
+                dropout = self.out_dropout
+                normalize = self.out_normalize
             else:
                 activation = self.hidden_activation[i]
                 activation_kwargs = self.hidden_activation_kwargs[i]
+                dropout = self.hidden_dropout
+                normalize = self.hidden_normalize
             layer = LinearBlock(
                 in_features=layer_sizes[i],
                 out_features=layer_sizes[i + 1],
-                normalize=self.normalize,
+                normalize=normalize,
                 activation=activation,
                 activation_kwargs=activation_kwargs,
-                dropout=self.dropout,
+                dropout=dropout,
                 bias=self.bias,
                 apply_order=self.apply_order,
             )

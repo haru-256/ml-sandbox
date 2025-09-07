@@ -48,8 +48,10 @@ class DLRM(nn.Module):
         num_items: int,
         feature_embedding_dims: int,
         dense_hidden_features_list: list[int],
-        dropout: float,
-        pad_idx: int = 0,
+        dense_dropout: float,
+        top_hidden_features_list: list[int],
+        top_dropout: float,
+        item_pad_idx: int = 0,
     ):
         """Initialize DLRM model.
 
@@ -59,8 +61,10 @@ class DLRM(nn.Module):
             dense_hidden_features_list: List of hidden layer sizes for dense embedding MLP.
                                       Used when dense features are present to transform them
                                       into the same embedding space as sparse features.
-            dropout: Dropout probability for the MLP components
-            pad_idx: Padding index for categorical features (default: 0)
+            dense_dropout: Dropout probability for the dense embedding MLP components
+            top_hidden_features_list: List of hidden layer sizes for the top prediction MLP
+            top_dropout: Dropout probability for the top MLP components
+            item_pad_idx: Padding index for categorical features (default: 0)
         """
         super().__init__()
         self.sparse_feature_map = {
@@ -68,14 +72,14 @@ class DLRM(nn.Module):
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
-                padding_idx=pad_idx,
+                padding_idx=item_pad_idx,
                 group_key="item_id",
             ),
             "target_item_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
-                padding_idx=pad_idx,
+                padding_idx=item_pad_idx,
                 group_key="item_id",
             ),
         }
@@ -83,16 +87,17 @@ class DLRM(nn.Module):
 
         # NOTE: DLRMはsparse feature(categorical feature)のみをembeddingし、dense featureはMLPでembeddingする
         self.sparse_embedding_layer = FeatureEmbeddingDict(self.sparse_feature_map)
-        hidden_features_list = [feature_embedding_dims, feature_embedding_dims]
         if len(self.dense_feature_map) > 0:
             self.dense_embedding_layer = MLP(
                 in_features=len(self.dense_feature_map),
                 hidden_features_list=dense_hidden_features_list,
                 out_features=feature_embedding_dims,
-                dropout=dropout,
-                normalize=NormalizeType.BATCH,
                 hidden_activation=ActivationType.RELU,
+                hidden_normalize=NormalizeType.BATCH,
+                hidden_dropout=dense_dropout,
                 out_activation=None,
+                out_normalize=NormalizeType.BATCH,
+                out_dropout=0,
             )
 
         self.interaction_layer = SecondOrderInteraction(
@@ -104,12 +109,14 @@ class DLRM(nn.Module):
         )
         self.top_mlp = MLP(
             in_features=top_mlp_in_features,
-            hidden_features_list=hidden_features_list,
+            hidden_features_list=top_hidden_features_list,
             out_features=1,
-            dropout=dropout,
-            normalize=NormalizeType.BATCH,
             hidden_activation=ActivationType.RELU,
+            hidden_normalize=NormalizeType.BATCH,
+            hidden_dropout=top_dropout,
             out_activation=None,
+            out_normalize=None,
+            out_dropout=0,
         )
 
     def forward(
@@ -189,9 +196,11 @@ class DLRMModule(BaseModule):
         num_items: int,
         feature_embedding_dims: int,
         dense_hidden_features_list: list[int],
+        dense_dropout: float,
+        top_hidden_features_list: list[int],
+        top_dropout: float,
         max_seq_len: int,
-        dropout: float,
-        pad_idx: int,
+        item_pad_idx: int,
         eval_top_k: int,
         optimizer_params: OptimizerParams,
     ):
@@ -203,12 +212,13 @@ class DLRMModule(BaseModule):
             dense_hidden_features_list: List of hidden layer sizes for dense embedding MLP.
                 Used to transform dense features into the same embedding
                 space as sparse features when dense features are present.
+            dense_dropout: Dropout probability applied in dense embedding MLP layers
+            top_hidden_features_list: List of hidden layer sizes for the top prediction MLP
+            top_dropout: Dropout probability applied in top MLP layers for regularization
             max_seq_len: Maximum sequence length for item history sequences
-            dropout: Dropout probability applied in MLP layers for regularization
-            pad_idx: Padding index used for categorical features (typically 0)
+            item_pad_idx: Padding index used for categorical features (typically 0)
             eval_top_k: Number of top-k items to consider for evaluation metrics
             optimizer_params: Configuration object containing optimizer and scheduler settings
-
         """
         super().__init__()
         self.save_hyperparameters()
@@ -218,8 +228,10 @@ class DLRMModule(BaseModule):
             num_items=num_items,
             feature_embedding_dims=feature_embedding_dims,
             dense_hidden_features_list=dense_hidden_features_list,
-            dropout=dropout,
-            pad_idx=pad_idx,
+            top_hidden_features_list=top_hidden_features_list,
+            dense_dropout=dense_dropout,
+            top_dropout=top_dropout,
+            item_pad_idx=item_pad_idx,
         )
         self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
         self.accuracy = BinaryAccuracy(threshold=0.5)
