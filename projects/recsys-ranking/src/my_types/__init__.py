@@ -52,6 +52,8 @@ class ActivationType(StrEnum):
     LEAKY_RELU = "leaky_relu"
     GELU = "gelu"
     SILU = "silu"
+    DICE = "dice"
+    PRELU = "prelu"
 
 
 class LinearOpType(StrEnum):
