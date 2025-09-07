@@ -12,9 +12,10 @@
 ├── apps/  # 機械学習コードを動かすアプリケーションコード
 │   └── job_runner
 ├── libs/ # 複数projectで使用される内部ライブラリ
-│   └── ml_sandbox_libs
+│ n └── ml_sandbox_libs
 └── projects/ # 各問題設定に対応するproject
-    └── recsys-candidate-generation
+    ├── recsys-candidate-generation
+    └── recsys-ranking
 ```
 
 ## projects
@@ -28,6 +29,13 @@ Candidate Generationとは、以下2段階の推薦のMulti-Stage Architecture�
 2. Ranking: 取得した推薦候補を並び替える
 
 詳細は[README.md](projects/recsys-candidate-generation/README.md)を参照してください。
+
+### Recsys Ranking
+
+Rankingとは、Candidate Generationによって生成された推薦候補を、ユーザーの興味に合わせて並び替える段階です。
+Candidate Generationで絞り込んだ候補の中から、よりユーザーがクリックしたり購入したりする可能性の高い商品をランキング上位に表示することが重要です。
+
+詳細は[README.md](projects/recsys-ranking/README.md)を参照してください。
 
 ## apps
 
