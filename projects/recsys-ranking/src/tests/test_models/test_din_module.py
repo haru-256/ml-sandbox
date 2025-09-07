@@ -106,6 +106,7 @@ class TestDINModule:
         """Test that DINModule initialization creates all required components."""
         module = DINModule(
             num_items=100,
+            num_categories=50,
             feature_embedding_dims=32,
             din_hidden_dims=[16],
             dnn_hidden_dims=[64],
@@ -140,6 +141,7 @@ class TestDINModule:
 
         module = DINModule(
             num_items=50,
+            num_categories=25,
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
@@ -153,9 +155,9 @@ class TestDINModule:
 
         # Create inputs
         item_history = torch.randint(1, 50, (batch_size, seq_len))
-        category_history = torch.randint(1, 50, (batch_size, seq_len))
+        category_history = torch.randint(1, 25, (batch_size, seq_len))  # Use num_categories bound
         target_item_ids = torch.randint(1, 50, (batch_size,))
-        target_category_ids = torch.randint(1, 50, (batch_size,))
+        target_category_ids = torch.randint(1, 25, (batch_size,))  # Use num_categories bound
 
         output = module.forward(
             item_history=item_history,
@@ -173,6 +175,7 @@ class TestDINModule:
         """Test training step execution."""
         module = DINModule(
             num_items=100,
+            num_categories=60,
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
@@ -211,6 +214,7 @@ class TestDINModule:
         """Test validation step execution."""
         module = DINModule(
             num_items=100,
+            num_categories=60,
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
@@ -261,6 +265,7 @@ class TestDINModule:
         """Test optimizer configuration with scheduler."""
         module = DINModule(
             num_items=50,
+            num_categories=30,
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
@@ -287,6 +292,7 @@ class TestDINModule:
         """Test learning rate scheduler step with epoch-based scheduling."""
         module = DINModule(
             num_items=50,
+            num_categories=30,
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
@@ -333,6 +339,7 @@ class TestDINModule:
 
         module = DINModule(
             num_items=50,
+            num_categories=30,
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
@@ -353,6 +360,7 @@ class TestDINModule:
         """Test model summary generation."""
         module = DINModule(
             num_items=30,
+            num_categories=20,
             feature_embedding_dims=8,
             din_hidden_dims=[4],
             dnn_hidden_dims=[16],
@@ -378,6 +386,7 @@ class TestDINModule:
         for normalize in normalize_options:
             module = DINModule(
                 num_items=50,
+                num_categories=30,
                 feature_embedding_dims=16,
                 din_hidden_dims=[8],
                 dnn_hidden_dims=[32],
@@ -392,9 +401,9 @@ class TestDINModule:
             # Test that module can be created and forward pass works
             batch_size = 2
             item_history = torch.randint(1, 50, (batch_size, 5))
-            category_history = torch.randint(1, 50, (batch_size, 5))
+            category_history = torch.randint(1, 30, (batch_size, 5))  # Use num_categories bound
             target_item_ids = torch.randint(1, 50, (batch_size,))
-            target_category_ids = torch.randint(1, 50, (batch_size,))
+            target_category_ids = torch.randint(1, 30, (batch_size,))  # Use num_categories bound
 
             output = module.forward(
                 item_history=item_history,
@@ -411,6 +420,7 @@ class TestDINModule:
         """Test that the module works with gradient accumulation."""
         module = DINModule(
             num_items=100,
+            num_categories=60,
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
@@ -441,6 +451,7 @@ class TestDINModule:
         """Test differences between train and eval modes."""
         module = DINModule(
             num_items=100,
+            num_categories=60,
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],

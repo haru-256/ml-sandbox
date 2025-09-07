@@ -46,6 +46,7 @@ class DIN(nn.Module):
     def __init__(
         self,
         num_items: int,
+        num_categories: int,
         feature_embedding_dims: int,
         din_hidden_dims: list[int],
         dnn_hidden_dims: list[int],
@@ -57,6 +58,7 @@ class DIN(nn.Module):
 
         Args:
             num_items: Number of items in the dataset
+            num_categories: Number of categories in the dataset
             feature_embedding_dims: Embedding dimension for categorical features
             din_hidden_dims: List of hidden layer sizes for DIN attention MLP
             dnn_hidden_dims: List of hidden layer sizes for final prediction MLP
@@ -76,7 +78,7 @@ class DIN(nn.Module):
             "category_id_history": FeatureSpec(
                 type_=FeatureType.CATEGORICAL_SEQUENCE,
                 embedding_dims=feature_embedding_dims,
-                num_ids=num_items,
+                num_ids=num_categories,
                 padding_idx=pad_idx,
                 group_key="category_id",
             ),
@@ -90,7 +92,7 @@ class DIN(nn.Module):
             "target_category_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
-                num_ids=num_items,
+                num_ids=num_categories,
                 padding_idx=pad_idx,
                 group_key="category_id",
             ),
@@ -224,6 +226,7 @@ class DINModule(BaseModule):
     def __init__(
         self,
         num_items: int,
+        num_categories: int,
         feature_embedding_dims: int,
         din_hidden_dims: list[int],
         dnn_hidden_dims: list[int],
@@ -238,6 +241,7 @@ class DINModule(BaseModule):
 
         Args:
             num_items: Total number of items in the dataset vocabulary
+            num_categories: Total number of categories in the dataset vocabulary
             feature_embedding_dims: Embedding dimension for categorical features
             din_hidden_dims: List of hidden layer sizes for DIN attention MLP
             dnn_hidden_dims: List of hidden layer sizes for final prediction MLP
@@ -251,9 +255,11 @@ class DINModule(BaseModule):
         super().__init__()
         self.save_hyperparameters()
         self.num_items = num_items
+        self.num_categories = num_categories
         self.max_seq_len = max_seq_len
         self.model = DIN(
             num_items=num_items,
+            num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=din_hidden_dims,
             dnn_hidden_dims=dnn_hidden_dims,
@@ -506,12 +512,12 @@ class DINModule(BaseModule):
         )
         category_history = torch.randint(
             0,
-            self.num_items,  # Assuming same vocab size for simplicity
+            self.num_categories,  # Use correct vocabulary size for categories
             (batch_size, self.max_seq_len),
             dtype=torch.long,
         )
         target_item_ids = torch.randint(0, self.num_items, (batch_size,), dtype=torch.long)
-        target_category_ids = torch.randint(0, self.num_items, (batch_size,), dtype=torch.long)
+        target_category_ids = torch.randint(0, self.num_categories, (batch_size,), dtype=torch.long)
         return summary(
             self.model,
             input_data={

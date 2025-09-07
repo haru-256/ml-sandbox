@@ -8,12 +8,14 @@ class TestDIN:
     def test_init_creates_proper_components(self) -> None:
         """Test that DIN initialization creates all required components."""
         num_items = 1000
+        num_categories = 500
         feature_embedding_dims = 64
         din_hidden_dims = [32, 16]
         dnn_hidden_dims = [128, 64]
 
         model = DIN(
             num_items=num_items,
+            num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=din_hidden_dims,
             dnn_hidden_dims=dnn_hidden_dims,
@@ -48,10 +50,12 @@ class TestDIN:
         """Test forward pass produces correct output shapes."""
         batch_size, seq_len = 4, 10
         num_items = 100
+        num_categories = 50
         feature_embedding_dims = 32
 
         model = DIN(
             num_items=num_items,
+            num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=[16],
             dnn_hidden_dims=[64],
@@ -61,9 +65,11 @@ class TestDIN:
 
         # Create input tensors
         item_id_history = torch.randint(0, num_items, (batch_size, seq_len))
-        category_id_history = torch.randint(0, num_items, (batch_size, seq_len))
+        category_id_history = torch.randint(
+            0, num_categories, (batch_size, seq_len)
+        )  # Use correct bounds
         target_item_ids = torch.randint(0, num_items, (batch_size,))
-        target_category_ids = torch.randint(0, num_items, (batch_size,))
+        target_category_ids = torch.randint(0, num_categories, (batch_size,))  # Use correct bounds
 
         # Forward pass
         output = model(
@@ -81,11 +87,13 @@ class TestDIN:
         """Test that padding masks are correctly applied."""
         batch_size, _ = 2, 5
         num_items = 50
+        num_categories = 25
         feature_embedding_dims = 16
         pad_idx = 0
 
         model = DIN(
             num_items=num_items,
+            num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=[],
             dnn_hidden_dims=[32],
@@ -122,6 +130,7 @@ class TestDIN:
         """Test DIN model with different attention hidden layer configurations."""
         batch_size = 3
         num_items = 100
+        num_categories = 50
         feature_embedding_dims = 32
 
         configs = [
@@ -133,6 +142,7 @@ class TestDIN:
         for din_hidden_dims in configs:
             model = DIN(
                 num_items=num_items,
+                num_categories=num_categories,
                 feature_embedding_dims=feature_embedding_dims,
                 din_hidden_dims=din_hidden_dims,
                 dnn_hidden_dims=[64],
@@ -140,9 +150,13 @@ class TestDIN:
 
             # Test forward pass
             item_id_history = torch.randint(1, num_items, (batch_size, 5))
-            category_id_history = torch.randint(1, num_items, (batch_size, 5))
+            category_id_history = torch.randint(
+                1, num_categories, (batch_size, 5)
+            )  # Use correct bounds
             target_item_ids = torch.randint(1, num_items, (batch_size,))
-            target_category_ids = torch.randint(1, num_items, (batch_size,))
+            target_category_ids = torch.randint(
+                1, num_categories, (batch_size,)
+            )  # Use correct bounds
 
             output = model(
                 item_id_history=item_id_history,
@@ -157,10 +171,12 @@ class TestDIN:
         """Test that attention mechanism produces different outputs for different targets."""
         batch_size, _ = 2, 3
         num_items = 10
+        num_categories = 5
         feature_embedding_dims = 8
 
         model = DIN(
             num_items=num_items,
+            num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=[4],
             dnn_hidden_dims=[16],
@@ -188,10 +204,12 @@ class TestDIN:
         """Test that gradients flow through the model properly."""
         batch_size = 2
         num_items = 50
+        num_categories = 25
         feature_embedding_dims = 16
 
         model = DIN(
             num_items=num_items,
+            num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=[8],
             dnn_hidden_dims=[16],
@@ -199,9 +217,11 @@ class TestDIN:
 
         # Create inputs and target
         item_id_history = torch.randint(1, num_items, (batch_size, 4))
-        category_id_history = torch.randint(1, num_items, (batch_size, 4))
+        category_id_history = torch.randint(
+            1, num_categories, (batch_size, 4)
+        )  # Use correct bounds
         target_item_ids = torch.randint(1, num_items, (batch_size,))
-        target_category_ids = torch.randint(1, num_items, (batch_size,))
+        target_category_ids = torch.randint(1, num_categories, (batch_size,))  # Use correct bounds
 
         # Forward pass
         output = model(
@@ -237,12 +257,14 @@ class TestDIN:
         """Test different normalization options work correctly."""
         batch_size = 2
         num_items = 30
+        num_categories = 15
 
         normalize_options = [None, NormalizeType.BATCH, NormalizeType.LAYER]
 
         for normalize in normalize_options:
             model = DIN(
                 num_items=num_items,
+                num_categories=num_categories,
                 feature_embedding_dims=16,
                 din_hidden_dims=[8],
                 dnn_hidden_dims=[16],
@@ -251,9 +273,13 @@ class TestDIN:
 
             # Test forward pass
             item_id_history = torch.randint(1, num_items, (batch_size, 3))
-            category_id_history = torch.randint(1, num_items, (batch_size, 3))
+            category_id_history = torch.randint(
+                1, num_categories, (batch_size, 3)
+            )  # Use correct bounds
             target_item_ids = torch.randint(1, num_items, (batch_size,))
-            target_category_ids = torch.randint(1, num_items, (batch_size,))
+            target_category_ids = torch.randint(
+                1, num_categories, (batch_size,)
+            )  # Use correct bounds
 
             output = model(
                 item_id_history=item_id_history,
@@ -269,10 +295,12 @@ class TestDIN:
         batch_size = 2
         _ = 3  # seq_len not used but kept for clarity
         num_items = 20
+        num_categories = 10
         pad_idx = 0
 
         model = DIN(
             num_items=num_items,
+            num_categories=num_categories,
             feature_embedding_dims=8,
             din_hidden_dims=[4],
             dnn_hidden_dims=[8],
