@@ -6,6 +6,7 @@ import pytest
 import torch
 
 from models.dlrm import DLRM
+from my_types import ActivationType, NormalizeType
 
 
 class TestDLRM:
@@ -18,8 +19,12 @@ class TestDLRM:
             "num_items": 1000,
             "feature_embedding_dims": 64,
             "dense_hidden_features_list": [128, 64],
+            "dense_activation": ActivationType.RELU,
+            "dense_normalize": NormalizeType.BATCH,
             "dense_dropout": 0.1,
             "top_hidden_features_list": [64, 32],
+            "top_activation": ActivationType.RELU,
+            "top_normalize": NormalizeType.BATCH,
             "top_dropout": 0.1,
             "item_pad_idx": 0,
         }
@@ -41,8 +46,12 @@ class TestDLRM:
             num_items=int(model_params["num_items"]),
             feature_embedding_dims=int(model_params["feature_embedding_dims"]),
             dense_hidden_features_list=model_params["dense_hidden_features_list"],
+            dense_activation=model_params["dense_activation"],
+            dense_normalize=model_params["dense_normalize"],
             dense_dropout=float(model_params["dense_dropout"]),
             top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_activation=model_params["top_activation"],
+            top_normalize=model_params["top_normalize"],
             top_dropout=float(model_params["top_dropout"]),
             item_pad_idx=int(model_params["item_pad_idx"]),
         )
@@ -464,3 +473,105 @@ class TestDLRMIntegration:
                 assert output.shape == (batch_size,)
             except RuntimeError as e:
                 pytest.fail(f"Memory error with batch_size={batch_size}: {e}")
+
+    def test_dlrm_normalization_variants(self) -> None:
+        """Test DLRM with different normalization strategies."""
+        from my_types import ActivationType, NormalizeType
+
+        base_params: dict[str, Any] = {
+            "num_items": 100,
+            "feature_embedding_dims": 32,
+            "dense_hidden_features_list": [64, 32],
+            "dense_activation": ActivationType.RELU,
+            "dense_dropout": 0.1,
+            "top_hidden_features_list": [32, 16, 1],
+            "top_activation": ActivationType.RELU,
+            "top_dropout": 0.1,
+            "item_pad_idx": 0,
+        }
+
+        # Test different normalization combinations
+        norm_variants = [
+            (None, None),
+            (NormalizeType.BATCH, NormalizeType.BATCH),
+            (NormalizeType.LAYER, NormalizeType.LAYER),
+            (NormalizeType.BATCH, NormalizeType.LAYER),
+        ]
+
+        for dense_norm, top_norm in norm_variants:
+            model = DLRM(dense_normalize=dense_norm, top_normalize=top_norm, **base_params)
+
+            # Test forward pass
+            batch_size = 4
+            seq_len = 5
+            item_history = torch.randint(1, 100, (batch_size, seq_len))
+            target_item_ids = torch.randint(1, 100, (batch_size,))
+
+            output = model(item_history, target_item_ids)
+            assert output.shape == (batch_size,)
+            assert torch.isfinite(output).all()
+
+    def test_dlrm_activation_variants(self) -> None:
+        """Test DLRM with different activation functions."""
+        from my_types import ActivationType
+
+        base_params: dict[str, Any] = {
+            "num_items": 100,
+            "feature_embedding_dims": 32,
+            "dense_hidden_features_list": [64, 32],
+            "dense_normalize": None,
+            "dense_dropout": 0.1,
+            "top_hidden_features_list": [32, 16, 1],
+            "top_normalize": None,
+            "top_dropout": 0.1,
+            "item_pad_idx": 0,
+        }
+
+        activations = [None, ActivationType.RELU, ActivationType.GELU, ActivationType.TANH]
+
+        for activation in activations:
+            model = DLRM(dense_activation=activation, top_activation=activation, **base_params)
+
+            # Test forward pass
+            batch_size = 4
+            seq_len = 5
+            item_history = torch.randint(1, 100, (batch_size, seq_len))
+            target_item_ids = torch.randint(1, 100, (batch_size,))
+
+            output = model(item_history, target_item_ids)
+            assert output.shape == (batch_size,)
+            assert torch.isfinite(output).all()
+
+    def test_dlrm_embedding_dimensions(self) -> None:
+        """Test DLRM with various embedding dimensions."""
+        from my_types import ActivationType
+
+        base_params: dict[str, Any] = {
+            "num_items": 100,
+            "dense_hidden_features_list": [128, 64],
+            "dense_activation": ActivationType.RELU,
+            "dense_normalize": None,
+            "dense_dropout": 0.1,
+            "top_activation": ActivationType.RELU,
+            "top_normalize": None,
+            "top_dropout": 0.1,
+            "item_pad_idx": 0,
+        }
+
+        embedding_dims = [8, 16, 32, 64, 128]
+
+        for dim in embedding_dims:
+            model = DLRM(
+                feature_embedding_dims=dim,
+                top_hidden_features_list=[dim * 2, dim, 1],
+                **base_params,
+            )
+
+            batch_size = 4
+            seq_len = 5
+            item_history = torch.randint(1, 100, (batch_size, seq_len))
+            target_item_ids = torch.randint(1, 100, (batch_size,))
+
+            output = model(item_history, target_item_ids)
+            assert output.shape == (batch_size,)
+            assert torch.isfinite(output).all()

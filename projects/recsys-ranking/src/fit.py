@@ -1,5 +1,7 @@
 import pathlib
+from collections.abc import Callable
 from datetime import datetime
+from typing import Any
 
 import hydra
 import lightning as L
@@ -17,7 +19,7 @@ from omegaconf import DictConfig
 
 from const import EVAL_NEG_SAMPLE_SIZE
 from models import DeepFMModule, DINModule, DLRMModule
-from my_types import LRSchedulerParams, NormalizeType, OptimizerParams
+from my_types import ActivationType, LRSchedulerParams, NormalizeType, OptimizerParams
 from utils import enum_from_str
 
 
@@ -43,6 +45,7 @@ def main(cfg: DictConfig) -> None:
     datamodule.setup(stage="fit")
     logger.info(datamodule.summary())
 
+    # Create optimizer parameters
     optimizer_params = OptimizerParams(
         lr=cfg.optimizer.lr,
         weight_decay=cfg.optimizer.weight_decay,
@@ -56,59 +59,14 @@ def main(cfg: DictConfig) -> None:
             cycle_limit=cfg.optimizer.lr_scheduler.cycle_limit,
         ),
     )
-    if cfg.model.name == "DeepFM":
-        module = DeepFMModule(
-            num_items=len(datamodule.item2index),
-            feature_embedding_dims=cfg.model.feature_embedding_dims,
-            deep_hidden_features_list=cfg.model.deep_hidden_features_list,
-            deep_dropout=cfg.model.deep_dropout,
-            item_pad_idx=SpecialItemIndex.PAD,
-            max_seq_len=cfg.data.max_seq_len,
-            # optimizer
-            optimizer_params=optimizer_params,
-            # eval
-            eval_top_k=cfg.data.eval_top_k,
-        )
-    elif cfg.model.name == "DLRM":
-        module = DLRMModule(
-            num_items=len(datamodule.item2index),
-            feature_embedding_dims=cfg.model.feature_embedding_dims,
-            dense_hidden_features_list=cfg.model.dense_hidden_features_list,
-            dense_dropout=cfg.model.dense_dropout,
-            top_hidden_features_list=cfg.model.top_hidden_features_list,
-            top_dropout=cfg.model.top_dropout,
-            item_pad_idx=SpecialItemIndex.PAD,
-            max_seq_len=cfg.data.max_seq_len,
-            # optimizer
-            optimizer_params=optimizer_params,
-            # eval
-            eval_top_k=cfg.data.eval_top_k,
-        )
-    elif cfg.model.name == "DIN":
-        module = DINModule(
-            num_items=len(datamodule.item2index),
-            num_categories=len(datamodule.category2index),
-            feature_embedding_dims=cfg.model.feature_embedding_dims,
-            din_hidden_dims=cfg.model.din_hidden_dims,
-            dnn_hidden_dims=cfg.model.dnn_hidden_dims,
-            dnn_normalize=enum_from_str(NormalizeType, cfg.model.dnn_normalize),
-            dnn_dropout=cfg.model.dnn_dropout,
-            item_pad_idx=SpecialItemIndex.PAD,
-            category_pad_idx=SpecialCategoryIndex.PAD,
-            max_seq_len=cfg.data.max_seq_len,
-            # optimizer
-            optimizer_params=optimizer_params,
-            # eval
-            eval_top_k=cfg.data.eval_top_k,
-        )
-    else:
-        raise NotImplementedError(f"{cfg.model.name=} is not supported")
+    # Build model module based on configuration
+    module = build_module(cfg, datamodule, optimizer_params)
 
     # print model summary
     logger.info(module.summary(batch_size=cfg.data.batch_size))
 
     wandb_logger = WandbLogger(
-        project="recsys-candidate-generation",
+        project="recsys-ranking",
         name=cfg.model.name,
         save_dir=save_dir / "logs",
         version=f"{cfg.model.name}_{datetime.now().strftime('%Y%m%dT%H%M%S')}",
@@ -132,6 +90,77 @@ def main(cfg: DictConfig) -> None:
         limit_val_batches=1000,
     )
     trainer.fit(model=module, datamodule=datamodule)
+
+
+def build_module(
+    cfg: DictConfig, datamodule: AmazonReviewsSeqRecDataModule, optimizer_params: OptimizerParams
+) -> DeepFMModule | DLRMModule | DINModule:
+    """
+    Factory method to build a model module from config.
+    Reduces duplication from long if/elif chains by centralizing common params.
+    """
+    # Common parameters shared by all models
+    common_params: dict[str, Any] = dict(
+        num_items=len(datamodule.item2index),
+        feature_embedding_dims=cfg.model.feature_embedding_dims,
+        item_pad_idx=SpecialItemIndex.PAD,
+        max_seq_len=cfg.data.max_seq_len,
+        optimizer_params=optimizer_params,
+        eval_top_k=cfg.data.eval_top_k,
+    )
+
+    # Registry mapping model name to class
+    model_registry: dict[str, Callable[..., DeepFMModule | DLRMModule | DINModule]] = {
+        "DeepFM": DeepFMModule,
+        "DLRM": DLRMModule,
+        "DIN": DINModule,
+    }
+
+    name = cfg.model.name
+    if name not in model_registry:
+        raise NotImplementedError(f"{name=} is not supported")
+
+    # Model-specific parameters
+    # TODO: 引数の型制約がきかないので、dataclass/TypedDictとかでなんとかしたい
+    if name == "DeepFM":
+        extra_params = dict(
+            deep_hidden_features_list=cfg.model.deep_hidden_features_list,
+            deep_activation=enum_from_str(ActivationType, cfg.model.deep_activation),
+            deep_normalize=enum_from_str(NormalizeType, cfg.model.deep_normalize),
+            deep_dropout=cfg.model.deep_dropout,
+        )
+    elif name == "DLRM":
+        extra_params = dict(
+            dense_hidden_features_list=cfg.model.dense_hidden_features_list,
+            dense_activation=enum_from_str(ActivationType, cfg.model.dense_activation),
+            dense_normalize=enum_from_str(NormalizeType, cfg.model.dense_normalize),
+            dense_dropout=cfg.model.dense_dropout,
+            top_hidden_features_list=cfg.model.top_hidden_features_list,
+            top_activation=enum_from_str(ActivationType, cfg.model.top_activation),
+            top_normalize=enum_from_str(NormalizeType, cfg.model.top_normalize),
+            top_dropout=cfg.model.top_dropout,
+        )
+    elif name == "DIN":
+        extra_params = dict(
+            num_categories=len(datamodule.category2index),
+            # din activation unit
+            din_hidden_dims=cfg.model.din_hidden_dims,
+            din_activation=enum_from_str(ActivationType, cfg.model.din_activation),
+            din_normalize=enum_from_str(NormalizeType, cfg.model.din_normalize),
+            din_dropout=cfg.model.din_dropout,
+            # dnn
+            dnn_hidden_dims=cfg.model.dnn_hidden_dims,
+            dnn_activation=enum_from_str(ActivationType, cfg.model.dnn_activation),
+            dnn_normalize=enum_from_str(NormalizeType, cfg.model.dnn_normalize),
+            dnn_dropout=cfg.model.dnn_dropout,
+            category_pad_idx=SpecialCategoryIndex.PAD,
+        )
+    else:
+        # Should be unreachable due to the earlier check
+        raise NotImplementedError(f"{name=} is not supported")
+
+    ModelClass = model_registry[name]
+    return ModelClass(**common_params, **extra_params)
 
 
 if __name__ == "__main__":

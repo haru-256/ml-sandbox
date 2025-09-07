@@ -1,7 +1,7 @@
 import torch
 
 from models.din import DIN
-from my_types import NormalizeType
+from my_types import ActivationType, NormalizeType
 
 
 class TestDIN:
@@ -18,7 +18,11 @@ class TestDIN:
             num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=din_hidden_dims,
+            din_activation=ActivationType.RELU,
+            din_normalize=NormalizeType.BATCH,
+            din_dropout=0.1,
             dnn_hidden_dims=dnn_hidden_dims,
+            dnn_activation=ActivationType.RELU,
             dnn_normalize=NormalizeType.BATCH,
             dnn_dropout=0.1,
             item_pad_idx=0,
@@ -59,7 +63,12 @@ class TestDIN:
             num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=[16],
+            din_activation=ActivationType.RELU,
+            din_normalize=NormalizeType.BATCH,
+            din_dropout=0.1,
             dnn_hidden_dims=[64],
+            dnn_activation=ActivationType.RELU,
+            dnn_normalize=NormalizeType.BATCH,
             dnn_dropout=0.0,
             item_pad_idx=0,
             category_pad_idx=0,
@@ -98,7 +107,13 @@ class TestDIN:
             num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=[],
+            din_activation=ActivationType.RELU,
+            din_normalize=NormalizeType.BATCH,
+            din_dropout=0.1,
             dnn_hidden_dims=[32],
+            dnn_activation=ActivationType.RELU,
+            dnn_normalize=NormalizeType.BATCH,
+            dnn_dropout=0.1,
             item_pad_idx=pad_idx,
             category_pad_idx=pad_idx,
         )

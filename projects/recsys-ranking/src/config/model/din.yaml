@@ -2,19 +2,14 @@ name: "DIN"
 
 feature_embedding_dims: 32 # 1 fieldあたりのembedding次元数
 
-# DLRMのdense feature encode部分の中間層
-dense_hidden_features_list: [128, 64] # Dense Feature MLPの隠れ層のユニット数
-dense_dropout: 0.5
+# DIN activation unit部分の中間層
+din_hidden_dims: [128, 64] # DINのactivation unitの隠れ層のユニット数
+din_activation: dice # DINのactivation unitの活性化関数
+din_normalize: batch # DINのactivation unitの正規化手法
+din_dropout: 0.0 # DINのactivation unitのdropout率
 
-# DLRMのtop MLP部分(dense feature + sparse feature)の中間層
-top_hidden_features_list: [128, 64] # Top MLPの隠れ層のユニット数
-top_dropout: 0.5
-
-# MHAの設定
-num_heads: 2 # MultiHeadAttentionのhead数
-num_blocks: 2 # Transformerのblock数
-attn_dropout: 0.5 # MultiHeadAttentionのdropout率
-ffn_dropout: 0.5 # FeedForwardNetworkのdropout率
-
-# lossの設定
-t: 0.75 # gSASRecのtパラメータ, calibration parameter https://github.com/asash/gSASRec-pytorch
+# DINのDeep Layer部分(activation unit後)の中間層
+dnn_hidden_dims: [128, 64] # DINのDNNの隠れ層のユニット数
+dnn_activation: relu # DINのDNNの活性化関数
+dnn_normalize: batch # DINのDNNの正規化手法
+dnn_dropout: 0.5 # DINのDNNのdropout率

@@ -16,27 +16,6 @@ class MLP(nn.Module):
     normalization, activation functions, and dropout. The final layer can optionally
     have different settings than the hidden layers.
 
-    Args:
-        in_features: Number of input features.
-        hidden_features_list: List of hidden layer sizes. If empty, creates a single
-            linear layer from input to output.
-        out_features: Number of output features.
-        hidden_normalize: Type of normalization to apply to hidden layers (BatchNorm, LayerNorm, etc.).
-            None means no normalization.
-        hidden_activation: Type of activation function for hidden layers, or list of activation
-            functions for each hidden layer. None means no activation.
-        hidden_activation_kwargs: Additional keyword arguments for hidden layer activations,
-            or list of kwargs for each hidden layer.
-        hidden_dropout: Dropout probability for hidden layers between 0.0 and 1.0.
-        out_normalize: Type of normalization to apply to output layer.
-            None means no normalization.
-        out_activation: Type of activation function for output layer.
-            None means no activation.
-        out_activation_kwargs: Additional keyword arguments for output layer activation.
-        out_dropout: Dropout probability for output layer between 0.0 and 1.0.
-        bias: Whether to include bias terms in linear layers.
-        apply_order: Order in which to apply normalization, activation, and dropout.
-
     Example:
         >>> # MLP with hidden layers using ReLU and output layer with different activation
         >>> mlp = MLP(
@@ -68,6 +47,24 @@ class MLP(nn.Module):
         bias: bool = True,
         apply_order: LinearOpOrderType = LinearOpOrderType.NORM_ACT_DROPOUT,
     ) -> None:
+        """Initialize MLP.
+
+        Args:
+            in_features: Number of input features.
+            hidden_features_list: Hidden layer sizes. If empty, creates a single
+                linear layer from input to output.
+            out_features: Number of output features.
+            hidden_normalize: Optional normalization for hidden layers.
+            hidden_activation: Activation type for hidden layers, or list of types per hidden layer.
+            hidden_activation_kwargs: Optional kwargs (or list of kwargs) for hidden activations.
+            hidden_dropout: Dropout probability for hidden layers, 0.0-1.0.
+            out_normalize: Optional normalization for output layer.
+            out_activation: Optional activation for output layer.
+            out_activation_kwargs: Optional kwargs for output activation.
+            out_dropout: Dropout probability for output layer, 0.0-1.0.
+            bias: Whether to include bias terms in linear layers.
+            apply_order: Order to apply normalization, activation, and dropout.
+        """
         super().__init__()
 
         if not isinstance(hidden_activation, list):

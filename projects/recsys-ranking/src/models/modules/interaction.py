@@ -125,15 +125,17 @@ class SecondOrderInteraction(nn.Module):
 class FactorizationMachine(nn.Module):
     """Factorization Machine model for recommendation systems.
 
-    This implementation combines first-order linear interactions and second-order
-    pairwise feature interactions to make predictions.
-
-    Args:
-        features: List of feature specifications including embedding dimensions,
-            vocabulary sizes, and other metadata.
+    Combines first-order linear interactions and second-order pairwise
+    feature interactions to make predictions.
     """
 
     def __init__(self, feature_map: dict[str, FeatureSpec]) -> None:
+        """Initialize FactorizationMachine.
+
+        Args:
+            feature_map: Mapping of feature names to their specifications
+                including embedding dims and vocab sizes.
+        """
         super().__init__()
         self.first_order_interaction = FirstOrderInteraction(feature_map, use_bias=True)
         self.second_order_interaction = SecondOrderInteraction(

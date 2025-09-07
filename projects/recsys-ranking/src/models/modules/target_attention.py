@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 
-from my_types import ActivationType
+from my_types import ActivationType, NormalizeType
 
 from .mlp import MLP
 
@@ -29,7 +29,9 @@ class DINAttention(nn.Module):
         self,
         input_dims: int,
         hidden_dims: list[int],
-        hidden_activation: ActivationType = ActivationType.DICE,
+        hidden_activation: ActivationType | None = ActivationType.DICE,
+        hidden_normalize: NormalizeType | None = None,
+        hidden_dropout: float = 0.0,
         use_softmax: bool = False,
     ) -> None:
         """Initialize the DIN attention mechanism.
@@ -42,11 +44,12 @@ class DINAttention(nn.Module):
         Args:
             input_dims: Dimensionality of item embeddings. Both target and history
                 items should have this dimensionality.
-            hidden_dims: List of hidden layer sizes for the attention MLP.
-                For example, [32, 16] creates a 2-layer MLP with 32 and 16 units.
-                If empty list [], uses only a linear transformation.
-            hidden_activation: Activation function for MLP hidden layers.
-                DICE activation is recommended as per the original DIN paper.
+            hidden_dims: Hidden layer sizes for the attention MLP. An empty list []
+                uses only a linear transformation.
+            hidden_activation: Optional activation for hidden layers. DICE is recommended
+                as per the original DIN paper. Defaults to DICE.
+            hidden_normalize: Optional normalization for hidden layers. Defaults to None.
+            hidden_dropout: Dropout probability for hidden layers. Defaults to 0.0.
             use_softmax: Whether to normalize attention weights with softmax.
                 - True: Weights sum to 1 over valid positions (probabilistic attention)
                 - False: Use raw attention scores as weights (additive attention)
@@ -62,14 +65,14 @@ class DINAttention(nn.Module):
             in_features=4 * self.input_dims,
             hidden_features_list=hidden_dims,
             out_features=1,
-            hidden_normalize=None,
+            hidden_normalize=hidden_normalize,
             hidden_activation=hidden_activation,
             hidden_activation_kwargs=[
                 {"num_features": num_features} for num_features in hidden_dims
             ],
+            hidden_dropout=hidden_dropout,
             out_normalize=None,
             out_activation=None,
-            hidden_dropout=0.0,
             out_dropout=0.0,
             bias=True,
         )
