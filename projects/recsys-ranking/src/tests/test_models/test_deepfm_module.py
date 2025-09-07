@@ -30,9 +30,9 @@ class TestDeepFMModuleBasic:
         module = DeepFMModule(
             num_items=100,
             feature_embedding_dims=32,
-            max_seq_len=10,
-            dropout=0.1,
-            pad_idx=0,
+            deep_hidden_features_list=[64, 32], max_seq_len=10,
+            deep_dropout=0.1,
+            item_pad_idx=0,
             eval_top_k=5,
             optimizer_params=optimizer_params,
         )
@@ -61,9 +61,9 @@ class TestDeepFMModuleBasic:
         module = DeepFMModule(
             num_items=100,
             feature_embedding_dims=32,
-            max_seq_len=10,
-            dropout=0.1,
-            pad_idx=0,
+            deep_hidden_features_list=[64, 32], max_seq_len=10,
+            deep_dropout=0.1,
+            item_pad_idx=0,
             eval_top_k=5,
             optimizer_params=optimizer_params,
         )
@@ -99,9 +99,9 @@ class TestDeepFMModuleBasic:
         module = DeepFMModule(
             num_items=100,
             feature_embedding_dims=32,
-            max_seq_len=10,
-            dropout=0.1,
-            pad_idx=0,
+            deep_hidden_features_list=[64, 32], max_seq_len=10,
+            deep_dropout=0.1,
+            item_pad_idx=0,
             eval_top_k=5,
             optimizer_params=optimizer_params,
         )
@@ -136,9 +136,9 @@ class TestDeepFMModuleBasic:
         module = DeepFMModule(
             num_items=100,
             feature_embedding_dims=32,
-            max_seq_len=10,
-            dropout=0.1,
-            pad_idx=0,
+            deep_hidden_features_list=[64, 32], max_seq_len=10,
+            deep_dropout=0.1,
+            item_pad_idx=0,
             eval_top_k=5,
             optimizer_params=optimizer_params,
         )
@@ -188,9 +188,9 @@ class TestDeepFMModuleBasic:
         module = DeepFMModule(
             num_items=100,
             feature_embedding_dims=32,
-            max_seq_len=10,
-            dropout=0.1,
-            pad_idx=0,
+            deep_hidden_features_list=[64, 32], max_seq_len=10,
+            deep_dropout=0.1,
+            item_pad_idx=0,
             eval_top_k=5,
             optimizer_params=optimizer_params,
         )
@@ -239,9 +239,9 @@ class TestDeepFMModuleBasic:
         module = DeepFMModule(
             num_items=100,
             feature_embedding_dims=32,
-            max_seq_len=10,
-            dropout=0.1,
-            pad_idx=0,
+            deep_hidden_features_list=[64, 32], max_seq_len=10,
+            deep_dropout=0.1,
+            item_pad_idx=0,
             eval_top_k=5,
             optimizer_params=optimizer_params,
         )
@@ -280,9 +280,9 @@ class TestDeepFMModuleBasic:
         module = DeepFMModule(
             num_items=100,
             feature_embedding_dims=32,
-            max_seq_len=10,
-            dropout=0.1,
-            pad_idx=0,
+            deep_hidden_features_list=[64, 32], max_seq_len=10,
+            deep_dropout=0.1,
+            item_pad_idx=0,
             eval_top_k=5,
             optimizer_params=optimizer_params,
         )

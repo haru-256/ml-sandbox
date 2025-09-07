@@ -1,0 +1,15 @@
+name: "DIN"
+
+feature_embedding_dims: 32 # 1 fieldあたりのembedding次元数
+
+# DIN activation unit部分の中間層
+din_hidden_dims: [128, 64] # DINのactivation unitの隠れ層のユニット数
+din_activation: dice # DINのactivation unitの活性化関数
+din_normalize: batch # DINのactivation unitの正規化手法
+din_dropout: 0.0 # DINのactivation unitのdropout率
+
+# DINのDeep Layer部分(activation unit後)の中間層
+dnn_hidden_dims: [128, 64] # DINのDNNの隠れ層のユニット数
+dnn_activation: relu # DINのDNNの活性化関数
+dnn_normalize: batch # DINのDNNの正規化手法
+dnn_dropout: 0.5 # DINのDNNのdropout率

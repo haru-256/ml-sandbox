@@ -37,10 +37,16 @@ class DIN(nn.Module):
 
     Key characteristics:
     - Target-aware attention mechanism for adaptive user interest modeling
-    - Handles both item and category features
+    - Handles both item and category features with separate vocabularies
     - Designed specifically for recommendation and CTR prediction tasks
+    - Support for different normalization strategies and dropout regularization
 
-    Reference: Zhou et al. (2018) "Deep Interest Network for Click-Through Rate Prediction", https://arxiv.org/abs/1706.06978
+    Reference: Zhou et al. (2018) "Deep Interest Network for Click-Through Rate Prediction",
+               https://arxiv.org/abs/1706.06978
+
+    Note:
+        Both item_pad_idx and category_pad_idx must be the same value due to the
+        current implementation constraint that ensures consistent padding handling.
     """
 
     def __init__(
@@ -50,9 +56,14 @@ class DIN(nn.Module):
         feature_embedding_dims: int,
         din_hidden_dims: list[int],
         dnn_hidden_dims: list[int],
-        normalize: NormalizeType | None = None,
-        dropout: float = 0.0,
-        pad_idx: int = 0,
+        din_activation: ActivationType | None = None,
+        din_normalize: NormalizeType | None = None,
+        din_dropout: float = 0.0,
+        dnn_activation: ActivationType | None = None,
+        dnn_normalize: NormalizeType | None = None,
+        dnn_dropout: float = 0.0,
+        item_pad_idx: int = 0,
+        category_pad_idx: int = 0,
     ):
         """Initialize DIN model.
 
@@ -61,12 +72,42 @@ class DIN(nn.Module):
             num_categories: Number of categories in the dataset
             feature_embedding_dims: Embedding dimension for categorical features
             din_hidden_dims: List of hidden layer sizes for DIN attention MLP
+            din_activation: Activation function type for DIN attention layers
+            din_normalize: Normalization type for DIN attention layers
+            din_dropout: Dropout probability for the DIN attention components
             dnn_hidden_dims: List of hidden layer sizes for final prediction MLP
-            normalize: Normalization type for MLP layers
-            dropout: Dropout probability for the MLP components
-            pad_idx: Padding index for categorical features (default: 0)
+            dnn_activation: Activation function type for final prediction MLP layers
+            dnn_normalize: Normalization type for MLP layers (batch norm, layer norm, or None)
+            dnn_dropout: Dropout probability for the DNN components
+            item_pad_idx: Padding index for item features (default: 0)
+            category_pad_idx: Padding index for category features (default: 0)
+
+        Raises:
+            ValueError: If item_pad_idx and category_pad_idx are not equal (implementation constraint)
+
+        Example:
+            >>> model = DIN(
+            ...     num_items=10000,
+            ...     num_categories=500,
+            ...     feature_embedding_dims=64,
+            ...     din_hidden_dims=[32, 16],
+            ...     din_activation=ActivationType.RELU,
+            ...     din_normalize=NormalizeType.BATCH,
+            ...     din_dropout=0.1,
+            ...     dnn_hidden_dims=[128, 64],
+            ...     dnn_activation=ActivationType.RELU,
+            ...     dnn_normalize=NormalizeType.BATCH,
+            ...     dnn_dropout=0.1,
+            ...     item_pad_idx=0,
+            ...     category_pad_idx=0
+            ... )
         """
         super().__init__()
+
+        if item_pad_idx != category_pad_idx:
+            raise ValueError("item_pad_idx and category_pad_idx must be same")
+        pad_idx = item_pad_idx
+
         self.feature_map = {
             "item_id_history": FeatureSpec(
                 type_=FeatureType.CATEGORICAL_SEQUENCE,
@@ -117,7 +158,9 @@ class DIN(nn.Module):
                     if isinstance(target_field, tuple)
                     else feature_embedding_dims,
                     hidden_dims=din_hidden_dims,
-                    hidden_activation=ActivationType.DICE,
+                    hidden_activation=din_activation,
+                    hidden_normalize=din_normalize,
+                    hidden_dropout=din_dropout,
                     use_softmax=False,
                 )
                 for target_field in self.target_fields
@@ -126,10 +169,13 @@ class DIN(nn.Module):
         self.dnn_layer = MLP(
             in_features=self.embedding_layer.output_dims,
             hidden_features_list=dnn_hidden_dims,
-            hidden_activation=ActivationType.RELU,
             out_features=1,
-            dropout=dropout,
-            normalize=normalize,
+            hidden_dropout=dnn_dropout,
+            hidden_normalize=dnn_normalize,
+            hidden_activation=dnn_activation,
+            out_dropout=0,
+            out_normalize=None,
+            out_activation=None,
         )
 
     def forward(
@@ -141,6 +187,11 @@ class DIN(nn.Module):
     ) -> torch.Tensor:
         """Forward pass for DIN model.
 
+        Processes the input through the DIN architecture:
+        1. Embeds all categorical features (items and categories)
+        2. Computes target-aware attention weights for historical sequences
+        3. Aggregates attended embeddings and processes through final MLP
+
         Args:
             item_id_history: Item history tensor of shape (batch_size, seq_len)
             category_id_history: Category history tensor of shape (batch_size, seq_len)
@@ -149,6 +200,10 @@ class DIN(nn.Module):
 
         Returns:
             torch.Tensor: Prediction logits of shape (batch_size,)
+
+        Note:
+            The attention mechanism uses both item and category features
+            to compute target-aware weights for the historical sequences.
         """
 
         feature_dict: dict[str, torch.Tensor] = OrderedDict()
@@ -219,8 +274,9 @@ class DINModule(BaseModule):
     Key features:
     - Automatic optimization with AdamW and optional cosine learning rate scheduling
     - Comprehensive logging of training and validation metrics
-    - Support for top-k evaluation metrics
+    - Support for top-k evaluation metrics with customizable k value
     - Model summary generation for architecture inspection
+    - Built-in support for different normalization strategies
     """
 
     def __init__(
@@ -228,29 +284,64 @@ class DINModule(BaseModule):
         num_items: int,
         num_categories: int,
         feature_embedding_dims: int,
+        # din activation unit
         din_hidden_dims: list[int],
+        # dnn
         dnn_hidden_dims: list[int],
-        normalize: NormalizeType | None,
         max_seq_len: int,
-        dropout: float,
-        pad_idx: int,
+        item_pad_idx: int,
+        category_pad_idx: int,
         eval_top_k: int,
         optimizer_params: OptimizerParams,
+        # optional configs with sensible defaults
+        din_activation: ActivationType | None = None,
+        din_normalize: NormalizeType | None = None,
+        din_dropout: float = 0.0,
+        dnn_activation: ActivationType | None = None,
+        dnn_normalize: NormalizeType | None = None,
+        dnn_dropout: float = 0.0,
     ):
         """Initialize the DIN Lightning module.
 
         Args:
-            num_items: Total number of items in the dataset vocabulary
-            num_categories: Total number of categories in the dataset vocabulary
-            feature_embedding_dims: Embedding dimension for categorical features
-            din_hidden_dims: List of hidden layer sizes for DIN attention MLP
-            dnn_hidden_dims: List of hidden layer sizes for final prediction MLP
-            normalize: Normalization type for MLP layers
-            max_seq_len: Maximum sequence length for item history sequences
-            dropout: Dropout probability applied in MLP layers for regularization
-            pad_idx: Padding index used for categorical features (typically 0)
-            eval_top_k: Number of top-k items to consider for evaluation metrics
-            optimizer_params: Configuration object containing optimizer and scheduler settings
+            num_items: Total number of items in the dataset vocabulary.
+            num_categories: Total number of categories in the dataset vocabulary.
+            feature_embedding_dims: Embedding dimension for categorical features.
+            din_hidden_dims: Hidden layer sizes for DIN attention MLP.
+            dnn_hidden_dims: Hidden layer sizes for prediction MLP.
+            max_seq_len: Maximum sequence length for item history sequences.
+            item_pad_idx: Padding index used for item features.
+            category_pad_idx: Padding index used for category features.
+            eval_top_k: Top-k items to consider for evaluation metrics.
+            optimizer_params: Optimizer and (optional) scheduler configuration.
+            din_activation: Optional activation for DIN attention MLP; default None.
+            din_normalize: Optional normalization for DIN attention MLP; default None.
+            din_dropout: Dropout probability for DIN attention MLP; default 0.0.
+            dnn_activation: Optional activation for prediction MLP; default None.
+            dnn_normalize: Optional normalization for prediction MLP; default None.
+            dnn_dropout: Dropout probability for prediction MLP; default 0.0.
+
+        Example:
+            >>> lr_scheduler_params = LRSchedulerParams(...)
+            >>> optimizer_params = OptimizerParams(lr=0.001, lr_scheduler=lr_scheduler_params)
+            >>> module = DINModule(
+            ...     num_items=10000,
+            ...     num_categories=500,
+            ...     feature_embedding_dims=64,
+            ...     din_hidden_dims=[32, 16],
+            ...     din_activation=ActivationType.RELU,
+            ...     din_normalize=NormalizeType.BATCH,
+            ...     din_dropout=0.1,
+            ...     dnn_hidden_dims=[128, 64],
+            ...     dnn_activation=ActivationType.RELU,
+            ...     dnn_normalize=NormalizeType.BATCH,
+            ...     dnn_dropout=0.1,
+            ...     max_seq_len=50,
+            ...     item_pad_idx=0,
+            ...     category_pad_idx=0,
+            ...     eval_top_k=10,
+            ...     optimizer_params=optimizer_params
+            ... )
         """
         super().__init__()
         self.save_hyperparameters()
@@ -263,9 +354,14 @@ class DINModule(BaseModule):
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=din_hidden_dims,
             dnn_hidden_dims=dnn_hidden_dims,
-            normalize=normalize,
-            dropout=dropout,
-            pad_idx=pad_idx,
+            item_pad_idx=item_pad_idx,
+            category_pad_idx=category_pad_idx,
+            din_activation=din_activation,
+            din_normalize=din_normalize,
+            din_dropout=din_dropout,
+            dnn_activation=dnn_activation,
+            dnn_normalize=dnn_normalize,
+            dnn_dropout=dnn_dropout,
         )
         self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
         self.accuracy = BinaryAccuracy(threshold=0.5)

@@ -1,7 +1,7 @@
 import torch
 
 from models.din import DIN
-from my_types import NormalizeType
+from my_types import ActivationType, NormalizeType
 
 
 class TestDIN:
@@ -18,10 +18,15 @@ class TestDIN:
             num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=din_hidden_dims,
+            din_activation=ActivationType.RELU,
+            din_normalize=NormalizeType.BATCH,
+            din_dropout=0.1,
             dnn_hidden_dims=dnn_hidden_dims,
-            normalize=NormalizeType.BATCH,
-            dropout=0.1,
-            pad_idx=0,
+            dnn_activation=ActivationType.RELU,
+            dnn_normalize=NormalizeType.BATCH,
+            dnn_dropout=0.1,
+            item_pad_idx=0,
+            category_pad_idx=0,
         )
 
         # Check feature map configuration
@@ -58,9 +63,15 @@ class TestDIN:
             num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=[16],
+            din_activation=ActivationType.RELU,
+            din_normalize=NormalizeType.BATCH,
+            din_dropout=0.1,
             dnn_hidden_dims=[64],
-            dropout=0.0,
-            pad_idx=0,
+            dnn_activation=ActivationType.RELU,
+            dnn_normalize=NormalizeType.BATCH,
+            dnn_dropout=0.0,
+            item_pad_idx=0,
+            category_pad_idx=0,
         )
 
         # Create input tensors
@@ -96,8 +107,15 @@ class TestDIN:
             num_categories=num_categories,
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=[],
+            din_activation=ActivationType.RELU,
+            din_normalize=NormalizeType.BATCH,
+            din_dropout=0.1,
             dnn_hidden_dims=[32],
-            pad_idx=pad_idx,
+            dnn_activation=ActivationType.RELU,
+            dnn_normalize=NormalizeType.BATCH,
+            dnn_dropout=0.1,
+            item_pad_idx=pad_idx,
+            category_pad_idx=pad_idx,
         )
 
         # Create input with padding (pad_idx = 0)
@@ -146,6 +164,8 @@ class TestDIN:
                 feature_embedding_dims=feature_embedding_dims,
                 din_hidden_dims=din_hidden_dims,
                 dnn_hidden_dims=[64],
+                item_pad_idx=0,
+                category_pad_idx=0,
             )
 
             # Test forward pass
@@ -180,6 +200,8 @@ class TestDIN:
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=[4],
             dnn_hidden_dims=[16],
+            item_pad_idx=0,
+            category_pad_idx=0,
         )
 
         # Same history, different targets
@@ -213,6 +235,8 @@ class TestDIN:
             feature_embedding_dims=feature_embedding_dims,
             din_hidden_dims=[8],
             dnn_hidden_dims=[16],
+            item_pad_idx=0,
+            category_pad_idx=0,
         )
 
         # Create inputs and target
@@ -268,7 +292,9 @@ class TestDIN:
                 feature_embedding_dims=16,
                 din_hidden_dims=[8],
                 dnn_hidden_dims=[16],
-                normalize=normalize,
+                dnn_normalize=normalize,
+                item_pad_idx=0,
+                category_pad_idx=0,
             )
 
             # Test forward pass
@@ -304,7 +330,8 @@ class TestDIN:
             feature_embedding_dims=8,
             din_hidden_dims=[4],
             dnn_hidden_dims=[8],
-            pad_idx=pad_idx,
+            item_pad_idx=pad_idx,
+            category_pad_idx=pad_idx,
         )
 
         # Create input with one completely padded sequence
@@ -332,3 +359,133 @@ class TestDIN:
 
         assert output.shape == (batch_size,)
         assert torch.isfinite(output).all()
+
+    def test_different_embedding_dimensions(self) -> None:
+        """Test DIN model with different embedding dimensions."""
+        batch_size = 3
+        num_items = 50
+        num_categories = 25
+
+        embedding_dims = [8, 16, 32, 64]
+
+        for dim in embedding_dims:
+            model = DIN(
+                num_items=num_items,
+                num_categories=num_categories,
+                feature_embedding_dims=dim,
+                din_hidden_dims=[dim // 2],
+                dnn_hidden_dims=[dim * 2],
+                item_pad_idx=0,
+                category_pad_idx=0,
+            )
+
+            # Test forward pass
+            item_id_history = torch.randint(1, num_items, (batch_size, 4))
+            category_id_history = torch.randint(1, num_categories, (batch_size, 4))
+            target_item_ids = torch.randint(1, num_items, (batch_size,))
+            target_category_ids = torch.randint(1, num_categories, (batch_size,))
+
+            output = model(
+                item_id_history=item_id_history,
+                category_id_history=category_id_history,
+                target_item_ids=target_item_ids,
+                target_category_ids=target_category_ids,
+            )
+
+            assert output.shape == (batch_size,), f"Failed for embedding_dims={dim}"
+            assert torch.isfinite(output).all()
+
+    def test_different_dnn_configurations(self) -> None:
+        """Test DIN model with various DNN hidden layer configurations."""
+        batch_size = 2
+        num_items = 40
+        num_categories = 20
+
+        dnn_configs = [
+            [],  # No hidden layers (direct to output)
+            [32],  # Single hidden layer
+            [64, 32],  # Two hidden layers
+            [128, 64, 32, 16],  # Deep network
+        ]
+
+        for dnn_hidden_dims in dnn_configs:
+            model = DIN(
+                num_items=num_items,
+                num_categories=num_categories,
+                feature_embedding_dims=16,
+                din_hidden_dims=[8],
+                dnn_hidden_dims=dnn_hidden_dims,
+                item_pad_idx=0,
+                category_pad_idx=0,
+            )
+
+            # Test forward pass
+            item_id_history = torch.randint(1, num_items, (batch_size, 3))
+            category_id_history = torch.randint(1, num_categories, (batch_size, 3))
+            target_item_ids = torch.randint(1, num_items, (batch_size,))
+            target_category_ids = torch.randint(1, num_categories, (batch_size,))
+
+            output = model(
+                item_id_history=item_id_history,
+                category_id_history=category_id_history,
+                target_item_ids=target_item_ids,
+                target_category_ids=target_category_ids,
+            )
+
+            assert output.shape == (batch_size,), f"Failed for dnn_hidden_dims={dnn_hidden_dims}"
+            assert torch.isfinite(output).all()
+
+    def test_dropout_behavior(self) -> None:
+        """Test DIN model dropout behavior in train vs eval modes."""
+        batch_size = 4
+        num_items = 30
+        num_categories = 15
+
+        model = DIN(
+            num_items=num_items,
+            num_categories=num_categories,
+            feature_embedding_dims=16,
+            din_hidden_dims=[8],
+            dnn_hidden_dims=[32, 16],
+            dnn_dropout=0.5,  # High dropout for clear differences
+            item_pad_idx=0,
+            category_pad_idx=0,
+        )
+
+        # Create input
+        item_id_history = torch.randint(1, num_items, (batch_size, 4))
+        category_id_history = torch.randint(1, num_categories, (batch_size, 4))
+        target_item_ids = torch.randint(1, num_items, (batch_size,))
+        target_category_ids = torch.randint(1, num_categories, (batch_size,))
+
+        # Test in train mode (dropout active)
+        model.train()
+        train_outputs = []
+        for _ in range(3):  # Multiple runs to see variance
+            output = model(
+                item_id_history=item_id_history,
+                category_id_history=category_id_history,
+                target_item_ids=target_item_ids,
+                target_category_ids=target_category_ids,
+            )
+            train_outputs.append(output)
+            assert output.shape == (batch_size,)
+            assert torch.isfinite(output).all()
+
+        # Test in eval mode (dropout disabled)
+        model.eval()
+        eval_outputs = []
+        for _ in range(3):  # Multiple runs should be identical
+            output = model(
+                item_id_history=item_id_history,
+                category_id_history=category_id_history,
+                target_item_ids=target_item_ids,
+                target_category_ids=target_category_ids,
+            )
+            eval_outputs.append(output)
+            assert output.shape == (batch_size,)
+            assert torch.isfinite(output).all()
+
+        # Eval outputs should be identical (no dropout)
+        for i in range(1, len(eval_outputs)):
+            assert torch.allclose(eval_outputs[0], eval_outputs[i], atol=1e-6)

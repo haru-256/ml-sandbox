@@ -1,6 +1,7 @@
 [project]
 dependencies = [
   "lightning~=2.5.4",
+  "litmodels~=0.1.8",
   "torchmetrics~=1.8.1",
   "numpy~=2.3.2",
   "polars~=1.32.3",

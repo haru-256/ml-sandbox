@@ -110,10 +110,11 @@ class TestDINModule:
             feature_embedding_dims=32,
             din_hidden_dims=[16],
             dnn_hidden_dims=[64],
-            normalize=None,
+            dnn_normalize=None,
             max_seq_len=10,
-            dropout=0.1,
-            pad_idx=0,
+            dnn_dropout=0.1,
+            item_pad_idx=0,
+            category_pad_idx=0,
             eval_top_k=10,
             optimizer_params=basic_optimizer_params,
         )
@@ -145,10 +146,11 @@ class TestDINModule:
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
-            normalize=None,
+            dnn_normalize=None,
             max_seq_len=seq_len,
-            dropout=0.0,
-            pad_idx=0,
+            dnn_dropout=0.0,
+            item_pad_idx=0,
+            category_pad_idx=0,
             eval_top_k=5,
             optimizer_params=basic_optimizer_params,
         )
@@ -179,10 +181,11 @@ class TestDINModule:
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
-            normalize=None,
+            dnn_normalize=None,
             max_seq_len=10,
-            dropout=0.0,
-            pad_idx=0,
+            dnn_dropout=0.0,
+            item_pad_idx=0,
+            category_pad_idx=0,
             eval_top_k=5,
             optimizer_params=basic_optimizer_params,
         )
@@ -218,10 +221,11 @@ class TestDINModule:
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
-            normalize=None,
+            dnn_normalize=None,
             max_seq_len=10,
-            dropout=0.0,
-            pad_idx=0,
+            dnn_dropout=0.0,
+            item_pad_idx=0,
+            category_pad_idx=0,
             eval_top_k=5,
             optimizer_params=basic_optimizer_params,
         )
@@ -269,10 +273,11 @@ class TestDINModule:
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
-            normalize=None,
+            dnn_normalize=None,
             max_seq_len=10,
-            dropout=0.0,
-            pad_idx=0,
+            dnn_dropout=0.0,
+            item_pad_idx=0,
+            category_pad_idx=0,
             eval_top_k=5,
             optimizer_params=optimizer_params_with_scheduler,
         )
@@ -296,10 +301,11 @@ class TestDINModule:
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
-            normalize=None,
+            dnn_normalize=None,
             max_seq_len=10,
-            dropout=0.0,
-            pad_idx=0,
+            dnn_dropout=0.0,
+            item_pad_idx=0,
+            category_pad_idx=0,
             eval_top_k=5,
             optimizer_params=optimizer_params_with_scheduler,
         )
@@ -343,10 +349,11 @@ class TestDINModule:
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
-            normalize=None,
+            dnn_normalize=None,
             max_seq_len=10,
-            dropout=0.0,
-            pad_idx=0,
+            dnn_dropout=0.0,
+            item_pad_idx=0,
+            category_pad_idx=0,
             eval_top_k=5,
             optimizer_params=optimizer_params,
         )
@@ -364,10 +371,11 @@ class TestDINModule:
             feature_embedding_dims=8,
             din_hidden_dims=[4],
             dnn_hidden_dims=[16],
-            normalize=None,
+            dnn_normalize=None,
             max_seq_len=5,
-            dropout=0.0,
-            pad_idx=0,
+            dnn_dropout=0.0,
+            item_pad_idx=0,
+            category_pad_idx=0,
             eval_top_k=5,
             optimizer_params=basic_optimizer_params,
         )
@@ -390,10 +398,11 @@ class TestDINModule:
                 feature_embedding_dims=16,
                 din_hidden_dims=[8],
                 dnn_hidden_dims=[32],
-                normalize=normalize,
+                dnn_normalize=normalize,
                 max_seq_len=10,
-                dropout=0.0,
-                pad_idx=0,
+                dnn_dropout=0.0,
+                item_pad_idx=0,
+            category_pad_idx=0,
                 eval_top_k=5,
                 optimizer_params=basic_optimizer_params,
             )
@@ -412,7 +421,7 @@ class TestDINModule:
                 target_category_ids=target_category_ids,
             )
 
-            assert output.shape == (batch_size,), f"Failed for normalize={normalize}"
+            assert output.shape == (batch_size,), f"Failed for dnn_normalize={normalize}"
 
     def test_gradient_accumulation_compatibility(
         self, basic_optimizer_params: OptimizerParams, sample_batch: AmazonReviewsSeqRecBatch
@@ -424,10 +433,11 @@ class TestDINModule:
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
-            normalize=None,
+            dnn_normalize=None,
             max_seq_len=10,
-            dropout=0.0,
-            pad_idx=0,
+            dnn_dropout=0.0,
+            item_pad_idx=0,
+            category_pad_idx=0,
             eval_top_k=5,
             optimizer_params=basic_optimizer_params,
         )
@@ -455,10 +465,11 @@ class TestDINModule:
             feature_embedding_dims=16,
             din_hidden_dims=[8],
             dnn_hidden_dims=[32],
-            normalize=NormalizeType.BATCH,  # Use batch norm to see train/eval differences
+            dnn_normalize=NormalizeType.BATCH,  # Use batch norm to see train/eval differences
             max_seq_len=10,
-            dropout=0.1,  # Use dropout to see train/eval differences
-            pad_idx=0,
+            dnn_dropout=0.1,  # Use dropout to see train/eval differences
+            item_pad_idx=0,
+            category_pad_idx=0,
             eval_top_k=5,
             optimizer_params=basic_optimizer_params,
         )

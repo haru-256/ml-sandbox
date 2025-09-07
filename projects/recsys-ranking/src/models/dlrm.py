@@ -39,8 +39,29 @@ class DLRM(nn.Module):
     - Separates sparse and dense feature processing
     - Uses inner product for feature interactions
     - Designed for recommendation and ranking tasks
+    - Supports both dense and sparse features (currently only sparse features are used)
 
-    Reference: https://arxiv.org/abs/1906.00091
+    Example:
+        >>> model = DLRM(
+        ...     num_items=10000,
+        ...     feature_embedding_dims=64,
+        ...     dense_hidden_features_list=[128, 64],
+        ...     dense_activation=ActivationType.RELU,
+        ...     dense_normalize=NormalizeType.BATCH,
+        ...     dense_dropout=0.1,
+        ...     top_hidden_features_list=[256, 128, 1],
+        ...     top_activation=ActivationType.RELU,
+        ...     top_normalize=NormalizeType.BATCH,
+        ...     top_dropout=0.1,
+        ...     item_pad_idx=0
+        ... )
+        >>> item_history = torch.randint(1, 10000, (32, 10))
+        >>> target_items = torch.randint(1, 10000, (32,))
+        >>> logits = model(item_history, target_items)  # Shape: (32,)
+
+    Reference:
+        Naumov et al. "Deep Learning Recommendation Model for Personalization and Recommendation Systems"
+        https://arxiv.org/abs/1906.00091
     """
 
     def __init__(
@@ -48,19 +69,33 @@ class DLRM(nn.Module):
         num_items: int,
         feature_embedding_dims: int,
         dense_hidden_features_list: list[int],
-        dropout: float,
-        pad_idx: int = 0,
+        top_hidden_features_list: list[int],
+        dense_activation: ActivationType | None = None,
+        dense_normalize: NormalizeType | None = None,
+        dense_dropout: float = 0.0,
+        top_activation: ActivationType | None = None,
+        top_normalize: NormalizeType | None = None,
+        top_dropout: float = 0.0,
+        item_pad_idx: int = 0,
     ):
         """Initialize DLRM model.
 
         Args:
-            num_items: Number of items in the dataset
-            feature_embedding_dims: Embedding dimension for categorical features
-            dense_hidden_features_list: List of hidden layer sizes for dense embedding MLP.
-                                      Used when dense features are present to transform them
-                                      into the same embedding space as sparse features.
-            dropout: Dropout probability for the MLP components
-            pad_idx: Padding index for categorical features (default: 0)
+            num_items: Number of items in the dataset.
+            feature_embedding_dims: Embedding dimension for categorical features.
+            dense_hidden_features_list: Hidden sizes for dense-feature MLP (if used).
+            top_hidden_features_list: Hidden sizes for the top prediction MLP.
+            dense_activation: Optional activation for dense MLP; default None.
+            dense_normalize: Optional normalization for dense MLP; default None.
+            dense_dropout: Dropout probability for dense MLP; default 0.0.
+            top_activation: Optional activation for top MLP; default None.
+            top_normalize: Optional normalization for top MLP; default None.
+            top_dropout: Dropout probability for top MLP; default 0.0.
+            item_pad_idx: Padding index for categorical features; default 0.
+
+        Note:
+            Currently only sparse features are used (last_item_id and target_item_id).
+            Dense features support is implemented but not actively used.
         """
         super().__init__()
         self.sparse_feature_map = {
@@ -68,14 +103,14 @@ class DLRM(nn.Module):
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
-                padding_idx=pad_idx,
+                padding_idx=item_pad_idx,
                 group_key="item_id",
             ),
             "target_item_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
-                padding_idx=pad_idx,
+                padding_idx=item_pad_idx,
                 group_key="item_id",
             ),
         }
@@ -83,16 +118,17 @@ class DLRM(nn.Module):
 
         # NOTE: DLRMはsparse feature(categorical feature)のみをembeddingし、dense featureはMLPでembeddingする
         self.sparse_embedding_layer = FeatureEmbeddingDict(self.sparse_feature_map)
-        hidden_features_list = [feature_embedding_dims, feature_embedding_dims]
         if len(self.dense_feature_map) > 0:
             self.dense_embedding_layer = MLP(
                 in_features=len(self.dense_feature_map),
                 hidden_features_list=dense_hidden_features_list,
                 out_features=feature_embedding_dims,
-                dropout=dropout,
-                normalize=NormalizeType.BATCH,
-                hidden_activation=ActivationType.RELU,
+                hidden_activation=dense_activation,
+                hidden_normalize=dense_normalize,
+                hidden_dropout=dense_dropout,
                 out_activation=None,
+                out_normalize=dense_normalize,
+                out_dropout=0,
             )
 
         self.interaction_layer = SecondOrderInteraction(
@@ -104,12 +140,14 @@ class DLRM(nn.Module):
         )
         self.top_mlp = MLP(
             in_features=top_mlp_in_features,
-            hidden_features_list=hidden_features_list,
+            hidden_features_list=top_hidden_features_list,
             out_features=1,
-            dropout=dropout,
-            normalize=NormalizeType.BATCH,
-            hidden_activation=ActivationType.RELU,
+            hidden_activation=top_activation,
+            hidden_normalize=top_normalize,
+            hidden_dropout=top_dropout,
             out_activation=None,
+            out_normalize=None,
+            out_dropout=0,
         )
 
     def forward(
@@ -119,12 +157,21 @@ class DLRM(nn.Module):
     ) -> torch.Tensor:
         """Forward pass for DLRM model.
 
+        Processes the input through the DLRM architecture:
+        1. Embeds sparse categorical features (last_item_id, target_item_id)
+        2. Computes second-order feature interactions using inner product
+        3. Processes interaction outputs through top MLP for final prediction
+
         Args:
             item_id_history: Item history tensor of shape (batch_size, seq_len)
             target_item_ids: Target item IDs tensor of shape (batch_size,)
 
         Returns:
             torch.Tensor: Prediction logits of shape (batch_size,)
+
+        Note:
+            Currently only uses the last item from the history sequence.
+            Dense features are supported but not used in the current implementation.
         """
 
         last_item_ids = item_id_history[:, -1]  # (B,)
@@ -188,27 +235,52 @@ class DLRMModule(BaseModule):
         self,
         num_items: int,
         feature_embedding_dims: int,
+        # dense
         dense_hidden_features_list: list[int],
+        # top
+        top_hidden_features_list: list[int],
         max_seq_len: int,
-        dropout: float,
-        pad_idx: int,
+        item_pad_idx: int,
         eval_top_k: int,
         optimizer_params: OptimizerParams,
+        dense_activation: ActivationType | None = None,
+        dense_normalize: NormalizeType | None = None,
+        dense_dropout: float = 0.0,
+        top_activation: ActivationType | None = None,
+        top_normalize: NormalizeType | None = None,
+        top_dropout: float = 0.0,
     ):
         """Initialize the DLRM Lightning module.
 
         Args:
-            num_items: Total number of items in the dataset vocabulary
-            feature_embedding_dims: Embedding dimension for categorical features
-            dense_hidden_features_list: List of hidden layer sizes for dense embedding MLP.
-                Used to transform dense features into the same embedding
-                space as sparse features when dense features are present.
-            max_seq_len: Maximum sequence length for item history sequences
-            dropout: Dropout probability applied in MLP layers for regularization
-            pad_idx: Padding index used for categorical features (typically 0)
-            eval_top_k: Number of top-k items to consider for evaluation metrics
-            optimizer_params: Configuration object containing optimizer and scheduler settings
+            num_items: Total number of items in the dataset vocabulary.
+            feature_embedding_dims: Embedding dimension for categorical features.
+            dense_hidden_features_list: Hidden sizes for dense-feature MLP (if used).
+            top_hidden_features_list: Hidden sizes for the top MLP.
+            max_seq_len: Maximum sequence length in item history.
+            item_pad_idx: Padding index used for categorical features.
+            eval_top_k: Top-k for retrieval metrics.
+            optimizer_params: Optimizer and scheduler configuration.
+            dense_activation: Optional activation for dense MLP; default None.
+            dense_normalize: Optional normalization for dense MLP; default None.
+            dense_dropout: Dropout probability for dense MLP; default 0.0.
+            top_activation: Optional activation for top MLP; default None.
+            top_normalize: Optional normalization for top MLP; default None.
+            top_dropout: Dropout probability for top MLP; default 0.0.
 
+        Example:
+            >>> lr_scheduler_params = LRSchedulerParams(...)
+            >>> optimizer_params = OptimizerParams(lr=0.001, lr_scheduler=lr_scheduler_params)
+            >>> module = DLRMModule(
+            ...     num_items=10000,
+            ...     feature_embedding_dims=64,
+            ...     dense_hidden_features_list=[128, 64],
+            ...     top_hidden_features_list=[256, 128, 1],
+            ...     max_seq_len=50,
+            ...     item_pad_idx=0,
+            ...     eval_top_k=10,
+            ...     optimizer_params=optimizer_params
+            ... )
         """
         super().__init__()
         self.save_hyperparameters()
@@ -218,8 +290,14 @@ class DLRMModule(BaseModule):
             num_items=num_items,
             feature_embedding_dims=feature_embedding_dims,
             dense_hidden_features_list=dense_hidden_features_list,
-            dropout=dropout,
-            pad_idx=pad_idx,
+            top_hidden_features_list=top_hidden_features_list,
+            item_pad_idx=item_pad_idx,
+            dense_activation=dense_activation,
+            dense_normalize=dense_normalize,
+            dense_dropout=dense_dropout,
+            top_activation=top_activation,
+            top_normalize=top_normalize,
+            top_dropout=top_dropout,
         )
         self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
         self.accuracy = BinaryAccuracy(threshold=0.5)

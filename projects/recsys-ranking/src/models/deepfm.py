@@ -27,26 +27,60 @@ class DeepFM(nn.Module):
 
     DeepFM combines the strengths of factorization machines and deep neural networks
     for recommendation tasks. It consists of:
-    1. FM component: Captures low-order feature interactions
-    2. Deep component: Captures high-order feature interactions through neural networks
+    1. FM component: Captures low-order feature interactions using factorization machines
+    2. Deep component: Captures high-order feature interactions through deep neural networks
 
-    Reference: https://arxiv.org/abs/1703.04247
+    The model processes item history and target items through shared embeddings,
+    then combines FM and deep learning predictions for the final output.
+
+    Architecture Details:
+    - Feature Embedding: Shared embeddings for last item and target item
+    - FM Layer: Factorization machine for modeling pairwise feature interactions
+    - Deep Layer: Multi-layer perceptron for capturing high-order non-linear interactions
+    - Output: Linear combination of FM and deep components
+
+    Example:
+        >>> model = DeepFM(
+        ...     num_items=10000,
+        ...     feature_embedding_dims=64,
+        ...     deep_hidden_features_list=[128, 64],
+        ...     deep_activation=ActivationType.RELU,
+        ...     deep_normalize=NormalizeType.BATCH,
+        ...     deep_dropout=0.1,
+        ...     item_pad_idx=0
+        ... )
+        >>> item_history = torch.randint(1, 10000, (32, 10))
+        >>> target_items = torch.randint(1, 10000, (32,))
+        >>> logits = model(item_history, target_items)  # Shape: (32,)
+
+    Reference:
+        Guo et al. "DeepFM: A Factorization-Machine based Neural Network for CTR Prediction"
+        https://arxiv.org/abs/1703.04247
     """
 
     def __init__(
         self,
         num_items: int,
         feature_embedding_dims: int,
-        dropout: float,
-        pad_idx: int = 0,
+        deep_hidden_features_list: list[int],
+        deep_activation: ActivationType | None = None,
+        deep_normalize: NormalizeType | None = None,
+        deep_dropout: float = 0.0,
+        item_pad_idx: int = 0,
     ):
         """Initialize DeepFM model.
 
         Args:
-            num_items: Number of items in the dataset
-            feature_embedding_dims: Embedding dimension for categorical features
-            dropout: Dropout probability for the deep component
-            pad_idx: Padding index for categorical features (default: 0)
+            num_items: Number of items in the dataset.
+            feature_embedding_dims: Embedding dimension for categorical features.
+            deep_hidden_features_list: Hidden sizes for the deep component MLP.
+            deep_activation: Optional activation for deep hidden layers; default None.
+            deep_normalize: Optional normalization for deep hidden layers; default None.
+            deep_dropout: Dropout probability for deep hidden layers; default 0.0.
+            item_pad_idx: Padding index for categorical features; default 0.
+
+        Raises:
+            ValueError: If deep_hidden_features_list is empty
         """
         super().__init__()
         self.feature_map = {
@@ -54,27 +88,28 @@ class DeepFM(nn.Module):
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
-                padding_idx=pad_idx,
+                padding_idx=item_pad_idx,
                 group_key="item_id",
             ),
             "target_item_id": FeatureSpec(
                 type_=FeatureType.CATEGORICAL,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
-                padding_idx=pad_idx,
+                padding_idx=item_pad_idx,
                 group_key="item_id",
             ),
         }
         self.feature_embedding_dict = FeatureEmbeddingDict(self.feature_map)
-        hidden_features_list = [feature_embedding_dims, feature_embedding_dims]
         self.fm_layer = FactorizationMachine(self.feature_map)
         self.deep_layer = MLP(
             in_features=feature_embedding_dims * len(self.feature_map),
-            hidden_features_list=hidden_features_list,
+            hidden_features_list=deep_hidden_features_list,
             out_features=1,
-            dropout=dropout,
-            normalize=NormalizeType.BATCH,
-            hidden_activation=ActivationType.RELU,
+            hidden_normalize=deep_normalize,
+            hidden_activation=deep_activation,
+            hidden_dropout=deep_dropout,
+            out_dropout=0,
+            out_normalize=None,
             out_activation=None,
         )
 
@@ -114,31 +149,52 @@ class DeepFM(nn.Module):
 
 
 class DeepFMModule(BaseModule):
+    """PyTorch Lightning wrapper for DeepFM.
+
+    Handles training/validation steps, optimizer configuration, and simple model summaries.
+
+    Args:
+        num_items: Number of items in the dataset.
+        feature_embedding_dims: Embedding dimension for item ids.
+        deep_hidden_features_list: Hidden sizes for the deep MLP.
+        max_seq_len: Maximum history sequence length in batches.
+        item_pad_idx: Padding index for item ids.
+        eval_top_k: Top-k used for retrieval metrics.
+        optimizer_params: Optimizer and scheduler configuration.
+        deep_activation: Optional activation for deep hidden layers; default None.
+        deep_normalize: Optional normalization for deep hidden layers; default None.
+        deep_dropout: Dropout probability for deep hidden layers; default 0.0.
+    """
+
     def __init__(
         self,
         num_items: int,
         feature_embedding_dims: int,
+        deep_hidden_features_list: list[int],
         max_seq_len: int,
-        dropout: float,
-        pad_idx: int,
+        item_pad_idx: int,
         eval_top_k: int,
         optimizer_params: OptimizerParams,
+        deep_activation: ActivationType | None = None,
+        deep_normalize: NormalizeType | None = None,
+        deep_dropout: float = 0.0,
     ):
-        """DeepFM model module for recommendation systems.
+        """Initialize DeepFM Lightning module.
 
-        Lightning module wrapper for the DeepFM model, providing training and validation
-        logic with metrics computation. Uses binary cross-entropy loss for training
-        and computes accuracy, hit rate, and NDCG for evaluation.
+        Uses BCE-with-logits loss for training and logs accuracy, hit rate, and NDCG.
 
-        Args:
-            num_items: Number of items in the dataset
-            feature_embedding_dims: Embedding dimension for categorical features
-            max_seq_len: Maximum sequence length for item history
-            dropout: Dropout probability for the deep component
-            pad_idx: Padding index for categorical features
-            eval_top_k: Number of top-k items for evaluation metrics (hit rate, NDCG)
-            optimizer_params: Optimizer configuration parameters
-
+        Example:
+            >>> lr_scheduler_params = LRSchedulerParams(...)
+            >>> optimizer_params = OptimizerParams(lr=0.001, lr_scheduler=lr_scheduler_params)
+            >>> module = DeepFMModule(
+            ...     num_items=10000,
+            ...     feature_embedding_dims=64,
+            ...     deep_hidden_features_list=[128, 64],
+            ...     max_seq_len=50,
+            ...     item_pad_idx=0,
+            ...     eval_top_k=10,
+            ...     optimizer_params=optimizer_params
+            ... )
         """
         super().__init__()
         self.save_hyperparameters()
@@ -147,8 +203,11 @@ class DeepFMModule(BaseModule):
         self.model = DeepFM(
             num_items=num_items,
             feature_embedding_dims=feature_embedding_dims,
-            dropout=dropout,
-            pad_idx=pad_idx,
+            item_pad_idx=item_pad_idx,
+            deep_hidden_features_list=deep_hidden_features_list,
+            deep_activation=deep_activation,
+            deep_normalize=deep_normalize,
+            deep_dropout=deep_dropout,
         )
         self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
         self.accuracy = BinaryAccuracy(threshold=0.5)

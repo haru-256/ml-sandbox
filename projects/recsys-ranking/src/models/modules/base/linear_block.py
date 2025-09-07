@@ -12,14 +12,14 @@ def build_normalization(
     normalize: NormalizeType,
     num_features: int,
 ) -> nn.Module:
-    """Builds a normalization layer based on the specified type.
+    """Build a normalization layer based on the specified type.
 
     Args:
-        normalize (str): Type of normalization to apply.
-        num_features (int): Number of features for the normalization layer.
+        normalize: Normalization type to apply.
+        num_features: Number of features for the normalization layer.
 
     Returns:
-        nn.Module: The normalization layer.
+        The constructed normalization layer.
 
     """
     match normalize:
@@ -37,17 +37,17 @@ def build_activation(
     activation: Literal["relu", "leaky_relu", "sigmoid", "tanh", "gelu", "silu"],
     kwargs: dict[str, Any] | None = None,
 ) -> nn.Module:
-    """Builds an activation layer based on the specified type.
+    """Build an activation layer based on the specified type.
 
     Args:
-        activation: Type of activation function to apply.
-        kwargs: Additional arguments for the activation function.
-
-    Raises:
-        ValueError: If the activation type is not recognized.
+        activation: Activation function type.
+        kwargs: Optional kwargs for the activation (e.g., negative_slope for LeakyReLU).
 
     Returns:
-        Activation layer based on the specified type.
+        The activation layer instance.
+
+    Raises:
+        ValueError: If the activation type is not recognized or required kwargs are missing.
 
     """
     match activation:
@@ -74,17 +74,7 @@ def build_activation(
 
 
 class LinearBlock(nn.Module):
-    """A linear block with optional normalization, activation, and dropout.
-
-    Args:
-        in_features (int): Number of input features.
-        out_features (int): Number of output features.
-        normalize (bool, optional): Whether to apply normalization. Defaults to True.
-        activation (str, optional): Activation function to use. Defaults to "relu".
-        dropout (float, optional): Dropout probability. Defaults to 0.0.
-        bias (bool, optional): Whether to include bias in the linear layer. Defaults to True.
-
-    """
+    """A linear block with optional normalization, activation, and dropout."""
 
     def __init__(
         self,
@@ -97,6 +87,18 @@ class LinearBlock(nn.Module):
         bias: bool = True,
         apply_order: LinearOpOrderType = LinearOpOrderType.NORM_ACT_DROPOUT,
     ) -> None:
+        """Initialize LinearBlock.
+
+        Args:
+            in_features: Number of input features.
+            out_features: Number of output features.
+            normalize: Optional normalization type for the output of the linear layer.
+            activation: Optional activation function type.
+            activation_kwargs: Optional kwargs for the activation function.
+            dropout: Dropout probability. Defaults to 0.0.
+            bias: Whether to include bias in the linear layer. Defaults to True.
+            apply_order: Order in which to apply norm/act/drop, defaults to NORM_ACT_DROPOUT.
+        """
         super().__init__()
         self.apply_normalize = normalize is not None
         self.apply_activation = activation is not None
