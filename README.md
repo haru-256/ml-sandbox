@@ -12,7 +12,7 @@
 ├── apps/  # 機械学習コードを動かすアプリケーションコード
 │   └── job_runner
 ├── libs/ # 複数projectで使用される内部ライブラリ
-│ n └── ml_sandbox_libs
+│   └── ml_sandbox_libs
 └── projects/ # 各問題設定に対応するproject
     ├── recsys-candidate-generation
     └── recsys-ranking
