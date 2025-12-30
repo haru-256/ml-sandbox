@@ -91,7 +91,7 @@ recsys-candidate-generation/
 ### gSASRec
 
 - **ファイルパス:** `src/models/gsasrec.py`
-- SASRecの拡張版で、ロスを調整することで、より効果的な学習を行います。
+- SASRecの拡張版で、gBCEロスを導入して負例サンプリングに起因する過信を抑制し、より効果的な学習を行います。
 - 論文: [gSASRec: Reducing Overconfidence in Sequential Recommendation Trained with Negative Sampling](https://arxiv.org/abs/2308.07192)
 
 ### SimpleX
