@@ -299,12 +299,14 @@ def common_preprocess_dataset(
     val_df: pl.DataFrame = dataset_dict["valid"].to_polars(schema_overrides=schema_overrides)  # type: ignore
     test_df: pl.DataFrame = dataset_dict["test"].to_polars(schema_overrides=schema_overrides)  # type: ignore
     meta_df: pl.DataFrame = metadata.to_polars()  # type: ignore
-    meta_df = meta_df[["parent_asin", "categories"]].with_columns(
+    meta_df = meta_df[
+        ["parent_asin", "categories", "average_rating", "rating_number"]
+    ].with_columns(
         pl.when(pl.col("categories").list.len() > 0)
         .then(pl.col("categories").list.join("/"))
         .otherwise(None)
         .alias("category")
-    )[["parent_asin", "category"]]
+    )[["parent_asin", "category", "average_rating", "rating_number"]]
 
     # join metadata
     train_df = train_df.join(meta_df, on="parent_asin", how="left", validate="m:1")

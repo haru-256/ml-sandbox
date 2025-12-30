@@ -2,9 +2,9 @@ import torch
 from torch import nn
 
 
-class IdEmbedding(nn.Module):
-    def __init__(self, num_ids: int, embedding_dim: int, padding_idx: int | None):
-        """Embedding layer for transformer model, including token and position embeddings
+class IdEmbeddingBag(nn.Module):
+    def __init__(self, num_ids: int, embedding_dim: int, padding_idx: int | None) -> None:
+        """Id Embedding layer using EmbeddingBag
 
         Args:
             num_ids: number of unique token ids
@@ -13,7 +13,9 @@ class IdEmbedding(nn.Module):
 
         """
         super().__init__()
-        self.id_embedding = nn.Embedding(num_ids, embedding_dim, padding_idx=padding_idx)
+        self.id_embedding = nn.EmbeddingBag(
+            num_ids, embedding_dim, padding_idx=padding_idx, mode="mean"
+        )
 
     def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         """Forward pass for embedding layer
@@ -22,7 +24,7 @@ class IdEmbedding(nn.Module):
             input_ids: input token id tensor, shape (batch_size, seq_len)
 
         Returns:
-            output embeddings, shape (batch_size, seq_len, hidden_size)
+            output embeddings, shape (batch_size, hidden_size)
 
         """
         embeddings = self.id_embedding(input_ids)
