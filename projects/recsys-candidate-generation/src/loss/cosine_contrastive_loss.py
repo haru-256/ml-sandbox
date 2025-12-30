@@ -8,11 +8,8 @@ class CCL(nn.Module):
         implementation reference: https://github.com/reczoo/RecBox/blob/main/recbox/core/pytorch/losses/cosine_contrastive_loss.py#L5
 
         Args:
-            neg_sample_size: negative sample size per positive sample
-            num_items: number of items
-            t: calibration parameter
-            eps: epsilon for numerical stability
-        """
+            margin: The margin value for the loss function.
+            negative_weight: The weight for negative samples.
         super().__init__()
 
         self.margin = margin
