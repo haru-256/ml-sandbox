@@ -8,15 +8,14 @@ from ml_sandbox_libs.utils.metrics import (
     create_retrieval_inputs,
 )
 from timm.scheduler.cosine_lr import CosineLRScheduler
-from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
+from loss import gBCE
 from my_types import OptimizerParams
 
 from .base import BaseModule
-from .loss import gBCE
 from .sasrec import SASRec
 
 

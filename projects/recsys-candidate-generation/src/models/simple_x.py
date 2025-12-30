@@ -11,7 +11,6 @@ from torchinfo import ModelStatistics, summary
 from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
 from loss import CCL
-from my_types import OptimizerParams
 from optimizer import Optimizer
 
 from .base import BaseModule

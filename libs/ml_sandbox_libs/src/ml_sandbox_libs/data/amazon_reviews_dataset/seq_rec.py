@@ -461,7 +461,7 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
         if self.sampling_val_test:
             self.val_df = self.val_df.sample(n=100000, seed=1027)
             self.test_df = self.test_df.sample(n=100000, seed=1028)
-        # FIXME: meta_dfを渡すようにしたい。meta_df + item_index, category_indexでitemの情報を持つようにしたい。UNKのindexは平均値を入れる？
+        # FIXME: meta_dfを渡すようにしたい。meta_df + item_index, category_indexでitemの情報を持つようにしたい。UNKのindexは平均値を入れる?
         self.random_neg_sampling_pool = pl.from_dict(
             {
                 "item_index": list(self.item_index_2_category_index.keys()),
