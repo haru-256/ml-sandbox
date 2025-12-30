@@ -20,7 +20,7 @@ class CCL(nn.Module):
         """Forward pass for CCL loss
 
         Args:
-            pos_cos_sim: (B, P) - cosine similarity between user and positive item
+            pos_cos_sim: (B, 1) - cosine similarity between user and positive item
             neg_cos_sim: (B, N) - cosine similarity between user and negative items
 
         Returns:
@@ -34,10 +34,10 @@ class CCL(nn.Module):
             f"Got {neg_cos_sim.dim()=}, {pos_cos_sim.dim()=}"
         )
 
-        pos_loss = torch.mean(torch.relu(1 - pos_cos_sim), dim=-1)  # (B, P)
+        pos_loss = torch.relu(1 - pos_cos_sim)  # (B, 1)
         neg_loss = torch.relu(neg_cos_sim - self.margin)  # (B, N)
         if self.negative_weight is not None:
-            neg_loss = torch.mean(neg_loss * self.negative_weight, dim=-1)  # (B,)
+            neg_loss = torch.mean(neg_loss * self.negative_weight, dim=-1, keepdim=True)  # (B, 1)
         else:
-            neg_loss = torch.mean(neg_loss, dim=-1)  # (B,)
+            neg_loss = torch.mean(neg_loss, dim=-1, keepdim=True)  # (B, 1)
         return torch.mean(pos_loss + neg_loss)
