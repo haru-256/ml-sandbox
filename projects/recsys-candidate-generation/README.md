@@ -64,7 +64,9 @@ recsys-candidate-generation/
 - [x] SASRec: Self-Attentive Sequential Recommendation
   - TransformerのSelf-Attention機構を利用して、ユーザーの行動履歴のシーケンシャルなパターンを捉え、次のアイテムを予測するモデル。
 - [ ] BERT4Rec: BERT for Sequential Recommendation
-- [ ] gSASRec
+- [x] gSASRec
+- [x] SimpleX: A Simple and Strong Baseline for Collaborative Filtering
+  - ユーザーの行動履歴の平均プーリングとCosine Contrastive Loss (CCL) を組み合わせたシンプルかつ強力なモデル。
 
 ### TwoTower
 
@@ -86,8 +88,16 @@ recsys-candidate-generation/
 - 最後のTransformerブロックの出力（特にシーケンスの最後のアイテムに対応する表現）を用いて、次にユーザーがインタラクションするアイテムを予測します。
 - 訓練時には、予測アイテム（正例）と負例アイテムに対するスコアを計算し、正例のスコアが高くなるように学習します (BCEWithLogitsLossを使用)。
 
-## gSASRec
+### gSASRec
 
 - **ファイルパス:** `src/models/gsasrec.py`
 - SASRecの拡張版で、ロスを調整することで、より効果的な学習を行います。
 - 論文: [gSASRec: Reducing Overconfidence in Sequential Recommendation Trained with Negative Sampling](https://arxiv.org/abs/2308.07192)
+
+### SimpleX
+
+- **ファイルパス:** `src/models/simple_x.py`
+- 論文: [SimpleX: A Simple and Strong Baseline for Collaborative Filtering](https://arxiv.org/abs/2109.12613)
+- 非常にシンプルなアーキテクチャ（ユーザー履歴の平均プーリングなど）でありながら、最先端のモデルに匹敵する性能を持つモデル。
+- **Cosine Contrastive Loss (CCL)** を採用しており、負例のサンプリング重みやマージンを調整することで学習を安定化・高速化しています。
+- ユーザー表現は、ユーザーIDの埋め込みと、ユーザーがインタラクションしたアイテムの埋め込みの集約（平均など）を組み合わせて表現されます。
