@@ -358,9 +358,9 @@ class SASRecModule(BaseModule):
         return summary(
             self.model,
             input_data={
-                "item_id_history": item_history,
-                "pos_item_ids": item_pos,
-                "neg_item_ids": item_neg,
+                "item_history": item_history,
+                "pos_item": item_pos,
+                "neg_item": item_neg,
             },
             depth=depth,
             verbose=verbose,

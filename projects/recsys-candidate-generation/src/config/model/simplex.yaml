@@ -1,0 +1,19 @@
+name: "SimpleX"
+
+out_dim: 64 # 出力次元数 (D)
+
+user_id_dim: 128 # User ID embeddingの次元数
+item_id_dim: 128 # Item ID embeddingの次元数
+
+# Towerの中間層
+hidden_dims: [128, 64] # 中間層の次元数
+
+# SimpleX specific parameters
+user_id_weight: 0.5 # 最終的なUser表現におけるUser ID embeddingの重み (0.0 - 1.0)
+margine: 0.9 # CCL lossのマージン (m)
+negative_weight: 10.0 # CCL lossにおける負例の重み (w)
+user_history_pooling: "mean" # 履歴の集約方法
+
+normalization: "batch"
+activation: "leaky_relu"
+dropout: 0.1

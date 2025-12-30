@@ -1,0 +1,45 @@
+import torch
+from torch import nn
+
+
+class CCL(nn.Module):
+    def __init__(self, margin: float, negative_weight: float | None) -> None:
+        """Cosine Contrastive Loss, CCL, see https://arxiv.org/abs/2109.12613,
+        implementation reference: https://github.com/reczoo/RecBox/blob/main/recbox/core/pytorch/losses/cosine_contrastive_loss.py#L5
+
+        Args:
+            neg_sample_size: negative sample size per positive sample
+            num_items: number of items
+            t: calibration parameter
+            eps: epsilon for numerical stability
+        """
+        super().__init__()
+
+        self.margin = margin
+        self.negative_weight = negative_weight
+
+    def forward(self, pos_cos_sim: torch.Tensor, neg_cos_sim: torch.Tensor) -> torch.Tensor:
+        """Forward pass for CCL loss
+
+        Args:
+            pos_cos_sim: (B, 1) - cosine similarity between user and positive item
+            neg_cos_sim: (B, N) - cosine similarity between user and negative items
+
+        Returns:
+            loss CCL loss value
+        """
+        assert pos_cos_sim.size(1) == 1, (
+            f"positive sample size should be one, Got {pos_cos_sim.size()=}"
+        )
+        assert neg_cos_sim.dim() == 2 and pos_cos_sim.dim() == 1, (
+            f"negative logits should be 2-dim and positive logits should be 1-dim, "
+            f"Got {neg_cos_sim.dim()=}, {pos_cos_sim.dim()=}"
+        )
+
+        pos_loss = torch.relu(1 - pos_cos_sim)  # (B,)
+        neg_loss = torch.relu(neg_cos_sim - self.margin)
+        if self.negative_weight is not None:
+            neg_loss = torch.mean(neg_loss * self.negative_weight, dim=-1)  # (B,)
+        else:
+            neg_loss = torch.mean(neg_loss, dim=-1)  # (B,)
+        return torch.mean(pos_loss + neg_loss)
