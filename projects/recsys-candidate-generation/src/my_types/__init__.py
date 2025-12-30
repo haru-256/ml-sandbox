@@ -18,6 +18,6 @@ class LRSchedulerParams:
     frequency: int
     t_initial: int
     warmup_t: int
-    warmup_lr_init: int
+    warmup_lr_init: float
     lr_min: float
     cycle_limit: int
