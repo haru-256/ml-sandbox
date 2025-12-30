@@ -579,7 +579,7 @@ class DINModule(BaseModule):
     def summary(
         self,
         batch_size: int,
-        depth: int = 4,
+        depth: int = 5,
         verbose: int = 0,
     ) -> ModelStatistics:
         """Generate and return model architecture summary.

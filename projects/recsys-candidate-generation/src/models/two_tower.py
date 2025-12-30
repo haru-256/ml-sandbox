@@ -51,19 +51,24 @@ class UserTower(nn.Module):
 
         # num_users + 1 to account for unknown index: 1
         self.id_embedding = IdEmbedding(num_users + 1, self.user_id_dim, padding_idx=None)
-        blocks: list[LinearBlock] = [
-            LinearBlock(
-                in_features=self.user_id_dim if i == 0 else hidden_dim,
-                out_features=hidden_dim,
-                normalize=normalization,
-                activation=activation,
-                dropout=dropout,
-            )
-            for i, hidden_dim in enumerate(hidden_dims)
-        ]
-        self.hidden_layers = nn.Sequential(*blocks)
+        if hidden_dims is not None and len(hidden_dims) != 0:
+            blocks: list[LinearBlock] = [
+                LinearBlock(
+                    in_features=self.user_id_dim if i == 0 else hidden_dim,
+                    out_features=hidden_dim,
+                    normalize=normalization,
+                    activation=activation,
+                    dropout=dropout,
+                )
+                for i, hidden_dim in enumerate(hidden_dims)
+            ]
+            self.hidden_layers = nn.Sequential(*blocks)
+            output_layer_in_features = hidden_dims[-1]
+        else:
+            self.hidden_layers = nn.Identity()
+            output_layer_in_features = self.user_id_dim
         self.output_layer = nn.Linear(
-            in_features=hidden_dims[-1],
+            in_features=output_layer_in_features,
             out_features=self.out_dim,
         )
 
@@ -102,7 +107,7 @@ class ItemTower(nn.Module):
         num_items: int,
         out_dim: int,
         item_id_dim: int,
-        hidden_dims: list[int],
+        hidden_dims: list[int] | None,
         normalization: str | None,
         activation: str | None,
         dropout: float,
@@ -133,19 +138,24 @@ class ItemTower(nn.Module):
 
         # num_items + 2 to account for unknown index and padding index
         self.id_embedding = IdEmbedding(num_items + 2, self.item_id_dim, padding_idx=padding_idx)
-        blocks: list[LinearBlock] = [
-            LinearBlock(
-                in_features=self.item_id_dim if i == 0 else hidden_dim,
-                out_features=hidden_dim,
-                normalize=normalization,
-                activation=activation,
-                dropout=dropout,
-            )
-            for i, hidden_dim in enumerate(hidden_dims)
-        ]
-        self.hidden_layers = nn.Sequential(*blocks)
+        if hidden_dims is not None and len(hidden_dims) != 0:
+            blocks: list[LinearBlock] = [
+                LinearBlock(
+                    in_features=self.item_id_dim if i == 0 else hidden_dim,
+                    out_features=hidden_dim,
+                    normalize=normalization,
+                    activation=activation,
+                    dropout=dropout,
+                )
+                for i, hidden_dim in enumerate(hidden_dims)
+            ]
+            self.hidden_layers = nn.Sequential(*blocks)
+            output_layer_in_features = hidden_dims[-1]
+        else:
+            self.hidden_layers = nn.Identity()
+            output_layer_in_features = self.item_id_dim
         self.output_layer = nn.Linear(
-            in_features=hidden_dims[-1],
+            in_features=output_layer_in_features,
             out_features=self.out_dim,
         )
 
@@ -307,7 +317,7 @@ class TwoTowerModule(BaseModule):
         pad_idx: int,
         eval_top_k: int,
         optimizer_params: OptimizerParams,
-    ):
+    ) -> None:
         """LightningModule for training and evaluating the Two-Tower model.
 
         Handles the training loop, validation loop, optimizer configuration,

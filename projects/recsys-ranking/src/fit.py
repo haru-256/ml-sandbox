@@ -86,9 +86,11 @@ def main(cfg: DictConfig) -> None:
         logger=wandb_logger,
         gradient_clip_val=cfg.optimizer.gradient_clip_val,
         gradient_clip_algorithm="norm",
-        limit_train_batches=1000,
-        limit_val_batches=1000,
+        # limit_train_batches=1000,
+        # limit_val_batches=1000,
     )
+
+    logger.info("Running training")
     trainer.fit(model=module, datamodule=datamodule)
 
 

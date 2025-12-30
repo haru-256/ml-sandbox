@@ -68,7 +68,18 @@ def seq_rec_preprocess_dataset(
             .alias("history"),
             pl.int_range(pl.len(), dtype=pl.UInt64).alias("id"),
         )
-        main_df = df.select(["id", "user_id", "parent_asin", "category", "rating", "timestamp"])
+        main_df = df.select(
+            [
+                "id",
+                "user_id",
+                "parent_asin",
+                "category",
+                "rating",
+                "timestamp",
+                "average_rating",
+                "rating_number",
+            ]
+        )
         # TODO: add category history by joining metadata
         # add index columns
         main_df = main_df.join(user2index_df, on="user_id", how="left", validate="m:1")
@@ -80,7 +91,9 @@ def seq_rec_preprocess_dataset(
         history_df = (
             df.explode("history")
             .drop_nulls("history")
-            .with_columns(pl.arange(0, pl.len()).over("id").alias("idx"))
+            .with_columns(
+                pl.arange(0, pl.len()).over("id").alias("idx")
+            )  # add index for each history item, idx represents the order of the history
             .select(["id", "history", "idx"])
         )
         history_df = (
@@ -97,11 +110,22 @@ def seq_rec_preprocess_dataset(
                 right_on="parent_asin",
                 how="left",
                 validate="m:1",
-            )  # add category
+            )  # add category and average_rating, rating_number
             .join(
                 category2index_df, on="category", how="left", validate="m:1"
             )  # add category index
-            .select(["id", "idx", "history", "item_index", "category", "category_index"])
+            .select(
+                [
+                    "id",
+                    "idx",
+                    "history",
+                    "item_index",
+                    "category",
+                    "category_index",
+                    "average_rating",
+                    "rating_number",
+                ]
+            )
             .with_columns(
                 pl.col("item_index").fill_null(SpecialItemIndex.UNK).alias("item_index"),
                 pl.col("category").fill_null("#UNK").alias("category"),
@@ -115,6 +139,8 @@ def seq_rec_preprocess_dataset(
             pl.col("item_index").sort_by("idx").alias("history_index"),
             pl.col("category").sort_by("idx").alias("history_category"),
             pl.col("category_index").sort_by("idx").alias("history_category_index"),
+            pl.col("average_rating").sort_by("idx").alias("history_average_rating"),
+            pl.col("rating_number").sort_by("idx").alias("history_rating_number"),
         )
         if main_df.is_empty():
             raise ValueError("Empty main dataframe")
@@ -125,28 +151,40 @@ def seq_rec_preprocess_dataset(
         # fill null values
         df = df.with_columns(
             pl.col("user_index").fill_null(SpecialUserIndex.UNK).alias("user_index"),
+            # target item
             pl.col("item_index").fill_null(SpecialItemIndex.UNK).alias("item_index"),
             pl.col("category").fill_null("#UNK").alias("category"),
             pl.col("category_index").fill_null(SpecialCategoryIndex.UNK).alias("category_index"),
+            pl.col("average_rating").fill_null(0.0).alias("average_rating"),
+            pl.col("rating_number").fill_null(0).alias("rating_number"),
+            # history item
             pl.col("history").fill_null([]).alias("history"),
             pl.col("history_index").fill_null([]).alias("history_index"),
             pl.col("history_category").fill_null([]).alias("history_category"),
             pl.col("history_category_index").fill_null([]).alias("history_category_index"),
+            pl.col("history_average_rating").fill_null([]).alias("history_average_rating"),
+            pl.col("history_rating_number").fill_null([]).alias("history_rating_number"),
         )
         df = df.select(
             [
                 "user_id",
                 "user_index",
+                # target item
                 "parent_asin",
                 "item_index",
                 "category",
                 "category_index",
+                "average_rating",
+                "rating_number",
                 "rating",
                 "timestamp",
+                # history
                 "history",
                 "history_index",
                 "history_category",
                 "history_category_index",
+                "history_average_rating",
+                "history_rating_number",
             ]
         )
         return df
@@ -177,19 +215,25 @@ class AmazonReviewsSeqRecItem(NamedTuple):
         user_index: user index, shape: ()
         item_history: item history, shape: (max_seq_len,)
         category_history: category history, shape: (max_seq_len,)
+        average_rating_history: average rating history, shape: (max_seq_len,)
         pos_item_index: positive item index, shape: ()
         pos_category_index: positive category index, shape: ()
+        pos_average_rating: positive average rating, shape: ()
         neg_item_indexes: negative item indexes, shape: (neg_sample_size,)
         neg_category_indexes: negative category indexes, shape: (neg_sample_size,)
+        neg_average_ratings: negative average ratings, shape: (neg_sample_size,)
     """
 
     user_index: torch.Tensor
     item_history: torch.Tensor
     category_history: torch.Tensor
+    average_rating_history: torch.Tensor
     pos_item_index: torch.Tensor
     pos_category_index: torch.Tensor
+    pos_average_rating: torch.Tensor
     neg_item_indexes: torch.Tensor
     neg_category_indexes: torch.Tensor
+    neg_average_ratings: torch.Tensor
 
 
 class AmazonReviewsSeqRecBatch(AmazonReviewsSeqRecItem):
@@ -220,7 +264,7 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
 
         Args:
             df: dataframe, schema: ["user_index", "history_index", "item_index"]
-            random_neg_sampling_pool: random negative sampling pool
+            random_neg_sampling_pool: random negative sampling pool, schema: ["item_index", "category_index", "average_rating"]
             neg_sample_size: negative sample size
             max_seq_len: maximum sequence length
             seed: random seed. Defaults to 1026.
@@ -236,7 +280,7 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
 
     def negative_sampling(
         self, pos_item_index: int, neg_sample_size: int
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Negative sampling
 
         Args:
@@ -251,8 +295,9 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
         sampled_df = pool_df[sampled_indexes]
         sampled_neg_item_indexes = torch.tensor(sampled_df["item_index"], dtype=torch.long)
         sampled_neg_category_indexes = torch.tensor(sampled_df["category_index"], dtype=torch.long)
+        sampled_neg_average_ratings = torch.tensor(sampled_df["average_rating"], dtype=torch.float)
         assert len(sampled_neg_item_indexes) == neg_sample_size == len(sampled_neg_category_indexes)
-        return sampled_neg_item_indexes, sampled_neg_category_indexes
+        return sampled_neg_item_indexes, sampled_neg_category_indexes, sampled_neg_average_ratings
 
     @staticmethod
     def trunc_and_pad(seq: torch.Tensor, max_seq_len: int) -> torch.Tensor:
@@ -284,6 +329,7 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
         user_index = torch.tensor(row["user_index"], dtype=torch.long)
         item_history = torch.tensor(row["history_index"], dtype=torch.long)
         category_history = torch.tensor(row["history_category_index"], dtype=torch.long)
+        average_rating_history = torch.tensor(row["history_average_rating"], dtype=torch.float)
         # truncate or pad
         # TODO: this operation should be implemented in the seq_rec_preprocess_dataset function
         item_history = AmazonReviewsSeqRecDataset.trunc_and_pad(item_history, self.max_seq_len)
@@ -293,8 +339,9 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
         # shape: ()
         pos_item_index = torch.tensor(row["item_index"], dtype=torch.long)
         pos_category_index = torch.tensor(row["category_index"], dtype=torch.long)
+        pos_average_rating = torch.tensor(row["average_rating"], dtype=torch.float)
         # shape: (neg_sample_size,)
-        neg_item_indexes, neg_category_indexes = self.negative_sampling(
+        neg_item_indexes, neg_category_indexes, neg_average_ratings = self.negative_sampling(
             int(pos_item_index.item()), neg_sample_size=self.neg_sample_size
         )
 
@@ -302,10 +349,13 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
             user_index=user_index,
             item_history=item_history,
             category_history=category_history,
+            average_rating_history=average_rating_history,
             pos_item_index=pos_item_index,
             pos_category_index=pos_category_index,
+            pos_average_rating=pos_average_rating,
             neg_item_indexes=neg_item_indexes,
             neg_category_indexes=neg_category_indexes,
+            neg_average_ratings=neg_average_ratings,
         )
 
 
@@ -411,6 +461,7 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
         if self.sampling_val_test:
             self.val_df = self.val_df.sample(n=100000, seed=1027)
             self.test_df = self.test_df.sample(n=100000, seed=1028)
+        # FIXME: meta_dfを渡すようにしたい。meta_df + item_index, category_indexでitemの情報を持つようにしたい。UNKのindexは平均値を入れる？
         self.random_neg_sampling_pool = pl.from_dict(
             {
                 "item_index": list(self.item_index_2_category_index.keys()),
