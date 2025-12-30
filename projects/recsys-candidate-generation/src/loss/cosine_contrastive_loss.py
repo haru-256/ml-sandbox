@@ -31,8 +31,8 @@ class CCL(nn.Module):
         assert pos_cos_sim.size(1) == 1, (
             f"positive sample size should be one, Got {pos_cos_sim.size()=}"
         )
-        assert neg_cos_sim.dim() == 2 and pos_cos_sim.dim() == 1, (
-            f"negative logits should be 2-dim and positive logits should be 1-dim, "
+        assert neg_cos_sim.dim() == 2 and pos_cos_sim.dim() == 2, (
+            f"negative logits should be 2-dim and positive logits should be 2-dim, "
             f"Got {neg_cos_sim.dim()=}, {pos_cos_sim.dim()=}"
         )
 
