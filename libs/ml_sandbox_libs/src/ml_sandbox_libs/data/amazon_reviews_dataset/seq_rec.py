@@ -411,9 +411,7 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
             neg_category_indexes,
             neg_average_ratings,
             neg_rating_numbers,
-        ) = self.negative_sampling(
-            int(pos_item_index.item()), neg_sample_size=self.neg_sample_size
-        )
+        ) = self.negative_sampling(int(pos_item_index.item()), neg_sample_size=self.neg_sample_size)
 
         return AmazonReviewsSeqRecItem(
             user_index=user_index,

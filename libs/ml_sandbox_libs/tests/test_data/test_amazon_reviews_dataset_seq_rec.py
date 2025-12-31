@@ -1,9 +1,6 @@
-
-import pathlib
 import pathlib
 
 import polars as pl
-import pytest
 import torch
 from pytest_mock import MockerFixture
 
@@ -150,14 +147,8 @@ def test_seq_rec_preprocess_dataset(mocker: MockerFixture) -> None:
     # Verify that indices are returned correctly
     assert user2index == mock_user2index
     assert item2index == mock_item2index
-    assert (
-        item_index_2_metadata[2]["category_index"]
-        == mock_item_index_2_category_index[2]
-    )
-    assert (
-        item_index_2_metadata[2]["category_index"]
-        == mock_item_index_2_category_index[2]
-    )
+    assert item_index_2_metadata[2]["category_index"] == mock_item_index_2_category_index[2]
+    assert item_index_2_metadata[2]["category_index"] == mock_item_index_2_category_index[2]
 
     # Verify expected columns in output DataFrames
     expected_columns = [
@@ -276,13 +267,9 @@ def test_negative_sampling_has_average_rating(
     # Verify random_neg_sampling_pool has average_rating
     # Verify random_neg_sampling_pool has average_rating and rating_number
     assert "average_rating" in dm.random_neg_sampling_pool.columns
-    assert (
-        dm.random_neg_sampling_pool["average_rating"].dtype == pl.Float64
-    )
+    assert dm.random_neg_sampling_pool["average_rating"].dtype == pl.Float64
     assert "rating_number" in dm.random_neg_sampling_pool.columns
-    assert (
-        dm.random_neg_sampling_pool["rating_number"].dtype == pl.Int64
-    )
+    assert dm.random_neg_sampling_pool["rating_number"].dtype == pl.Int64
 
     # Verify negative sampling
     # Manually trigger negative sampling or check the dataset method if exposed

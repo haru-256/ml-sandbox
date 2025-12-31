@@ -1,6 +1,6 @@
-
 import polars as pl
 from pytest_mock import MockerFixture
+
 from ml_sandbox_libs.data.amazon_reviews_dataset import (
     SpecialCategoryIndex,
     SpecialItemIndex,
