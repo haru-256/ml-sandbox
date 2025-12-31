@@ -12,6 +12,16 @@
 2. **Ranking**: 選抜された候補アイテムに対して、より複雑なモデルを用いて正確なスコアリングと順位付けを行う段階。
 3. **Re-ranking**: 多様性やビジネスルールなどを考慮して最終的なリストを作成する段階。
 
+```mermaid
+graph TD
+    Items["All Items<br>(Millions)"] --> Retrieval["Candidate Generation / Retrieval<br>(Fast Selection)"]
+    Retrieval -->|"Hundreds/Thousands"| Ranking["Ranking<br>(Precise Scoring)"]
+    Ranking -->|"Dozens"| ReRanking["Re-ranking<br>(Rules & Diversity)"]
+    ReRanking --> Final["Final Recommendations"]
+
+    style Retrieval fill:#f96,stroke:#333,stroke-width:2px,color:black
+```
+
 本リポジトリは、このうち **Step 1: Candidate Generation** に焦点を当てています。
 目標は、膨大なアイテムコーパス $I$ から、ユーザー $u$ が次に関心を持つ可能性が高いアイテム部分集合 $C_u \subset I$ ($|C_u| \ll |I|$) を効率的に検索することです。
 
