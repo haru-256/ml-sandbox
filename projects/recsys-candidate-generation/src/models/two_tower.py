@@ -54,7 +54,7 @@ class UserTower(nn.Module):
         if hidden_dims is not None and len(hidden_dims) != 0:
             blocks: list[LinearBlock] = [
                 LinearBlock(
-                    in_features=self.user_id_dim if i == 0 else hidden_dim,
+                    in_features=self.user_id_dim if i == 0 else hidden_dims[i - 1],
                     out_features=hidden_dim,
                     normalize=normalization,
                     activation=activation,
@@ -141,7 +141,7 @@ class ItemTower(nn.Module):
         if hidden_dims is not None and len(hidden_dims) != 0:
             blocks: list[LinearBlock] = [
                 LinearBlock(
-                    in_features=self.item_id_dim if i == 0 else hidden_dim,
+                    in_features=self.item_id_dim if i == 0 else hidden_dims[i - 1],
                     out_features=hidden_dim,
                     normalize=normalization,
                     activation=activation,

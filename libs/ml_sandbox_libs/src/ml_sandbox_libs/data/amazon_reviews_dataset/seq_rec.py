@@ -1,6 +1,6 @@
 import pathlib
 import pickle
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 import datasets as D
 import lightning as L
@@ -30,22 +30,31 @@ def seq_rec_preprocess_dataset(
     dict[str, int],
     dict[str, int],
     dict[str, int],
-    dict[int, int],
+    dict[int, dict[str, Any]],
 ]:
-    """preprocess the dataset
+    """Preprocess the dataset for Sequential Recommendation.
+
+    This function performs common preprocessing (converting to Polars, joining metadata, filtering)
+    and then applies sequential recommendation specific preprocessing:
+    - Creating history columns.
+    - Adding IDs.
+    - Creating item metadata dictionary for negative sampling.
 
     Args:
-        dataset: dataset from the datasets library(transformers)
-        metadata: metadata dataset from the datasets library(transformers)
-        filter_no_history: whether to filter out the dataset which has no history. Defaults to True.
+        dataset_dict: The dataset dictionary containing train, validation, and test splits (from HuggingFace Datasets).
+        metadata: The metadata dataset containing item information (from HuggingFace Datasets).
+        filter_no_history: If True, filters out users with no interaction history. Defaults to True.
 
     Returns:
-        train_df: train dataset
-        val_df: validation dataset
-        test_df: test dataset
-        user2index: user to index dictionary
-        item2index: item to index dictionary
-        category2index: category to index dictionary
+        A tuple containing:
+            - train_df: Preprocessed training DataFrame.
+            - val_df: Preprocessed validation DataFrame.
+            - test_df: Preprocessed test DataFrame.
+            - user2index: Mapping from user ID to integer index.
+            - item2index: Mapping from item ID (parent_asin) to integer index.
+            - category2index: Mapping from category name to integer index.
+            - item_index_2_metadata: Mapping from item integer index to its metadata dict
+                (containing 'category_index', 'average_rating', 'rating_number').
     """
     (
         (train_df, val_df, test_df),
@@ -196,6 +205,45 @@ def seq_rec_preprocess_dataset(
     logger.info("Preprocessing the test dataset")
     test_df = _preprocess(test_df)
 
+    # create item index to metadata dictionary
+    # we need category_index, average_rating, rating_number
+    item_metadata_df = (
+        item2index_df.join(meta_df, on="parent_asin", how="left", validate="m:1")
+        .select(["item_index", "average_rating", "rating_number"])
+        .with_columns(
+            pl.when(pl.col("item_index") == SpecialItemIndex.PAD)
+            .then(0.0)
+            .when(pl.col("average_rating").is_null())
+            .then(meta_df["average_rating"].mean())
+            .otherwise(pl.col("average_rating"))
+            .alias("average_rating"),
+            pl.when(pl.col("item_index") == SpecialItemIndex.PAD)
+            .then(0)
+            .when(pl.col("rating_number").is_null())
+            .then(0)
+            .otherwise(pl.col("rating_number"))
+            .cast(pl.Int64)
+            .alias("rating_number"),
+        )
+    )
+
+    metadata_map = {
+        row["item_index"]: {
+            "average_rating": row["average_rating"],
+            "rating_number": row["rating_number"],
+        }
+        for row in item_metadata_df.iter_rows(named=True)
+    }
+
+    item_index_2_metadata: dict[int, dict[str, Any]] = {}
+    for item_index, category_index in item_index_2_category_index.items():
+        meta = metadata_map.get(item_index, {"average_rating": 0.0, "rating_number": 0})
+        item_index_2_metadata[item_index] = {
+            "category_index": category_index,
+            "average_rating": meta["average_rating"],
+            "rating_number": meta["rating_number"],
+        }
+
     return (
         train_df,
         val_df,
@@ -203,7 +251,7 @@ def seq_rec_preprocess_dataset(
         user2index,
         item2index,
         category2index,
-        item_index_2_category_index,
+        item_index_2_metadata,
     )
 
 
@@ -222,6 +270,11 @@ class AmazonReviewsSeqRecItem(NamedTuple):
         neg_item_indexes: negative item indexes, shape: (neg_sample_size,)
         neg_category_indexes: negative category indexes, shape: (neg_sample_size,)
         neg_average_ratings: negative average ratings, shape: (neg_sample_size,)
+        pos_average_rating: positive average rating, shape: ()
+        neg_item_indexes: negative item indexes, shape: (neg_sample_size,)
+        neg_category_indexes: negative category indexes, shape: (neg_sample_size,)
+        neg_average_ratings: negative average ratings, shape: (neg_sample_size,)
+        neg_rating_numbers: negative rating numbers, shape: (neg_sample_size,)
     """
 
     user_index: torch.Tensor
@@ -234,6 +287,7 @@ class AmazonReviewsSeqRecItem(NamedTuple):
     neg_item_indexes: torch.Tensor
     neg_category_indexes: torch.Tensor
     neg_average_ratings: torch.Tensor
+    neg_rating_numbers: torch.Tensor
 
 
 class AmazonReviewsSeqRecBatch(AmazonReviewsSeqRecItem):
@@ -248,6 +302,8 @@ class AmazonReviewsSeqRecBatch(AmazonReviewsSeqRecItem):
         pos_category_index: positive category index, shape: (B,)
         neg_item_indexes: negative item indexes, shape: (B, neg_sample_size)
         neg_category_indexes: negative category indexes, shape: (B,  neg_sample_size)
+        neg_average_ratings: negative average ratings, shape: (B, neg_sample_size)
+        neg_rating_numbers: negative rating numbers, shape: (B, neg_sample_size)
     """
 
 
@@ -264,7 +320,7 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
 
         Args:
             df: dataframe, schema: ["user_index", "history_index", "item_index"]
-            random_neg_sampling_pool: random negative sampling pool, schema: ["item_index", "category_index", "average_rating"]
+            random_neg_sampling_pool: random negative sampling pool, schema: ["item_index", "category_index", "average_rating", "rating_number"]
             neg_sample_size: negative sample size
             max_seq_len: maximum sequence length
             seed: random seed. Defaults to 1026.
@@ -280,7 +336,7 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
 
     def negative_sampling(
         self, pos_item_index: int, neg_sample_size: int
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         """Negative sampling
 
         Args:
@@ -296,8 +352,14 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
         sampled_neg_item_indexes = torch.tensor(sampled_df["item_index"], dtype=torch.long)
         sampled_neg_category_indexes = torch.tensor(sampled_df["category_index"], dtype=torch.long)
         sampled_neg_average_ratings = torch.tensor(sampled_df["average_rating"], dtype=torch.float)
+        sampled_neg_rating_numbers = torch.tensor(sampled_df["rating_number"], dtype=torch.float)
         assert len(sampled_neg_item_indexes) == neg_sample_size == len(sampled_neg_category_indexes)
-        return sampled_neg_item_indexes, sampled_neg_category_indexes, sampled_neg_average_ratings
+        return (
+            sampled_neg_item_indexes,
+            sampled_neg_category_indexes,
+            sampled_neg_average_ratings,
+            sampled_neg_rating_numbers,
+        )
 
     @staticmethod
     def trunc_and_pad(seq: torch.Tensor, max_seq_len: int) -> torch.Tensor:
@@ -336,12 +398,20 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
         category_history = AmazonReviewsSeqRecDataset.trunc_and_pad(
             category_history, self.max_seq_len
         )
+        average_rating_history = AmazonReviewsSeqRecDataset.trunc_and_pad(
+            average_rating_history, self.max_seq_len
+        )
         # shape: ()
         pos_item_index = torch.tensor(row["item_index"], dtype=torch.long)
         pos_category_index = torch.tensor(row["category_index"], dtype=torch.long)
         pos_average_rating = torch.tensor(row["average_rating"], dtype=torch.float)
         # shape: (neg_sample_size,)
-        neg_item_indexes, neg_category_indexes, neg_average_ratings = self.negative_sampling(
+        (
+            neg_item_indexes,
+            neg_category_indexes,
+            neg_average_ratings,
+            neg_rating_numbers,
+        ) = self.negative_sampling(
             int(pos_item_index.item()), neg_sample_size=self.neg_sample_size
         )
 
@@ -356,6 +426,7 @@ class AmazonReviewsSeqRecDataset(Dataset[AmazonReviewsSeqRecItem]):
             neg_item_indexes=neg_item_indexes,
             neg_category_indexes=neg_category_indexes,
             neg_average_ratings=neg_average_ratings,
+            neg_rating_numbers=neg_rating_numbers,
         )
 
 
@@ -400,7 +471,7 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
         user2index_path = self.save_dir / "user2index.pkl"
         item2index_path = self.save_dir / "item2index.pkl"
         category2index_path = self.save_dir / "category2index.pkl"
-        item_index_2_category_index_path = self.save_dir / "item_index_2_category_index.pkl"
+        item_index_2_metadata_path = self.save_dir / "item_index_2_metadata.pkl"
 
         if (
             train_path.exists()
@@ -409,7 +480,7 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
             and user2index_path.exists()
             and item2index_path.exists()
             and category2index_path.exists()
-            and item_index_2_category_index_path.exists()
+            and item_index_2_metadata_path.exists()
         ):
             logger.info("Loading preprocessed dataset")
             self.train_df = pl.read_parquet(train_path)
@@ -421,8 +492,8 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
                 self.item2index: dict[str, int] = pickle.load(f)
             with open(category2index_path, "rb") as f:
                 self.category2index: dict[str, int] = pickle.load(f)
-            with open(item_index_2_category_index_path, "rb") as f:
-                self.item_index_2_category_index: dict[int, int] = pickle.load(f)
+            with open(item_index_2_metadata_path, "rb") as f:
+                self.item_index_2_metadata: dict[int, dict[str, Any]] = pickle.load(f)
         else:
             if not self.save_dir.exists():
                 self.save_dir.mkdir(parents=True)
@@ -437,7 +508,7 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
                 self.user2index,
                 self.item2index,
                 self.category2index,
-                self.item_index_2_category_index,
+                self.item_index_2_metadata,
             ) = seq_rec_preprocess_dataset(
                 dataset_dict, metadata, filter_no_history=self.filter_no_history
             )
@@ -454,18 +525,25 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
                 pickle.dump(self.item2index, f)
             with open(category2index_path, "wb") as f:
                 pickle.dump(self.category2index, f)
-            with open(item_index_2_category_index_path, "wb") as f:
-                pickle.dump(self.item_index_2_category_index, f)
+            with open(item_index_2_metadata_path, "wb") as f:
+                pickle.dump(self.item_index_2_metadata, f)
 
         # validation and test dataset has too many samples, so we need to reduce the size
         if self.sampling_val_test:
             self.val_df = self.val_df.sample(n=100000, seed=1027)
             self.test_df = self.test_df.sample(n=100000, seed=1028)
-        # FIXME: meta_dfを渡すようにしたい。meta_df + item_index, category_indexでitemの情報を持つようにしたい。UNKのindexは平均値を入れる?
         self.random_neg_sampling_pool = pl.from_dict(
             {
-                "item_index": list(self.item_index_2_category_index.keys()),
-                "category_index": list(self.item_index_2_category_index.values()),
+                "item_index": list(self.item_index_2_metadata.keys()),
+                "category_index": [
+                    meta["category_index"] for meta in self.item_index_2_metadata.values()
+                ],
+                "average_rating": [
+                    meta["average_rating"] for meta in self.item_index_2_metadata.values()
+                ],
+                "rating_number": [
+                    meta["rating_number"] for meta in self.item_index_2_metadata.values()
+                ],
             }
         )
 

@@ -232,7 +232,7 @@ class SimpleXModule(BaseModule):
         pad_idx: int,
         hidden_dims: list[int],
         user_id_weight: float,
-        margine: float,
+        margin: float,
         negative_weight: float | None,
         eval_top_k: int,
         optimizer: Optimizer,
@@ -252,7 +252,7 @@ class SimpleXModule(BaseModule):
             pad_idx: Index used for padding in the item ID embedding table.
             hidden_dims: List of hidden layer dimensions for the towers.
             user_id_weight: Weight for the user ID embedding in the final user representation.
-            margine: Margin parameter for CCL loss.
+            margin: Margin parameter for CCL loss.
             negative_weight: Weight for negative samples in CCL loss.
             eval_top_k: Top-K value for retrieval metrics (HitRate, NDCG).
             optimizer: Optimizer strategy object.
@@ -279,7 +279,7 @@ class SimpleXModule(BaseModule):
             user_history_pooling=user_history_pooling,
             item_pad_idx=pad_idx,
         )
-        self.loss_fn = CCL(margin=margine, negative_weight=negative_weight)
+        self.loss_fn = CCL(margin=margin, negative_weight=negative_weight)
         self.hit_rate = RetrievalHitRate(top_k=eval_top_k)
         self.ndcg = RetrievalNormalizedDCG(top_k=eval_top_k)
         self.optimizer = optimizer

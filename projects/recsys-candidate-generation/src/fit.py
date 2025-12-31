@@ -120,7 +120,7 @@ def main(cfg: DictConfig) -> None:
             item_id_dim=cfg.model.item_id_dim,
             hidden_dims=cfg.model.hidden_dims,
             user_id_weight=cfg.model.user_id_weight,
-            margine=cfg.model.margine,
+            margin=cfg.model.margin,
             negative_weight=cfg.model.negative_weight,
             normalization=cfg.model.normalization,
             activation=cfg.model.activation,
