@@ -1,7 +1,7 @@
 from typing import Any, override
 
 import torch
-from lightning.pytorch.utilities.types import LRSchedulerConfigType, OptimizerLRSchedulerConfig
+from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.utils.metrics import (
     create_classification_inputs,
@@ -13,7 +13,7 @@ from torchmetrics.classification import BinaryAccuracy
 from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
 from loss import gBCE
-from my_types import OptimizerParams
+from optimizer import Optimizer
 
 from .base import BaseModule
 from .sasrec import SASRec
@@ -34,7 +34,7 @@ class gSASRecModule(BaseModule):
         eval_top_k: int,
         t: float,
         neg_sample_size: int,
-        optimizer_params: OptimizerParams,
+        optimizer: Optimizer,
     ):
         """SASRec model module
 
@@ -51,10 +51,10 @@ class gSASRecModule(BaseModule):
             eval_top_k: number of top-k items for evaluation metrics
             t: calibration parameter for gSASRec loss
             neg_sample_size: negative sample size per positive sample. This parameter is used to calculate the gSASRec loss for alpha.
-            optimizer_params: Optimizer parameters including learning rate, weight decay, and learning rate scheduler configuration.
+            optimizer: Optimizer strategy object.
         """
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["optimizer"])
         self.num_items = num_items
         self.max_seq_len = max_seq_len
         self.model = SASRec(
@@ -72,7 +72,7 @@ class gSASRecModule(BaseModule):
         self.accuracy = BinaryAccuracy(threshold=0.5)
         self.hit_rate = RetrievalHitRate(top_k=eval_top_k)
         self.ndcg = RetrievalNormalizedDCG(top_k=eval_top_k)
-        self.optimizer_params = optimizer_params
+        self.optimizer = optimizer
 
     def forward(
         self, item_history: torch.Tensor, pos_item: torch.Tensor, neg_item: torch.Tensor
@@ -191,60 +191,21 @@ class gSASRecModule(BaseModule):
     def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
         """Configures the optimizer and optional learning rate scheduler.
 
-        Uses AdamW optimizer and optionally a CosineLRScheduler based on
-        the provided `optimizer_params`.
-
         Returns:
             A dictionary or a tuple containing the optimizer and optionally
             the learning rate scheduler configuration.
-
         """
-        optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=self.optimizer_params.lr,
-            weight_decay=self.optimizer_params.weight_decay,
-        )
-        rt: OptimizerLRSchedulerConfig = {"optimizer": optimizer}  # type: ignore
-        if self.optimizer_params.lr_scheduler is not None:
-            lr_scheduler = CosineLRScheduler(
-                optimizer,
-                t_initial=self.optimizer_params.lr_scheduler.t_initial,
-                lr_min=self.optimizer_params.lr_scheduler.lr_min,
-                warmup_t=self.optimizer_params.lr_scheduler.warmup_t,
-                warmup_lr_init=self.optimizer_params.lr_scheduler.warmup_lr_init,
-                warmup_prefix=True,
-                cycle_limit=self.optimizer_params.lr_scheduler.cycle_limit,
-                cycle_mul=1,
-            )
-            lr_scheduler_config: LRSchedulerConfigType = {
-                "scheduler": lr_scheduler,  # type: ignore
-                "interval": self.optimizer_params.lr_scheduler.step_unit,
-                "frequency": self.optimizer_params.lr_scheduler.frequency,
-                "monitor": None,
-                "strict": True,
-                "name": "learning_rate",
-            }
-            rt.update({"lr_scheduler": lr_scheduler_config})
-        return rt
+        return self.optimizer.configure_optimizers(self.model.parameters())
 
     @override
     def lr_scheduler_step(self, scheduler: CosineLRScheduler, metric: Any | None) -> None:  # type: ignore
-        """CosineLRSchedulerのstepを進める
-        CosineLRSchedulerがtorch.optim.lr_scheduler.LRSchedulerを継承していないためoverride
+        """Advances the learning rate scheduler.
+
+        Args:
+            scheduler: The learning rate scheduler.
+            metric: Optional metric for the scheduler.
         """
-        match self.optimizer_params.lr_scheduler.step_unit:
-            case "epoch":
-                steps = self.current_epoch
-            case "step":
-                steps = self.global_step
-            case _:
-                raise ValueError(
-                    f"Invalid step unit: {self.optimizer_params.lr_scheduler.step_unit}"
-                )
-        if metric is None:
-            scheduler.step(epoch=steps)  # NOTE: epochとあるが、epochでもstepでもどちらでもOK
-        else:
-            scheduler.step(epoch=steps, metric=metric)
+        self.optimizer.lr_scheduler_step(scheduler, metric, self.current_epoch, self.global_step)
 
     def summary(
         self,
