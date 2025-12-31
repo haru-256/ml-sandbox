@@ -275,18 +275,26 @@ def common_preprocess_dataset(
     tuple[dict[str, int], dict[str, int], dict[str, int], dict[int, int]],
     tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame],
 ]:
-    """Common preprocessing steps for the dataset
+    """Common preprocessing steps for the Amazon Reviews dataset.
+
+    This function performs general preprocessing steps including:
+    - Converting HuggingFace datasets to Polars DataFrames.
+    - Formatting metadata columns (especially categories).
+    - Joining metadata to the main interaction DataFrames.
+    - Filtering out interactions with empty history (if requested).
+    - Building feature indices for users, items, and categories.
 
     Args:
-        dataset_dict: dataset from the datasets library(transformers)
-        metadata: metadata dataset from the datasets library(transformers)
-        filter_no_history: whether to filter out the dataset which has no history. Defaults to True.
+        dataset_dict: The dataset dictionary containing train, validation, and test splits (from HuggingFace Datasets).
+        metadata: The metadata dataset containing item information (from HuggingFace Datasets).
+        filter_no_history: If True, filters out users with no interaction history. Defaults to True.
 
     Returns:
-        tuple of train_df, val_df, test_df: preprocessed train, validation and test datasets
-        meta_df: metadata dataframe
-        tuple of user2index, item2index, category2index, item_index_2_category_index: dictionaries for user, item and category indices
-        tuple of user2index_df, item2index_df, category2index_df: dataframes for user, item and category indices
+        A tuple containing:
+            - (train_df, val_df, test_df): Tuple of preprocessed train, validation, and test DataFrames.
+            - meta_df: Preprocessed metadata DataFrame.
+            - (user2index, item2index, category2index, item_index_2_category_index): Tuple of dictionaries mapping features to integer indices.
+            - (user2index_df, item2index_df, category2index_df): Tuple of DataFrames corresponding to the indices.
     """
     schema_overrides = {
         "user_id": pl.String,

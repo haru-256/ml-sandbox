@@ -55,6 +55,12 @@ def main(cfg: DictConfig) -> None:
             cycle_limit=cfg.optimizer.lr_scheduler.cycle_limit,
         ),
     )
+    optimizer = AdamWCosine(
+        lr=optimizer_params.lr,
+        weight_decay=optimizer_params.weight_decay,
+        lr_scheduler_params=optimizer_params.lr_scheduler,
+    )
+
     if cfg.model.name == "TwoTower":
         module = TwoTowerModule(
             num_users=len(datamodule.user2index),
@@ -68,7 +74,7 @@ def main(cfg: DictConfig) -> None:
             dropout=cfg.model.dropout,
             pad_idx=SpecialItemIndex.PAD,
             # optimizer
-            optimizer_params=optimizer_params,
+            optimizer=optimizer,
             # eval
             eval_top_k=cfg.data.eval_top_k,
         )
@@ -84,7 +90,7 @@ def main(cfg: DictConfig) -> None:
             pad_idx=SpecialItemIndex.PAD,
             float16=cfg.device.float16,
             # optimizer
-            optimizer_params=optimizer_params,
+            optimizer=optimizer,
             # eval
             eval_top_k=cfg.data.eval_top_k,
         )
@@ -102,16 +108,11 @@ def main(cfg: DictConfig) -> None:
             t=cfg.model.t,
             neg_sample_size=cfg.data.neg_sample_size,
             # optimizer
-            optimizer_params=optimizer_params,
+            optimizer=optimizer,
             # eval
             eval_top_k=cfg.data.eval_top_k,
         )
     elif cfg.model.name == "SimpleX":
-        optimizer = AdamWCosine(
-            lr=optimizer_params.lr,
-            weight_decay=optimizer_params.weight_decay,
-            lr_scheduler_params=optimizer_params.lr_scheduler,
-        )
         module = SimpleXModule(
             num_users=len(datamodule.user2index),
             num_items=len(datamodule.item2index),
@@ -120,7 +121,7 @@ def main(cfg: DictConfig) -> None:
             item_id_dim=cfg.model.item_id_dim,
             hidden_dims=cfg.model.hidden_dims,
             user_id_weight=cfg.model.user_id_weight,
-            margine=cfg.model.margine,
+            margin=cfg.model.margin,
             negative_weight=cfg.model.negative_weight,
             normalization=cfg.model.normalization,
             activation=cfg.model.activation,
@@ -164,8 +165,6 @@ def main(cfg: DictConfig) -> None:
         logger=wandb_logger,
         gradient_clip_val=cfg.optimizer.gradient_clip_val,
         gradient_clip_algorithm="norm",
-        limit_train_batches=1000,
-        limit_val_batches=1000,
     )
     trainer.fit(model=module, datamodule=datamodule)
 
