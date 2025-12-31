@@ -270,10 +270,6 @@ class AmazonReviewsSeqRecItem(NamedTuple):
         neg_item_indexes: negative item indexes, shape: (neg_sample_size,)
         neg_category_indexes: negative category indexes, shape: (neg_sample_size,)
         neg_average_ratings: negative average ratings, shape: (neg_sample_size,)
-        pos_average_rating: positive average rating, shape: ()
-        neg_item_indexes: negative item indexes, shape: (neg_sample_size,)
-        neg_category_indexes: negative category indexes, shape: (neg_sample_size,)
-        neg_average_ratings: negative average ratings, shape: (neg_sample_size,)
         neg_rating_numbers: negative rating numbers, shape: (neg_sample_size,)
     """
 
