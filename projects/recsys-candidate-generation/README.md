@@ -2,28 +2,68 @@
 
 ## Overview
 
-このリポジトリには、Candidate Generationの実験コードが含まれています。
+このリポジトリには、推薦システムの重要な段階である **Candidate Generation (候補生成)** の実験コードが含まれています。
 
-Candidate Generationとは、以下2段階の推薦のMulti-Stage Architectureの1つ目の段階を指します。
+### Problem Setting: Candidate Generation / Retrieval
 
-1. Candidate Generation: 推薦候補の生成
-2. Ranking: 候補のランキング
+大規模な推薦システムでは、計算コストの制約から、全てのアイテムをすべてのユーザーに対してランキングすることは困難です。そのため、一般的に **Multi-Stage Architecture** が採用されます。
+
+1. **Candidate Generation (Retrieval)**: 数百万〜数億のアイテム群から、ユーザーに関連性の高い数百〜数千の候補アイテムを高速に選抜する段階。
+2. **Ranking**: 選抜された候補アイテムに対して、より複雑なモデルを用いて正確なスコアリングと順位付けを行う段階。
+3. **Re-ranking**: 多様性やビジネスルールなどを考慮して最終的なリストを作成する段階。
+
+本リポジトリは、このうち **Step 1: Candidate Generation** に焦点を当てています。
+目標は、膨大なアイテムコーパス $I$ から、ユーザー $u$ が次に関心を持つ可能性が高いアイテム部分集合 $C_u \subset I$ ($|C_u| \ll |I|$) を効率的に検索することです。
+
+#### Methods
+
+Candidate Generationのアプローチとして、本リポジトリでは主に以下の2つを扱います。
+
+- **Sequential Recommendation**:
+    - ユーザーの過去の行動履歴（シーケンス）を入力とし、文脈を考慮して次のアイテムを予測します。
+    - 代表例: SASRec, gSASRec
+- **General / Collaborative Filtering**:
+    - ユーザーIDやアイテムID、その他特徴量を用いてユーザーとアイテムの類似性を学習します。
+    - 代表例: TwoTower, SimpleX
+
+#### Training Objective
+
+多くのモデルでは、**Negative Sampling** を用いた学習が行われます。
+正例（ユーザーが実際にインタラクションしたアイテム）と、ランダムまたは重要度に基づいてサンプリングされた負例（インタラクションしていないアイテム）を区別するようにモデルを訓練します。
 
 ## データセット
 
-データセットは、[Amazon Review 2023](https://recsys-challenge.org/) のデータセットを使用します。
-Amazon Reviews dataset is large-scale dataset collected in 2023 by McAuley Lab, and it includes rich features such as:
+実験には **[Amazon Reviews 2023](https://amazon-reviews-2023.github.io/)** (McAuley Lab) の **Video Games** カテゴリを使用しています。
 
-- User Reviews (ratings, text, helpfulness votes, etc.);
-- Item Metadata (descriptions, price, raw image, etc.);
-- Links (user-item / bought together graphs).
+- **Source**: [Amazon Reviews 2023](https://amazon-reviews-2023.github.io/)
+- **Category**: Video Games
 
-ユーザーに対して、前期間にレビューしたアイテムから、次の期間中にレビューを行うアイテムを推薦することを目的としています。
+### Features
 
-related information
+データセットには以下のリッチな特徴が含まれています。
 
-- HP: <https://amazon-reviews-2023.github.io/>
-- paper: [Bridging Language and Items for Retrieval and Recommendation](https://arxiv.org/abs/2403.03952)
+- **User Reviews**: 評価 (Rating), テキスト, 投票数など
+- **Item Metadata**: 商品説明, 価格, 画像, カテゴリなど
+- **Links**: User-Item グラフ, Co-purchase グラフなど
+
+### Preprocessing & Configuration
+
+本実験では、**"0core_timestamp_w_his"** 設定を採用しています。これは、ユーザーの行動履歴を時系列順に並べたシーケンスとして扱う設定です。
+
+主な前処理パイプライン (`libs/ml_sandbox_libs` に実装):
+
+1. **Filtering**:
+   - 出現頻度の低いユーザーやアイテムを `UNK` (Unknown) トークンとして扱います。
+   - インタラクション履歴が空のユーザーを除外します。
+2. **Sequentialization**:
+   - 各ユーザーについて、レビューを行ったアイテムをタイムスタンプ順にソートし、シーケンス（履歴）を作成します。
+   - `max_seq_len` に合わせて、古い履歴の切り捨て (Truncate) またはパディング (Pad) を行います。
+3. **Negative Sampling**:
+   - 学習および評価時に、正例アイテムに対してランダムに負例アイテムをサンプリングします。
+4. **Metadata Integration**:
+   - アイテムのカテゴリ情報や平均評価などをメタデータとして統合し、モデルの入力として利用可能にします。
+
+- **Paper**: [Bridging Language and Items for Retrieval and Recommendation](https://arxiv.org/abs/2403.03952)
 
 ## ディレクトリ構成
 
@@ -53,7 +93,7 @@ recsys-candidate-generation/
 具体的には以下のモデルを実装する予定です。
 
 - [x] TwoTower: Two-Tower Model
-  - ユーザーとアイテムを独立したタワー（ニューラルネットワーク）でエンベディングし、その類似度（例：内積）を計算して推薦を行うモデル。
+    - ユーザーとアイテムを独立したタワー（ニューラルネットワーク）でエンベディングし、その類似度（例：内積）を計算して推薦を行うモデル。
 - [ ] MF: Matrix Factorization
 - [ ] Collaborative Filtering
 - [ ] NCF: Neural Collaborative Filtering
@@ -62,11 +102,11 @@ recsys-candidate-generation/
 - [ ] LightGCN
 - [ ] GRU4Rec: Gated Recurrent Unit for Sequential Recommendation
 - [x] SASRec: Self-Attentive Sequential Recommendation
-  - TransformerのSelf-Attention機構を利用して、ユーザーの行動履歴のシーケンシャルなパターンを捉え、次のアイテムを予測するモデル。
+    - TransformerのSelf-Attention機構を利用して、ユーザーの行動履歴のシーケンシャルなパターンを捉え、次のアイテムを予測するモデル。
 - [ ] BERT4Rec: BERT for Sequential Recommendation
 - [x] gSASRec
 - [x] SimpleX: A Simple and Strong Baseline for Collaborative Filtering
-  - ユーザーの行動履歴の平均プーリングとCosine Contrastive Loss (CCL) を組み合わせたシンプルかつ強力なモデル。
+    - ユーザーの行動履歴の平均プーリングとCosine Contrastive Loss (CCL) を組み合わせたシンプルかつ強力なモデル。
 
 ### TwoTower
 
