@@ -10,7 +10,7 @@
 .
 ├── README.md
 ├── apps/  # 機械学習コードを動かすアプリケーションコード
-│   └── job_runner
+│   └── vertex-job-runner
 ├── libs/ # 複数projectで使用される内部ライブラリ
 │   └── ml_sandbox_libs
 └── projects/ # 各問題設定に対応するproject
