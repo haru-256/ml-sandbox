@@ -1,0 +1,26 @@
+[project]
+name = "vertex-job-runner-sample"
+version = "0.1.0"
+description = "Command line utilities to run vertex ai custom training job"
+requires-python = ">=3.12"
+dependencies = [
+  "vertex-job-runner",
+]
+
+[tool.uv.sources]
+vertex-job-runner = { path = "../", editable = true }
+
+
+[tool.vrun]
+project = "haru256-vertex-ai-sandbox"
+location = "us-central1"
+image_uri = "gcr.io/deeplearning-platform-release/base-cpu:latest"
+gcs_uri = "gs://haru256-vertex-ai-sandbox/vertex-job-runner/"
+service_account = "hoge@haru256-vertex-ai-sandbox"
+experiment_name = "vertex-job-runner-experiment"
+command = ["uv", "run", "main.py"]
+
+machine_type = "e2-standard-4"
+accelerator_type = "NVIDIA_TESLA_T4"
+accelerator_count = 1
+args = ["hoge=2", "fuga=1"]

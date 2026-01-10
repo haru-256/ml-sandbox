@@ -1,7 +1,7 @@
 [project]
-name = "job-runner"
+name = "vertex-job-runner"
 version = "0.1.0"
-description = "Command line utilities to run ml training job"
+description = "Command line utilities to run vertex ai custom training job"
 readme = "README.md"
 authors = [{ name = "haru256", email = "yohei.kuro48@gmail.com" }]
 requires-python = ">=3.12"
@@ -10,15 +10,19 @@ dependencies = [
   "loguru>=0.7.3",
   "pydantic>=2.11.3",
   "pydantic-settings>=2.8.1",
+  "typer>=0.21.1",
   "google-cloud-aiplatform>=1.88.0",
 ]
 
 [project.scripts]
-job-runner = "job_runner.main:main"
+vrun = "vertex_job_runner.cli:app"
 
 [dependency-groups]
 test = ["pytest~=8.3.4", "pytest-console-scripts~=1.4.1"]
 lint = ["ruff~=0.8.4", "mypy~=1.14.1"]
+
+[tool.uv]
+package = true
 
 [tool.ruff]
 target-version = "py312"
@@ -42,8 +46,19 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["uv_build>=0.9.23,<0.10.0"]
+build-backend = "uv_build"
 
-[tool.hatch.build.targets.sdist]
-exclude = ["tests", "samples"]
+[tool.vrun]
+project = "haru256-vertex-ai-sandbox"
+location = "us-central1"
+image_uri = "gcr.io/deeplearning-platform-release/base-cpu:latest"
+gcs_uri = "gs://haru256-vertex-ai-sandbox/vertex-job-runner/"
+service_account = "hoge@haru256-vertex-ai-sandbox"
+experiment_name = "vertex-job-runner-experiment"
+command = "uv run main.py"
+
+machine_type = "e2-standard-4"
+accelerator_type = "NVIDIA_TESLA_T4"
+accelerator_count = 1
+args = ["hoge=2", "fuga=1"]

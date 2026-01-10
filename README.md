@@ -39,7 +39,7 @@ Candidate Generationで絞り込んだ候補の中から、よりユーザーが
 
 ## apps
 
-### job_runner
+### vertex-job-runner
 
 Vertex AIでのトレーニングジョブを実行するためのCLIツール
 
