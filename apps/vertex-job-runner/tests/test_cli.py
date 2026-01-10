@@ -5,9 +5,20 @@ from pytest_console_scripts import ScriptRunner
 PRG = "vrun"
 
 
+def strip_ansi(text: str) -> str:
+    """
+    Remove ANSI escape codes from a string.
+
+    This is useful for testing CLI output where color codes might be present
+    depending on the environment (e.g., CI vs local).
+    """
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+    return ansi_escape.sub("", text)
+
+
 def test_help(script_runner: ScriptRunner) -> None:
     result = script_runner.run([PRG, "--help"], check=True)
-    assert re.search(rf"Usage: {PRG}", result.stdout) is not None
+    assert re.search(rf"Usage: {PRG}", strip_ansi(result.stdout)) is not None
 
 
 def test_dry_run_config_loading(script_runner: ScriptRunner) -> None:
