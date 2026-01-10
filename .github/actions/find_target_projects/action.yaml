@@ -59,7 +59,7 @@ runs:
             // Filter out directories that contain required files.
             const projects = changed_directories.filter(path => {
               if (
-                fs.statSync(path).isDirectory()
+                fs.existsSync(path) && fs.statSync(path).isDirectory()
               ) {
                 // Check if all required files exist in the directory
                 const all_files_exist = required_files.every(file => fs.existsSync(`${path}/${file}`));

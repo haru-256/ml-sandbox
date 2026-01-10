@@ -2,6 +2,7 @@ import shlex
 from typing import List, Optional
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
@@ -36,22 +37,21 @@ def run(
 ) -> None:
     """Run a Vertex AI custom training job."""
 
-    cli_overrides: dict[str, str | int | List[str]] = {}
-
-    if machine_type is not None:
-        cli_overrides["machine_type"] = machine_type
-    if accelerator_type is not None:
-        cli_overrides["accelerator_type"] = accelerator_type
-    if accelerator_count is not None:
-        cli_overrides["accelerator_count"] = accelerator_count
-    if args is not None:
-        cli_overrides["args"] = shlex.split(args)
+    cli_args = {
+        "machine_type": machine_type,
+        "accelerator_type": accelerator_type,
+        "accelerator_count": accelerator_count,
+        "args": shlex.split(args) if args is not None else None,
+    }
+    cli_overrides: dict[str, str | int | List[str]] = {
+        k: v for k, v in cli_args.items() if v is not None
+    }
 
     # Initialize settings with CLI overrides
     try:
         settings = Settings(**cli_overrides)  # type: ignore
-    except Exception as e:
-        console.print(f"[bold red]Configuration Error:[/bold red] {e}")
+    except ValidationError as e:
+        console.print(f"[bold red]Configuration Error:[/bold red]\n{e}")
         raise typer.Exit(code=1)
 
     table = Table(title="🚀 Custom-Training Job Configuration", show_header=False)
@@ -65,9 +65,9 @@ def run(
         console.print("[yellow]Dry run mode. Exiting without execution.[/yellow]")
         return
 
-    # with console.status("[bold green]Submitting job to Vertex AI...[/bold green]"):
-    job_name = run_custom_training_job(settings)
-    console.print(f"Job submitted! Job: [bold]{job_name}[/bold]")
+    with console.status("[bold green]Submitting job to Vertex AI...[/bold green]"):
+        job_name = run_custom_training_job(settings)
+        console.print(f"Job submitted! Job: [bold]{job_name}[/bold]")
 
 
 if __name__ == "__main__":

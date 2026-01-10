@@ -12,6 +12,7 @@ Google Cloud Vertex AI 上で機械学習のトレーニングジョブを実行
 ## 設定
 
 設定は以下の優先順位（高い順）で読み込まれます：
+
 1. CLI 引数
 2. 環境変数
 3. `pyproject.toml`
