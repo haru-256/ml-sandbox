@@ -21,7 +21,7 @@ data:
 optimizer:
   lr: 0.001
   gradient_clip_val: 1.0
-  weight_decay: 0
+  weight_decay: 0.01
   lr_scheduler: # cosine annealingの設定
     step_unit: epoch # 学習率を減衰させる単位
     frequency: 1 # 学習率を減衰させる頻度
