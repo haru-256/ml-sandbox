@@ -241,14 +241,14 @@ class SASRecModule(BaseModule):
 
         self.monitor.logging_step(
             {
-                "val_loss": loss,
+                "loss": loss,
                 "accuracy": accuracy,
                 "hit_rate": self.retrieval_metrics.hit_rate,
                 "ndcg": self.retrieval_metrics.ndcg,
                 "mrr": self.retrieval_metrics.mrr,
             },
-            batch_size=target.size(0),
-            step=self.monitor.total_val_steps,
+            stage="val",
+            batch_idx=_batch_idx,
         )
 
         return loss

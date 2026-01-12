@@ -134,6 +134,9 @@ def ndcg(
 ) -> torch.Tensor:
     """Normalized Discounted Cumulative Gain at k.
 
+    Note: This implementation uses a linear gain ('relevance') instead of the more common
+    exponential gain ('2**relevance - 1').
+
     Args:
         score: Prediction scores, shape (batch_size, num_items)
         target: Ground truth relevance scores, shape (batch_size, num_items).
@@ -153,8 +156,8 @@ def ndcg(
         _, indices = score.topk(top_k, dim=1, largest=True, sorted=True)
     rel = torch.take_along_dim(target, indices, dim=1).float()
 
-    # Calculate DCG: sum(rel_i / log2(i+2)) where i is 0-indexed
-    # Using log2(i+2) because positions are 1-indexed in the formula
+    # Calculate DCG: sum(rel_i / log2(rank_i + 1)) where rank_i is 1-indexed
+    # positions array is 0-indexed [1, 2, ..., k], so log2(positions + 1) gives [log2(2), log2(3), ...]
     positions = torch.arange(1, top_k + 1, device=score.device, dtype=torch.float32)
     discounts = torch.log2(positions + 1)
     dcg = (rel / discounts).sum(dim=1)
@@ -212,8 +215,8 @@ class MRR(Metric):
         batch_mrr_sum = mrr(score, target, self.top_k, reduction="sum", indices=indices)
         batch_size = score.size(0)
 
-        self.total += batch_mrr_sum
-        self.count += batch_size
+        self.total = self.total + batch_mrr_sum  # type: ignore[assignment,has-type]
+        self.count = self.count + batch_size  # type: ignore[assignment,has-type]
 
     @override
     def compute(self) -> torch.Tensor:
@@ -222,7 +225,7 @@ class MRR(Metric):
         Returns:
             Mean reciprocal rank across all batches
         """
-        return self.total / self.count
+        return self.total / self.count  # type: ignore[return-value,operator]
 
 
 class HitRate(Metric):
@@ -260,8 +263,8 @@ class HitRate(Metric):
         batch_hit_rate_sum = hit_rate(score, target, self.top_k, reduction="sum", indices=indices)
         batch_size = score.size(0)
 
-        self.total += batch_hit_rate_sum
-        self.count += batch_size
+        self.total = self.total + batch_hit_rate_sum  # type: ignore[assignment,has-type]
+        self.count = self.count + batch_size  # type: ignore[assignment,has-type]
 
     @override
     def compute(self) -> torch.Tensor:
@@ -270,7 +273,7 @@ class HitRate(Metric):
         Returns:
             Hit rate across all batches
         """
-        return self.total / self.count
+        return self.total / self.count  # type: ignore[return-value,operator]
 
 
 class NDCG(Metric):
@@ -307,8 +310,8 @@ class NDCG(Metric):
         batch_ndcg_sum = ndcg(score, target, self.top_k, reduction="sum", indices=indices)
         batch_size = score.size(0)
 
-        self.total += batch_ndcg_sum
-        self.count += batch_size
+        self.total = self.total + batch_ndcg_sum  # type: ignore[assignment,has-type]
+        self.count = self.count + batch_size  # type: ignore[assignment,has-type]
 
     @override
     def compute(self) -> torch.Tensor:
@@ -317,7 +320,7 @@ class NDCG(Metric):
         Returns:
             NDCG across all batches
         """
-        return self.total / self.count
+        return self.total / self.count  # type: ignore[return-value,operator]
 
 
 class RetrievalMetrics(Metric):

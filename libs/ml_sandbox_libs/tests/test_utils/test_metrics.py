@@ -90,21 +90,21 @@ def test_hit_rate() -> None:
 
     # Test reduction='mean'
     expected = torch.tensor([0.0, 1.0]).mean()
-    actual = hit_rate(score, target, k=1)
+    actual = hit_rate(score, target, top_k=1)
     torch.testing.assert_close(actual, expected)
 
     expected = torch.tensor([1.0, 1.0]).mean()
-    actual = hit_rate(score, target, k=4)
+    actual = hit_rate(score, target, top_k=4)
     torch.testing.assert_close(actual, expected)
 
     # Test reduction='sum'
     expected = torch.tensor([1.0, 1.0]).sum()
-    actual = hit_rate(score, target, k=4, reduction="sum")
+    actual = hit_rate(score, target, top_k=4, reduction="sum")
     torch.testing.assert_close(actual, expected)
 
     # Test reduction='none'
     expected = torch.tensor([1.0, 1.0])
-    actual = hit_rate(score, target, k=4, reduction="none")
+    actual = hit_rate(score, target, top_k=4, reduction="none")
     torch.testing.assert_close(actual, expected)
 
 
@@ -307,9 +307,6 @@ class TestNDCG:
         torch.testing.assert_close(actual_with_indices, expected)
 
         # test accumulate
-        # Note: we need to account for the forward call above which accumulates
-        # Metric was reset after previous tests in test_forward? No, it accumulates.
-        # We should reset first to be clean or continue accumulation.
         ndcg_metric.reset()
         ndcg_metric(score, target)
         ndcg_metric(score, target, indices=indices)
