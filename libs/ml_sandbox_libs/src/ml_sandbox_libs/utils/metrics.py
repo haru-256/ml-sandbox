@@ -1,6 +1,7 @@
+from typing import Literal, override
+
 import torch
 from torchmetrics import Metric
-from torchmetrics.functional.retrieval import retrieval_hit_rate, retrieval_reciprocal_rank
 
 
 def create_classification_inputs(
@@ -42,162 +43,344 @@ def create_retrieval_inputs(
     return score, target, indexes
 
 
-def mrr(score: torch.Tensor, target: torch.Tensor, k: int = 10) -> torch.Tensor:
-    """mean reciprocal rank at k
+def mrr(
+    score: torch.Tensor,
+    target: torch.Tensor,
+    top_k: int = 10,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+    indices: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Mean reciprocal rank at k.
 
     Args:
-        score: logits, shape (batch_size, num_samples)
-        target: target long: 1 is positive and 0 is negative, shape (batch_size, num_samples)
-        k: top k
+        score: Prediction scores, shape (batch_size, num_items)
+        target: Binary targets (1 for relevant, 0 for irrelevant), shape (batch_size, num_items)
+        top_k: Number of top items to consider
+        reduction: Reduction method ('mean', 'sum', 'none'). Defaults to 'mean'.
+        indices: Pre-computed top-k indices. If None, computed from score.
 
     Returns:
-        mrr: mean reciprocal rank at k
+        MRR values. Shape depends on reduction:
+        - 'mean': scalar tensor (mean across batch)
+        - 'sum': scalar tensor (sum across batch)
+        - 'none': tensor of shape (batch_size,) (per-sample values)
     """
-    return mrr_v1(score, target, k)
+    # Get top-k indices and gather relevance values in one operation
+    if indices is None:
+        _, indices = score.topk(top_k, dim=1, largest=True, sorted=True)
+    rel = torch.take_along_dim(target, indices, dim=1)
 
-
-def mrr_v1(score: torch.Tensor, target: torch.Tensor, k: int = 10) -> torch.Tensor:
-    """mean reciprocal rank at k by myself
-
-    Args:
-        score: logits, shape (batch_size, num_samples)
-        target: target long: 1 is positive and 0 is negative, shape (batch_size, num_samples)
-        k: top k
-
-    Returns:
-        mrr: mean reciprocal rank at k
-    """
-    assert score.size() == target.size() and score.ndim == 2
-    assert k > 0 and k <= score.size(1)
-
-    _, indexes = score.topk(k, dim=1, largest=True, sorted=True)
-    rel = torch.take_along_dim(target, indexes, dim=1)
+    # Find first relevant item position and calculate reciprocal rank
+    # Use argmax to find first 1, add 1 for 1-indexed rank
     rank = rel.argmax(dim=1)
     values = 1.0 / (rank.float() + 1.0)
-    zeros_mask = rel.sum(dim=1) == 0
-    values[zeros_mask] = 0.0  # if no positive sample, mrr is 0
-    return values.mean()
+
+    # Zero out values where no relevant items exist (all zeros in top-k)
+    # Using in-place operation for efficiency
+    values.masked_fill_(rel.sum(dim=1) == 0, 0.0)
+
+    if reduction == "mean":
+        return values.mean()
+    elif reduction == "sum":
+        return values.sum()
+    else:  # reduction == "none"
+        return values
 
 
-def mrr_v2(score: torch.Tensor, target: torch.Tensor, k: int = 10) -> torch.Tensor:
-    """mean reciprocal rank at k by torchmetrics. This is slower than mrr_v1, because it uses for loop.
-
-    Args:
-        score: logits, shape (batch_size, num_samples)
-        target: target long: 1 is positive and 0 is negative, shape (batch_size, num_samples)
-        k: top k
-
-    Returns:
-        mrr: mean reciprocal rank at k
-    """
-    assert score.size() == target.size() and score.ndim == 2
-    assert k > 0 and k <= score.size(1)
-
-    values = torch.as_tensor(
-        [retrieval_reciprocal_rank(s, t, top_k=k) for s, t in zip(score, target, strict=False)],
-        dtype=torch.float32,
-    )
-    return values.mean()
-
-
-def hit_rate(score: torch.Tensor, target: torch.Tensor, k: int = 10) -> torch.Tensor:
-    """hit rate at k
+def hit_rate(
+    score: torch.Tensor,
+    target: torch.Tensor,
+    top_k: int = 10,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+    indices: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Hit rate at k.
 
     Args:
-        score: logits, shape (batch_size, num_samples)
-        target: target long, shape (batch_size, num_samples)
-        k: top k
+        score: Prediction scores, shape (batch_size, num_items)
+        target: Binary targets (1 for relevant, 0 for irrelevant), shape (batch_size, num_items)
+        top_k: Number of top items to consider
+        reduction: Reduction method ('mean', 'sum', 'none'). Defaults to 'mean'.
+        indices: Pre-computed top-k indices. If None, computed from score.
 
     Returns:
-        hit_rate: hit rate at k
+        Hit rate values. Shape depends on reduction:
+        - 'mean': scalar tensor (mean across batch)
+        - 'sum': scalar tensor (sum across batch)
+        - 'none': tensor of shape (batch_size,) (per-sample values)
     """
-    return hit_rate_v1(score, target, k)
+    # Get top-k indices and gather relevance values
+    if indices is None:
+        _, indices = score.topk(top_k, dim=1, largest=True, sorted=True)
+    rel = torch.take_along_dim(target, indices, dim=1)
+
+    # Check if any relevant item is in top-k (efficient: sum > 0)
+    values = (rel.sum(dim=1) > 0).float()
+
+    if reduction == "mean":
+        return values.mean()
+    elif reduction == "sum":
+        return values.sum()
+    else:  # reduction == "none"
+        return values
 
 
-def hit_rate_v1(score: torch.Tensor, target: torch.Tensor, k: int = 10) -> torch.Tensor:
-    """hit rate at k by myself
+def ndcg(
+    score: torch.Tensor,
+    target: torch.Tensor,
+    top_k: int = 10,
+    reduction: Literal["mean", "sum", "none"] = "mean",
+    indices: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """Normalized Discounted Cumulative Gain at k.
+
+    Note: This implementation uses a linear gain ('relevance') instead of the more common
+    exponential gain ('2**relevance - 1').
 
     Args:
-        score: logits, shape (batch_size, num_samples)
-        target: target long, shape (batch_size, num_samples)
-        k: top k
+        score: Prediction scores, shape (batch_size, num_items)
+        target: Ground truth relevance scores, shape (batch_size, num_items).
+                Values can be non-binary (relevance levels).
+        top_k: Number of top items to consider
+        reduction: Reduction method ('mean', 'sum', 'none'). Defaults to 'mean'.
+        indices: Pre-computed top-k indices. If None, computed from score.
 
     Returns:
-        hit_rate: hit rate at k
+        NDCG values. Shape depends on reduction:
+        - 'mean': scalar tensor (mean across batch)
+        - 'sum': scalar tensor (sum across batch)
+        - 'none': tensor of shape (batch_size,) (per-sample values)
     """
-    assert score.size() == target.size() and score.ndim == 2
-    assert k > 0 and k <= score.size(1)
+    # Get top-k indices and gather relevance values
+    if indices is None:
+        _, indices = score.topk(top_k, dim=1, largest=True, sorted=True)
+    rel = torch.take_along_dim(target, indices, dim=1).float()
 
-    _, indexes = score.topk(k, dim=1, largest=True, sorted=True)
-    rel = torch.take_along_dim(target, indexes, dim=1)
-    return (rel.sum(dim=1) > 0).float().mean()
+    # Calculate DCG: sum(rel_i / log2(rank_i + 1)) where rank_i is 1-indexed
+    # positions array is 0-indexed [1, 2, ..., k], so log2(positions + 1) gives [log2(2), log2(3), ...]
+    positions = torch.arange(1, top_k + 1, device=score.device, dtype=torch.float32)
+    discounts = torch.log2(positions + 1)
+    dcg = (rel / discounts).sum(dim=1)
 
+    # Calculate IDCG (ideal DCG with relevance sorted)
+    # Use topk instead of sort for efficiency
+    ideal_rel, _ = target.topk(top_k, dim=1, largest=True, sorted=True)
+    ideal_rel = ideal_rel.float()
 
-def hit_rate_v2(score: torch.Tensor, target: torch.Tensor, k: int = 10) -> torch.Tensor:
-    """hit rate at k by myself
+    idcg = (ideal_rel / discounts).sum(dim=1)
 
-    Args:
-        score: logits, shape (batch_size, num_samples)
-        target: target long, shape (batch_size, num_samples)
-        k: top k
+    # Calculate NDCG, handle division by zero
+    values = torch.where(idcg > 0, dcg / idcg, torch.zeros_like(dcg))
 
-    Returns:
-        hit_rate: hit rate at k
-    """
-    assert score.size() == target.size() and score.ndim == 2
-    assert k > 0 and k <= score.size(1)
-
-    values = torch.as_tensor(
-        [retrieval_hit_rate(s, t, top_k=k) for s, t in zip(score, target, strict=False)],
-        dtype=torch.float32,
-    )
-    return values.mean()
+    if reduction == "mean":
+        return values.mean()
+    elif reduction == "sum":
+        return values.sum()
+    else:  # reduction == "none"
+        return values
 
 
 class MRR(Metric):
-    def __init__(self, k: int = 10):
-        """mean reciprocal rank at k
+    """Mean Reciprocal Rank metric.
+
+    Calculates the mean reciprocal rank of the first relevant item
+    in the top-k predictions across all batches.
+    """
+
+    def __init__(self, top_k: int = 10) -> None:
+        """Initialize MRR metric.
 
         Args:
-            k: top k. Defaults to 10.
+            top_k: Number of top items to consider. Defaults to 10.
         """
         super().__init__()
-        self.k = k
-        self.add_state("mrr", default=[], dist_reduce_fx=None)
-        self.add_state("num_queries", default=[], dist_reduce_fx=None)
+        self.top_k = top_k
+        self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("count", default=torch.tensor(0), dist_reduce_fx="sum")
 
-    def update(self, score: torch.Tensor, target: torch.Tensor) -> None:
-        self.mrr.append(mrr(score, target, self.k))  # type: ignore
-        self.num_queries.append(score.size(0))  # type: ignore
+    @override
+    def update(
+        self,
+        score: torch.Tensor,
+        target: torch.Tensor,
+        indices: torch.Tensor | None = None,
+    ) -> None:
+        """Update metric state with a batch of predictions.
 
+        Args:
+            score: Prediction scores, shape (batch_size, num_items)
+            target: Binary targets (1 for relevant, 0 for irrelevant), shape (batch_size, num_items)
+            indices: Pre-computed top-k indices.
+        """
+        batch_mrr_sum = mrr(score, target, self.top_k, reduction="sum", indices=indices)
+        batch_size = score.size(0)
+
+        self.total = self.total + batch_mrr_sum  # type: ignore[assignment,has-type]
+        self.count = self.count + batch_size  # type: ignore[assignment,has-type]
+
+    @override
     def compute(self) -> torch.Tensor:
-        # mrrはqueryごとの平均なので、全体の平均値に変換
-        _mrr = torch.as_tensor(self.mrr, dtype=torch.float32)
-        _num_queries = torch.as_tensor(self.num_queries, dtype=torch.float32)
-        return (_mrr * _num_queries).sum() / _num_queries.sum()
+        """Compute the final metric value.
+
+        Returns:
+            Mean reciprocal rank across all batches
+        """
+        return self.total / self.count  # type: ignore[return-value,operator]
 
 
 class HitRate(Metric):
-    def __init__(self, k: int = 10):
-        """hit rate at k
+    """Hit Rate metric.
+
+    Calculates the proportion of queries where at least one relevant item
+    appears in the top-k predictions across all batches.
+    """
+
+    def __init__(self, top_k: int = 10) -> None:
+        """Initialize HitRate metric.
 
         Args:
-            k: top k. Defaults to 10.
+            top_k: Number of top items to consider. Defaults to 10.
         """
         super().__init__()
-        self.k = k
-        self.add_state("hit_rate", default=[], dist_reduce_fx=None)
-        self.add_state("num_queries", default=[], dist_reduce_fx=None)
+        self.top_k = top_k
+        self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("count", default=torch.tensor(0), dist_reduce_fx="sum")
 
-    def update(self, score: torch.Tensor, target: torch.Tensor) -> None:
-        self.hit_rate.append(hit_rate(score, target, self.k))  # type: ignore
-        self.num_queries.append(score.size(0))  # type: ignore
+    @override
+    def update(
+        self,
+        score: torch.Tensor,
+        target: torch.Tensor,
+        indices: torch.Tensor | None = None,
+    ) -> None:
+        """Update metric state with a batch of predictions.
 
+        Args:
+            score: Prediction scores, shape (batch_size, num_items)
+            target: Binary targets (1 for relevant, 0 for irrelevant), shape (batch_size, num_items)
+            indices: Pre-computed top-k indices.
+        """
+        batch_hit_rate_sum = hit_rate(score, target, self.top_k, reduction="sum", indices=indices)
+        batch_size = score.size(0)
+
+        self.total = self.total + batch_hit_rate_sum  # type: ignore[assignment,has-type]
+        self.count = self.count + batch_size  # type: ignore[assignment,has-type]
+
+    @override
     def compute(self) -> torch.Tensor:
-        # hit_rateはqueryごとの平均なので、全体の平均値に変換
-        _hit_rate = torch.as_tensor(self.hit_rate, dtype=torch.float32)
-        _num_queries = torch.as_tensor(self.num_queries, dtype=torch.float32)
-        return (_hit_rate * _num_queries).sum() / _num_queries.sum()
+        """Compute the final metric value.
+
+        Returns:
+            Hit rate across all batches
+        """
+        return self.total / self.count  # type: ignore[return-value,operator]
+
+
+class NDCG(Metric):
+    """Normalized Discounted Cumulative Gain metric.
+
+    Calculates the NDCG at k across all batches.
+    """
+
+    def __init__(self, top_k: int = 10) -> None:
+        """Initialize NDCG metric.
+
+        Args:
+            top_k: Number of top items to consider. Defaults to 10.
+        """
+        super().__init__()
+        self.top_k = top_k
+        self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("count", default=torch.tensor(0), dist_reduce_fx="sum")
+
+    @override
+    def update(
+        self,
+        score: torch.Tensor,
+        target: torch.Tensor,
+        indices: torch.Tensor | None = None,
+    ) -> None:
+        """Update metric state with a batch of predictions.
+
+        Args:
+            score: Prediction scores, shape (batch_size, num_items)
+            target: Binary targets (1 for relevant, 0 for irrelevant), shape (batch_size, num_items)
+            indices: Pre-computed top-k indices.
+        """
+        batch_ndcg_sum = ndcg(score, target, self.top_k, reduction="sum", indices=indices)
+        batch_size = score.size(0)
+
+        self.total = self.total + batch_ndcg_sum  # type: ignore[assignment,has-type]
+        self.count = self.count + batch_size  # type: ignore[assignment,has-type]
+
+    @override
+    def compute(self) -> torch.Tensor:
+        """Compute the final metric value.
+
+        Returns:
+            NDCG across all batches
+        """
+        return self.total / self.count  # type: ignore[return-value,operator]
+
+
+class RetrievalMetrics(Metric):
+    """Refactoring metrics to be computed in a single pass.
+
+    This class computes HitRate, MRR, and NDCG efficiently by sharing
+    the top-k indices across metrics.
+    """
+
+    def __init__(self, top_k: int = 10) -> None:
+        """Initialize RetrievalMetrics.
+
+        Args:
+            top_k: Number of top items to consider. Defaults to 10.
+        """
+        super().__init__()
+        self.top_k = top_k
+        self.hit_rate = HitRate(top_k=top_k)
+        self.mrr = MRR(top_k=top_k)
+        self.ndcg = NDCG(top_k=top_k)
+
+    @override
+    def update(
+        self,
+        score: torch.Tensor,
+        target: torch.Tensor,
+    ) -> None:
+        """Update metric state with a batch of predictions.
+
+        Args:
+            score: Prediction scores, shape (batch_size, num_items)
+            target: Relevance scores, shape (batch_size, num_items)
+        """
+        # Compute top-k indices once
+        _, indices = score.topk(self.top_k, dim=1, largest=True, sorted=True)
+
+        # Update all metrics using the same indices
+        self.hit_rate.update(score, target, indices=indices)
+        self.mrr.update(score, target, indices=indices)
+        self.ndcg.update(score, target, indices=indices)
+
+    @override
+    def compute(self) -> dict[str, torch.Tensor]:
+        """Compute all metrics.
+
+        Returns:
+            Dictionary containing 'hit_rate', 'mrr', and 'ndcg' values.
+        """
+        return {
+            "hit_rate": self.hit_rate.compute(),
+            "mrr": self.mrr.compute(),
+            "ndcg": self.ndcg.compute(),
+        }
+
+    @override
+    def reset(self) -> None:
+        """Reset all metrics."""
+        self.hit_rate.reset()
+        self.mrr.reset()
+        self.ndcg.reset()
 
 
 def format_metrics_dict(metrics_dict: dict[str, float | torch.Tensor | Metric]) -> str:

@@ -7,153 +7,37 @@ import torch
 from lightning.pytorch.callbacks import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 from loguru import logger
-from ml_sandbox_libs.data.amazon_reviews_dataset import (
-    AmazonReviewsSeqRecDataModule,
-    SpecialItemIndex,
-)
 from ml_sandbox_libs.utils import setup_logger
 from omegaconf import DictConfig
 
-from const import EVAL_NEG_SAMPLE_SIZE
-from models import SASRecModule, SimpleXModule, TwoTowerModule, gSASRecModule
-from my_types import LRSchedulerParams, OptimizerParams
-from optimizer import AdamWCosine
+from data.factory import create_datamodule
+from models.factory import create_model_module
+from optimizer.factory import create_optimizer
 
 
-@hydra.main(version_base=None, config_path="config", config_name="config")
-def main(cfg: DictConfig) -> None:
-    setup_logger()
-    logger.info(f"Starting the fit process with configuration: {cfg}")
+def create_trainer(cfg: DictConfig, save_dir: pathlib.Path) -> L.Trainer:
+    """Create and configure Lightning Trainer.
 
-    if cfg.device.accelerator == "gpu":
-        torch.set_float32_matmul_precision("medium")
+    Args:
+        cfg: Configuration object
+        save_dir: Directory to save logs and checkpoints
 
-    save_dir = pathlib.Path(cfg.save_dir)
-
-    datamodule = AmazonReviewsSeqRecDataModule(
-        save_dir=save_dir / "dataset",
-        batch_size=cfg.data.batch_size,
-        max_seq_len=cfg.data.max_seq_len,
-        neg_sample_size=cfg.data.neg_sample_size,
-        num_workers=cfg.device.num_workers,
-        eval_negative_sample_size=EVAL_NEG_SAMPLE_SIZE,
-    )
-    datamodule.prepare_data()
-    datamodule.setup(stage="fit")
-    logger.info(datamodule.summary())
-
-    optimizer_params = OptimizerParams(
-        lr=cfg.optimizer.lr,
-        weight_decay=cfg.optimizer.weight_decay,
-        lr_scheduler=LRSchedulerParams(
-            step_unit=cfg.optimizer.lr_scheduler.step_unit,
-            frequency=cfg.optimizer.lr_scheduler.frequency,
-            t_initial=cfg.optimizer.lr_scheduler.t_initial,
-            warmup_t=cfg.optimizer.lr_scheduler.warmup_t,
-            warmup_lr_init=cfg.optimizer.lr_scheduler.warmup_lr_init,
-            lr_min=cfg.optimizer.lr_scheduler.lr_min,
-            cycle_limit=cfg.optimizer.lr_scheduler.cycle_limit,
-        ),
-    )
-    optimizer = AdamWCosine(
-        lr=optimizer_params.lr,
-        weight_decay=optimizer_params.weight_decay,
-        lr_scheduler_params=optimizer_params.lr_scheduler,
-    )
-
-    if cfg.model.name == "TwoTower":
-        module = TwoTowerModule(
-            num_users=len(datamodule.user2index),
-            num_items=len(datamodule.item2index),
-            out_dim=cfg.model.out_dim,
-            user_id_dim=cfg.model.user_id_dim,
-            item_id_dim=cfg.model.item_id_dim,
-            hidden_dims=cfg.model.hidden_dims,
-            normalization=cfg.model.normalization,
-            activation=cfg.model.activation,
-            dropout=cfg.model.dropout,
-            pad_idx=SpecialItemIndex.PAD,
-            # optimizer
-            optimizer=optimizer,
-            # eval
-            eval_top_k=cfg.data.eval_top_k,
-        )
-    elif cfg.model.name == "SASRec":
-        module = SASRecModule(
-            num_items=len(datamodule.item2index),
-            out_dim=cfg.model.out_dim,
-            num_heads=cfg.model.num_heads,
-            num_blocks=cfg.model.num_blocks,
-            attn_dropout=cfg.model.attn_dropout,
-            ffn_dropout=cfg.model.ffn_dropout,
-            max_seq_len=cfg.data.max_seq_len,
-            pad_idx=SpecialItemIndex.PAD,
-            float16=cfg.device.float16,
-            # optimizer
-            optimizer=optimizer,
-            # eval
-            eval_top_k=cfg.data.eval_top_k,
-        )
-    elif cfg.model.name == "gSASRec":
-        module = gSASRecModule(
-            num_items=len(datamodule.item2index),
-            out_dim=cfg.model.out_dim,
-            num_heads=cfg.model.num_heads,
-            num_blocks=cfg.model.num_blocks,
-            attn_dropout=cfg.model.attn_dropout,
-            ffn_dropout=cfg.model.ffn_dropout,
-            max_seq_len=cfg.data.max_seq_len,
-            pad_idx=SpecialItemIndex.PAD,
-            float16=cfg.device.float16,
-            t=cfg.model.t,
-            neg_sample_size=cfg.data.neg_sample_size,
-            # optimizer
-            optimizer=optimizer,
-            # eval
-            eval_top_k=cfg.data.eval_top_k,
-        )
-    elif cfg.model.name == "SimpleX":
-        module = SimpleXModule(
-            num_users=len(datamodule.user2index),
-            num_items=len(datamodule.item2index),
-            out_dim=cfg.model.out_dim,
-            user_id_dim=cfg.model.user_id_dim,
-            item_id_dim=cfg.model.item_id_dim,
-            hidden_dims=cfg.model.hidden_dims,
-            user_id_weight=cfg.model.user_id_weight,
-            margin=cfg.model.margin,
-            negative_weight=cfg.model.negative_weight,
-            normalization=cfg.model.normalization,
-            activation=cfg.model.activation,
-            dropout=cfg.model.dropout,
-            user_history_pooling=cfg.model.user_history_pooling,
-            pad_idx=SpecialItemIndex.PAD,
-            # optimizer
-            optimizer=optimizer,
-            # eval
-            eval_top_k=cfg.data.eval_top_k,
-        )
-    else:
-        raise NotImplementedError(f"{cfg.model.name=} is not supported")
-
-    # print model summary
-    logger.info(
-        module.summary(
-            batch_size=cfg.data.batch_size,
-            neg_sample_size=3,
-        )
-    )
-
+    Returns:
+        Configured Lightning Trainer
+    """
     wandb_logger = WandbLogger(
         project="recsys-candidate-generation",
         name=cfg.model.name,
         save_dir=save_dir / "logs",
         version=f"{cfg.model.name}_{datetime.now().strftime('%Y%m%dT%H%M%S')}",
     )
-    trainer = L.Trainer(
+
+    devices = [cfg.device.accelerator_no] if cfg.device.accelerator == "gpu" else "auto"
+
+    return L.Trainer(
         max_epochs=10,
         accelerator=cfg.device.accelerator,
-        devices=[cfg.device.accelerator_no] if cfg.device.accelerator == "gpu" else "auto",
+        devices=devices,
         callbacks=[
             EarlyStopping(monitor="val_hit_rate", mode="max", patience=3),
         ],
@@ -166,6 +50,42 @@ def main(cfg: DictConfig) -> None:
         gradient_clip_val=cfg.optimizer.gradient_clip_val,
         gradient_clip_algorithm="norm",
     )
+
+
+@hydra.main(version_base=None, config_path="config", config_name="config")
+def main(cfg: DictConfig) -> None:
+    """Main training function.
+
+    Args:
+        cfg: Hydra configuration object
+    """
+    setup_logger()
+    logger.info(f"Starting the fit process with configuration: {cfg}")
+
+    if cfg.device.accelerator == "gpu":
+        torch.set_float32_matmul_precision("medium")
+
+    save_dir = pathlib.Path(cfg.save_dir)
+
+    # Initialize data module
+    datamodule = create_datamodule(cfg, save_dir)
+
+    # Create optimizer
+    optimizer = create_optimizer(cfg)
+
+    # Create model
+    module = create_model_module(cfg, datamodule, optimizer)
+
+    # Print model summary
+    logger.info(
+        module.summary(
+            batch_size=cfg.data.batch_size,
+            neg_sample_size=3,
+        )
+    )
+
+    # Create trainer and start training
+    trainer = create_trainer(cfg, save_dir)
     trainer.fit(model=module, datamodule=datamodule)
 
 

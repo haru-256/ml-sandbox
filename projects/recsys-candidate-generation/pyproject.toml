@@ -82,3 +82,17 @@ disallow_untyped_defs = true
 [[tool.mypy.overrides]]
 module = ["torch.*", "deepdiff.*", "datasets.*", ".*"]
 ignore_missing_imports = true
+
+[tool.vrun]
+project = "haru256-ml-sandbox"
+location = "us-central1"
+image_uri = "gcr.io/deeplearning-platform-release/base-cpu:latest"
+gcs_uri = "gs://haru256-vertex-ai-sandbox/vertex-job-runner/"
+service_account = "hoge@haru256-vertex-ai-sandbox"
+experiment_name = "vertex-job-runner-experiment"
+command = ["uv", "run", "main.py"]
+
+machine_type = "g2-standard-4"
+accelerator_type = "NVIDIA_L4"
+accelerator_count = 1
+args = ["data.num_workers=3"]

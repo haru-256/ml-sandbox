@@ -4,18 +4,19 @@ import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.utils.metrics import (
+    RetrievalMetrics,
     create_classification_inputs,
     create_retrieval_inputs,
 )
+from ml_sandbox_libs.utils.similarity import calc_dot_product
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
-from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
 from loss import gBCE
 from optimizer import Optimizer
 
-from .base import BaseModule
+from .base import BaseModule, ExperimentMonitor
 from .sasrec import SASRec
 
 
@@ -70,9 +71,9 @@ class gSASRecModule(BaseModule):
         )
         self.loss_fn = gBCE(neg_sample_size=neg_sample_size, num_items=num_items, t=t)
         self.accuracy = BinaryAccuracy(threshold=0.5)
-        self.hit_rate = RetrievalHitRate(top_k=eval_top_k)
-        self.ndcg = RetrievalNormalizedDCG(top_k=eval_top_k)
+        self.retrieval_metrics = RetrievalMetrics(top_k=eval_top_k)
         self.optimizer = optimizer
+        self.monitor = ExperimentMonitor(self)
 
     def forward(
         self, item_history: torch.Tensor, pos_item: torch.Tensor, neg_item: torch.Tensor
@@ -92,33 +93,6 @@ class gSASRecModule(BaseModule):
         """
         return self.model(item_history, pos_item, neg_item)
 
-    @staticmethod
-    def _calc_logits(
-        out: torch.Tensor, pos_item_emb: torch.Tensor, neg_item_emb: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Calculate logits
-
-        Args:
-            out: output tensor of SASRec, shape (batch_size, seq_len, hidden_size)
-            pos_item_emb: positive item embedding, shape (batch_size, hidden_size)
-            neg_item_emb: negative item embedding, shape (batch_size, neg_sample_size, hidden_size)
-
-        Returns:
-            pos_logits: positive logits, shape (batch_size, 1)
-            neg_logits: negative logits, shape (batch_size, neg_sample_size)
-
-        """
-        # extract the last hidden state, shape (batch_size, 1, hidden_size)
-        out = out[:, -1, :].unsqueeze(1)
-
-        pos_item_emb = pos_item_emb.unsqueeze(1)  # shape (batch_size, 1, hidden_size)
-        # shape (batch_size, 1)
-        pos_logits = torch.bmm(out, pos_item_emb.transpose(1, 2)).squeeze(1)
-        # shape (batch_size, neg_sample_size)
-        neg_logits = torch.bmm(out, neg_item_emb.transpose(1, 2)).squeeze(1)
-
-        return pos_logits, neg_logits
-
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         (item_history, pos_item, neg_item) = (
             batch.item_history,
@@ -126,15 +100,22 @@ class gSASRecModule(BaseModule):
             batch.neg_item_indexes,
         )
         # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
+        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
-        # shape (batch_size, 1), (batch_size, neg_sample_size)
-        pos_logits, neg_logits = gSASRecModule._calc_logits(out, pos_item_emb, neg_item_emb)
+
+        # extract the last hidden state for user embedding, shape (batch_size, hidden_size)
+        user_emb = out[:, -1, :]
+
+        # shape (B, 1), (B, neg_sample_size)
+        pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
+        pos_logits = pos_logits.unsqueeze(1)
+        assert pos_logits.size(1) == 1
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
-        self._logging_step(
+        self.monitor.logging_step(
             {
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
@@ -147,17 +128,23 @@ class gSASRecModule(BaseModule):
 
         return loss
 
-    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
+    def validation_step(self, batch: AmazonReviewsSeqRecBatch, _batch_idx: int) -> torch.Tensor:
         (item_history, pos_item, neg_item) = (
             batch.item_history,
             batch.pos_item_index,
             batch.neg_item_indexes,
         )
         # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
+        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
         out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
         assert pos_item_emb.size(0) == batch.item_history.size(0)
+
+        # extract the last hidden state for user embedding, shape (batch_size, hidden_size)
+        user_emb = out[:, -1, :]
+
         # shape (batch_size, 1), (batch_size, neg_sample_size)
-        pos_logits, neg_logits = gSASRecModule._calc_logits(out, pos_item_emb, neg_item_emb)
+        pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
+        pos_logits = pos_logits.unsqueeze(1)
         assert pos_logits.size(1) == 1
 
         # calc loss, accuracy
@@ -168,21 +155,19 @@ class gSASRecModule(BaseModule):
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         # calc ranking metrics
-        logits, target, indexes = create_retrieval_inputs(pos_logits, neg_logits)
-        hit_rate: torch.Tensor = self.hit_rate(logits, target, indexes)
-        ndcg: torch.Tensor = self.ndcg(logits, target, indexes)
+        logits, target, _ = create_retrieval_inputs(pos_logits, neg_logits)
+        self.retrieval_metrics(logits, target)
 
-        self._logging_step(
+        self.monitor.logging_step(
             {
-                "loss": loss.item(),
-                "pos_logits": pos_logits.mean().item(),
-                "neg_logits": neg_logits.mean().item(),
-                "accuracy": accuracy.item(),
-                "hit_rate": hit_rate.item(),
-                "ndcg": ndcg.item(),
+                "loss": loss,
+                "accuracy": accuracy,
+                "hit_rate": self.retrieval_metrics.hit_rate,
+                "ndcg": self.retrieval_metrics.ndcg,
+                "mrr": self.retrieval_metrics.mrr,
             },
             stage="val",
-            batch_idx=batch_idx,
+            batch_idx=_batch_idx,
         )
 
         return loss
@@ -207,6 +192,7 @@ class gSASRecModule(BaseModule):
         """
         self.optimizer.lr_scheduler_step(scheduler, metric, self.current_epoch, self.global_step)
 
+    @override
     def summary(
         self,
         batch_size: int,

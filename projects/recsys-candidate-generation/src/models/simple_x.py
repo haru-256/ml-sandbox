@@ -2,18 +2,17 @@ from typing import Any, override
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
-from ml_sandbox_libs.utils.metrics import create_retrieval_inputs
+from ml_sandbox_libs.utils.metrics import RetrievalMetrics, create_retrieval_inputs
+from ml_sandbox_libs.utils.similarity import calc_cosine_similarity
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torchinfo import ModelStatistics, summary
-from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
 from loss import CCL
 from optimizer import Optimizer
 
-from .base import BaseModule
+from .base import BaseModule, ExperimentMonitor
 from .modules.base import AveragePoolingIgnoringPadding
 from .two_tower import ItemTower, UserTower
 
@@ -280,9 +279,9 @@ class SimpleXModule(BaseModule):
             item_pad_idx=pad_idx,
         )
         self.loss_fn = CCL(margin=margin, negative_weight=negative_weight)
-        self.hit_rate = RetrievalHitRate(top_k=eval_top_k)
-        self.ndcg = RetrievalNormalizedDCG(top_k=eval_top_k)
+        self.retrieval_metrics = RetrievalMetrics(top_k=eval_top_k)
         self.optimizer = optimizer
+        self.monitor = ExperimentMonitor(self)
 
     @staticmethod
     def calc_similarity(
@@ -297,27 +296,10 @@ class SimpleXModule(BaseModule):
 
         Returns:
             A tuple containing:
-                - pos_cos_sim: Cosine similarity for positive items. Shape: (B, 1).
+                - pos_cos_sim: Cosine similarity for positive items. Shape: (B,).
                 - neg_cos_sim: Cosine similarity for negative items. Shape: (B, N).
         """
-        # normalize embeddings
-        user_emb = F.normalize(user_emb, p=2, dim=-1, eps=1e-8)  # shape (B, D)
-        pos_item_emb = F.normalize(pos_item_emb, p=2, dim=-1, eps=1e-8)  # shape (B, D)
-        neg_item_emb = F.normalize(neg_item_emb, p=2, dim=-1, eps=1e-8)  # shape (B, N, D)
-
-        # Prepare for batch matrix multiplication
-        user_emb_expanded = user_emb.unsqueeze(1)  # shape (B, 1, D)
-        pos_item_emb_expanded = pos_item_emb.unsqueeze(1)  # shape (B, 1, D)
-
-        # calc dot product
-        pos_cos_sim = torch.bmm(user_emb_expanded, pos_item_emb_expanded.transpose(1, 2)).squeeze(
-            1
-        )  # shape (B, 1)
-        neg_cos_sim = torch.bmm(user_emb_expanded, neg_item_emb.transpose(1, 2)).squeeze(
-            1
-        )  # shape (B, N)
-
-        return pos_cos_sim, neg_cos_sim
+        return calc_cosine_similarity(user_emb, pos_item_emb, neg_item_emb)
 
     def forward(
         self,
@@ -364,13 +346,12 @@ class SimpleXModule(BaseModule):
         # (B, D), (B, D), (B, N, D)
         user_emb, pos_item_emb, neg_item_emb = self(user, item_history, pos_item, neg_item)
         # (B, 1), (B, N)
-        pos_cos_sim, neg_cos_sim = SimpleXModule.calc_similarity(
-            user_emb, pos_item_emb, neg_item_emb
-        )
+        pos_cos_sim, neg_cos_sim = calc_cosine_similarity(user_emb, pos_item_emb, neg_item_emb)
+        pos_cos_sim = pos_cos_sim.unsqueeze(1)
 
         loss: torch.Tensor = self.loss_fn(pos_cos_sim, neg_cos_sim)
 
-        self._logging_step(
+        self.monitor.logging_step(
             {
                 "loss": loss.item(),
                 "pos_cos_sim": pos_cos_sim.mean().item(),
@@ -405,24 +386,21 @@ class SimpleXModule(BaseModule):
         # (B, D), (B, D), (B, N, D)
         user_emb, pos_item_emb, neg_item_emb = self(user, item_history, pos_item, neg_item)
         # (B, 1), (B, N)
-        pos_cos_sim, neg_cos_sim = SimpleXModule.calc_similarity(
-            user_emb, pos_item_emb, neg_item_emb
-        )
+        pos_cos_sim, neg_cos_sim = calc_cosine_similarity(user_emb, pos_item_emb, neg_item_emb)
+        pos_cos_sim = pos_cos_sim.unsqueeze(1)
 
         loss: torch.Tensor = self.loss_fn(pos_cos_sim, neg_cos_sim)
 
         # calc ranking metrics
-        scores, target, indexes = create_retrieval_inputs(pos_cos_sim, neg_cos_sim)
-        hit_rate: torch.Tensor = self.hit_rate(scores, target, indexes)
-        ndcg: torch.Tensor = self.ndcg(scores, target, indexes)
+        scores, target, _ = create_retrieval_inputs(pos_cos_sim, neg_cos_sim)
+        self.retrieval_metrics(scores, target)
 
-        self._logging_step(
+        self.monitor.logging_step(
             {
-                "loss": loss.item(),
-                "pos_cos_sim": pos_cos_sim.mean().item(),
-                "neg_cos_sim": neg_cos_sim.mean().item(),
-                "hit_rate": hit_rate.item(),
-                "ndcg": ndcg.item(),
+                "loss": loss,
+                "hit_rate": self.retrieval_metrics.hit_rate,
+                "ndcg": self.retrieval_metrics.ndcg,
+                "mrr": self.retrieval_metrics.mrr,
             },
             stage="val",
             batch_idx=batch_idx,
@@ -450,6 +428,7 @@ class SimpleXModule(BaseModule):
         """
         self.optimizer.lr_scheduler_step(scheduler, metric, self.current_epoch, self.global_step)
 
+    @override
     def summary(
         self,
         batch_size: int,
