@@ -3,16 +3,20 @@ from typing import Any, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
-from ml_sandbox_libs.utils.metrics import create_classification_inputs, create_retrieval_inputs
+from ml_sandbox_libs.utils.metrics import (
+    RetrievalMetrics,
+    create_classification_inputs,
+    create_retrieval_inputs,
+)
+from ml_sandbox_libs.utils.similarity import calc_dot_product
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
-from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
 from optimizer import Optimizer
 
-from .base import BaseModule
+from .base import BaseModule, ExperimentMonitor
 from .modules.base import IdEmbedding, LinearBlock
 
 
@@ -357,9 +361,9 @@ class TwoTowerModule(BaseModule):
         )
         self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
         self.accuracy = BinaryAccuracy(threshold=0.5)
-        self.hit_rate = RetrievalHitRate(top_k=eval_top_k)
-        self.ndcg = RetrievalNormalizedDCG(top_k=eval_top_k)
+        self.retrieval_metrics = RetrievalMetrics(top_k=eval_top_k)
         self.optimizer = optimizer
+        self.monitor = ExperimentMonitor(self)
 
     def forward(
         self, user: torch.Tensor, pos_item: torch.Tensor, neg_item: torch.Tensor
@@ -381,40 +385,6 @@ class TwoTowerModule(BaseModule):
         """
         return self.model(user_ids=user, pos_item_ids=pos_item, neg_item_ids=neg_item)
 
-    @staticmethod
-    def _calc_logits(
-        user_emb: torch.Tensor, pos_item_emb: torch.Tensor, neg_item_emb: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Calculates the dot product logits between user and item embeddings.
-
-        Args:
-            user_emb: User embeddings. Shape: (B, out_dim).
-            pos_item_emb: Positive item embeddings. Shape: (B, out_dim).
-            neg_item_emb: Negative item embeddings. Shape: (B, N, out_dim).
-
-        Returns:
-            A tuple containing:
-                - pos_logits: Logits for positive items (dot product of user_emb
-                  and pos_item_emb). Shape: (B, 1).
-                - neg_logits: Logits for negative items (dot product of user_emb
-                  and neg_item_emb). Shape: (B, N).
-
-        """
-        # extract the last hidden state, shape (batch_size, 1, hidden_size)
-        assert user_emb.ndim == 2
-        assert pos_item_emb.ndim == 2 and neg_item_emb.ndim == 3
-
-        # shape (B, 1, D)
-        user_emb = user_emb.unsqueeze(1)
-        pos_item_emb = pos_item_emb.unsqueeze(1)  # shape (B, 1, D)
-
-        # shape (B, 1)
-        pos_logits = torch.bmm(user_emb, pos_item_emb.transpose(1, 2)).squeeze(1)
-        # shape (B, N)
-        neg_logits = torch.bmm(user_emb, neg_item_emb.transpose(1, 2)).squeeze(1)
-
-        return pos_logits, neg_logits
-
     @override
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Performs a single training step.
@@ -435,13 +405,14 @@ class TwoTowerModule(BaseModule):
         # (B, D), (B, D), (B, N, D)
         user_emb, pos_item_emb, neg_item_emb = self(user, pos_item, neg_item)
         # (B, 1), (B, N)
-        pos_logits, neg_logits = TwoTowerModule._calc_logits(user_emb, pos_item_emb, neg_item_emb)
+        pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
+        pos_logits = pos_logits.unsqueeze(1)
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
         loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
-        self._logging_step(
+        self.monitor.logging_step(
             {
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
@@ -477,7 +448,8 @@ class TwoTowerModule(BaseModule):
         user_emb, pos_item_emb, neg_item_emb = self(user, pos_item, neg_item)
         assert pos_item_emb.size(0) == batch.user_index.size(0) * 1
         # (B, 1), (B, N)
-        pos_logits, neg_logits = TwoTowerModule._calc_logits(user_emb, pos_item_emb, neg_item_emb)
+        pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
+        pos_logits = pos_logits.unsqueeze(1)
         assert pos_logits.size(1) == 1
 
         # calc loss, accuracy
@@ -487,21 +459,19 @@ class TwoTowerModule(BaseModule):
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         # calc ranking metrics
-        logits, target, indexes = create_retrieval_inputs(pos_logits, neg_logits)
-        hit_rate: torch.Tensor = self.hit_rate(logits, target, indexes)
-        ndcg: torch.Tensor = self.ndcg(logits, target, indexes)
+        logits, target, _ = create_retrieval_inputs(pos_logits, neg_logits)
+        self.retrieval_metrics(logits, target)
 
-        self._logging_step(
+        self.monitor.logging_step(
             {
-                "loss": loss.item(),
-                "pos_logits": pos_logits.mean().item(),
-                "neg_logits": neg_logits.mean().item(),
-                "accuracy": accuracy.item(),
-                "hit_rate": hit_rate.item(),
-                "ndcg": ndcg.item(),
+                "val_loss": loss,
+                "accuracy": accuracy,
+                "hit_rate": self.retrieval_metrics.hit_rate,
+                "ndcg": self.retrieval_metrics.ndcg,
+                "mrr": self.retrieval_metrics.mrr,
             },
-            stage="val",
-            batch_idx=batch_idx,
+            batch_size=target.size(0),
+            step=self.monitor.total_val_steps,
         )
 
         return loss
@@ -527,6 +497,7 @@ class TwoTowerModule(BaseModule):
         """
         self.optimizer.lr_scheduler_step(scheduler, metric, self.current_epoch, self.global_step)
 
+    @override
     def summary(
         self,
         batch_size: int,
