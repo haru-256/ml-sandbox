@@ -144,6 +144,7 @@ class gSASRecModule(BaseModule):
 
         # shape (batch_size, 1), (batch_size, neg_sample_size)
         pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
+        pos_logits = pos_logits.unsqueeze(1)
         assert pos_logits.size(1) == 1
 
         # calc loss, accuracy
