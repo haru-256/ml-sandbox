@@ -56,9 +56,9 @@ image_uri = "gcr.io/deeplearning-platform-release/base-cpu:latest"
 gcs_uri = "gs://haru256-vertex-ai-sandbox/vertex-job-runner/"
 service_account = "hoge@haru256-vertex-ai-sandbox"
 experiment_name = "vertex-job-runner-experiment"
-command = "uv run main.py"
+command = ["uv", "run", "main.py"]
 
-machine_type = "e2-standard-4"
-accelerator_type = "NVIDIA_TESLA_T4"
+machine_type = "g2-standard-4"
+accelerator_type = "NVIDIA_L4"
 accelerator_count = 1
 args = ["hoge=2", "fuga=1"]
