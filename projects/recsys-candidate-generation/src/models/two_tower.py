@@ -3,6 +3,8 @@ from typing import Any, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.optimizer import Optimizer
+from ml_sandbox_libs.training import ExperimentMonitor
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -14,9 +16,7 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
-from optimizer import Optimizer
-
-from .base import BaseModule, ExperimentMonitor
+from .base import BaseModule
 from .modules.base import IdEmbedding, LinearBlock
 
 
@@ -460,12 +460,12 @@ class TwoTowerModule(BaseModule):
 
         # calc ranking metrics
         logits, target, _ = create_retrieval_inputs(pos_logits, neg_logits)
-        self.retrieval_metrics(logits, target)
+        self.retrieval_metrics.update(logits, target)
 
         self.monitor.logging_step(
             {
-                "loss": loss,
-                "accuracy": accuracy,
+                "loss": loss.item(),
+                "accuracy": accuracy.item(),
                 "hit_rate": self.retrieval_metrics.hit_rate,
                 "ndcg": self.retrieval_metrics.ndcg,
                 "mrr": self.retrieval_metrics.mrr,

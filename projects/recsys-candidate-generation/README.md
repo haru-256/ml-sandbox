@@ -93,10 +93,13 @@ recsys-candidate-generation/
     ├── fit.py              # トレーニングスクリプト
     ├── config/             # 設定ファイル (Hydra など)
     ├── const/              # 定数定義
+    ├── loss/               # 損失関数
     ├── models/             # モデル定義
-    ├── my_types/           # 型定義
     └── tests/              # テストコード
 ```
+
+> **Note**: optimizer・LRSchedulerParams・OptimizerParams・ExperimentMonitor は
+> `ml_sandbox_libs` に移管済みです。各モジュールは `ml_sandbox_libs.*` から直接 import しています。
 
 ## モデル
 

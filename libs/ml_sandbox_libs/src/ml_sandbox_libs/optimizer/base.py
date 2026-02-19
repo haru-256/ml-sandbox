@@ -1,12 +1,16 @@
+"""Optimizer base protocol."""
+
 from collections.abc import Iterator
-from typing import Any, Protocol
+from typing import Any, Protocol, runtime_checkable
 
 import torch.nn as nn
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 
 
-# インターフェース定義 (Protocol)
+@runtime_checkable
 class Optimizer(Protocol):
+    """Protocol for optimizer implementations."""
+
     def configure_optimizers(
         self, parameters: Iterator[nn.Parameter]
     ) -> OptimizerLRSchedulerConfig: ...

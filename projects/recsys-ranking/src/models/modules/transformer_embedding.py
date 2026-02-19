@@ -5,7 +5,14 @@ from .base.id_embedding import IdEmbedding
 
 
 class TransformerEmbeddings(nn.Module):
-    def __init__(self, item_num: int, embedding_dim: int, max_position: int, dropout: float = 0.1, padding_idx: int = 0):
+    def __init__(
+        self,
+        item_num: int,
+        embedding_dim: int,
+        max_position: int,
+        dropout: float = 0.1,
+        padding_idx: int = 0,
+    ):
         """Embedding layer for transformer model, including token and position embeddings
 
         Args:

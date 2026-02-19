@@ -323,7 +323,7 @@ class NDCG(Metric):
         return self.total / self.count  # type: ignore[return-value,operator]
 
 
-class RetrievalMetrics(Metric):
+class RetrievalMetrics:
     """Refactoring metrics to be computed in a single pass.
 
     This class computes HitRate, MRR, and NDCG efficiently by sharing
@@ -342,7 +342,6 @@ class RetrievalMetrics(Metric):
         self.mrr = MRR(top_k=top_k)
         self.ndcg = NDCG(top_k=top_k)
 
-    @override
     def update(
         self,
         score: torch.Tensor,
@@ -362,7 +361,6 @@ class RetrievalMetrics(Metric):
         self.mrr.update(score, target, indices=indices)
         self.ndcg.update(score, target, indices=indices)
 
-    @override
     def compute(self) -> dict[str, torch.Tensor]:
         """Compute all metrics.
 
@@ -375,7 +373,6 @@ class RetrievalMetrics(Metric):
             "ndcg": self.ndcg.compute(),
         }
 
-    @override
     def reset(self) -> None:
         """Reset all metrics."""
         self.hit_rate.reset()

@@ -2,9 +2,12 @@ from collections import OrderedDict
 from typing import Any, override
 
 import torch
-from lightning.pytorch.utilities.types import LRSchedulerConfigType, OptimizerLRSchedulerConfig
+from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.optimizer import Optimizer
+from ml_sandbox_libs.training import ExperimentMonitor
 from ml_sandbox_libs.utils.metrics import (
+    RetrievalMetrics,
     create_classification_inputs,
     create_retrieval_inputs,
 )
@@ -12,9 +15,9 @@ from timm.scheduler.cosine_lr import CosineLRScheduler
 from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
-from torchmetrics.retrieval import RetrievalHitRate, RetrievalNormalizedDCG
 
-from my_types import ActivationType, FeatureSpec, FeatureType, NormalizeType, OptimizerParams
+from loss import LossFn
+from my_types import ActivationType, FeatureSpec, FeatureType, NormalizeType
 
 from .base import BaseModule
 from .modules.feature_embedding_dict import FeatureEmbeddingDict
@@ -186,6 +189,7 @@ class DLRM(nn.Module):
         )
         # (B, num_sparse_features * D)
         sparse_embs = torch.stack(list(sparse_emb_dict.values()), dim=1)
+        dense_embs = None
         if len(self.dense_feature_map) > 0:
             # (B, num_dense_features)
             dense_features = torch.hstack(list(dense_feature_dict.values()))
@@ -201,6 +205,7 @@ class DLRM(nn.Module):
 
         # Top MLP Layer
         if len(self.dense_feature_map) > 0:
+            assert dense_embs is not None
             # (B, self.interaction_layer.output_dims + D)
             deep_in = torch.cat([interaction_out, dense_embs], dim=1)
         else:
@@ -242,7 +247,8 @@ class DLRMModule(BaseModule):
         max_seq_len: int,
         item_pad_idx: int,
         eval_top_k: int,
-        optimizer_params: OptimizerParams,
+        optimizer: Optimizer,
+        loss_fn: LossFn,
         dense_activation: ActivationType | None = None,
         dense_normalize: NormalizeType | None = None,
         dense_dropout: float = 0.0,
@@ -260,30 +266,17 @@ class DLRMModule(BaseModule):
             max_seq_len: Maximum sequence length in item history.
             item_pad_idx: Padding index used for categorical features.
             eval_top_k: Top-k for retrieval metrics.
-            optimizer_params: Optimizer and scheduler configuration.
+            optimizer: Optimizer strategy object.
+            loss_fn: Loss function instance.
             dense_activation: Optional activation for dense MLP; default None.
             dense_normalize: Optional normalization for dense MLP; default None.
             dense_dropout: Dropout probability for dense MLP; default 0.0.
             top_activation: Optional activation for top MLP; default None.
             top_normalize: Optional normalization for top MLP; default None.
             top_dropout: Dropout probability for top MLP; default 0.0.
-
-        Example:
-            >>> lr_scheduler_params = LRSchedulerParams(...)
-            >>> optimizer_params = OptimizerParams(lr=0.001, lr_scheduler=lr_scheduler_params)
-            >>> module = DLRMModule(
-            ...     num_items=10000,
-            ...     feature_embedding_dims=64,
-            ...     dense_hidden_features_list=[128, 64],
-            ...     top_hidden_features_list=[256, 128, 1],
-            ...     max_seq_len=50,
-            ...     item_pad_idx=0,
-            ...     eval_top_k=10,
-            ...     optimizer_params=optimizer_params
-            ... )
         """
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters(ignore=["optimizer", "loss_fn"])
         self.num_items = num_items
         self.max_seq_len = max_seq_len
         self.model = DLRM(
@@ -299,13 +292,14 @@ class DLRMModule(BaseModule):
             top_normalize=top_normalize,
             top_dropout=top_dropout,
         )
-        self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
+        self.loss_fn = loss_fn
         self.accuracy = BinaryAccuracy(threshold=0.5)
-        self.hit_rate = RetrievalHitRate(top_k=eval_top_k)
-        self.ndcg = RetrievalNormalizedDCG(top_k=eval_top_k)
-        self.optimizer_params = optimizer_params
+        self.retrieval_metrics = RetrievalMetrics(top_k=eval_top_k)
+        self.optimizer = optimizer
+        self.monitor = ExperimentMonitor(self)
 
-    def forward(self, item_history: torch.Tensor, target_item_ids: torch.Tensor) -> torch.Tensor:
+    @override
+    def forward(self, item_history: torch.Tensor, target_item_ids: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
         """Forward pass through the DLRM model.
 
         Computes prediction logits for given item history and target items.
@@ -323,7 +317,8 @@ class DLRMModule(BaseModule):
         """
         return self.model(item_history, target_item_ids)
 
-    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
+    @override
+    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]
         """Execute a single training step.
 
         Performs forward pass on positive and negative samples, computes binary cross-entropy
@@ -357,7 +352,7 @@ class DLRMModule(BaseModule):
         loss: torch.Tensor = self.loss_fn(logits, labels)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
-        self._logging_step(
+        self.monitor.logging_step(
             {
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
@@ -370,7 +365,8 @@ class DLRMModule(BaseModule):
 
         return loss
 
-    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
+    @override
+    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]
         """Execute a single validation step.
 
         Performs forward pass on validation data, computes classification loss and accuracy,
@@ -410,18 +406,18 @@ class DLRMModule(BaseModule):
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         # calc ranking metrics
-        logits, target, indexes = create_retrieval_inputs(pos_logits, neg_logits)
-        hit_rate: torch.Tensor = self.hit_rate(logits, target, indexes)
-        ndcg: torch.Tensor = self.ndcg(logits, target, indexes)
+        scores, target, _ = create_retrieval_inputs(pos_logits, neg_logits)
+        self.retrieval_metrics.update(scores, target)
 
-        self._logging_step(
+        self.monitor.logging_step(
             {
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
                 "neg_logits": neg_logits.mean().item(),
                 "accuracy": accuracy.item(),
-                "hit_rate": hit_rate.item(),
-                "ndcg": ndcg.item(),
+                "hit_rate": self.retrieval_metrics.hit_rate,
+                "ndcg": self.retrieval_metrics.ndcg,
+                "mrr": self.retrieval_metrics.mrr,
             },
             stage="val",
             batch_idx=batch_idx,
@@ -433,41 +429,12 @@ class DLRMModule(BaseModule):
     def configure_optimizers(self) -> OptimizerLRSchedulerConfig:
         """Configures the optimizer and optional learning rate scheduler.
 
-        Uses AdamW optimizer and optionally a CosineLRScheduler based on
-        the provided `optimizer_params`.
-
         Returns:
             A dictionary or a tuple containing the optimizer and optionally
             the learning rate scheduler configuration.
 
         """
-        optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=self.optimizer_params.lr,
-            weight_decay=self.optimizer_params.weight_decay,
-        )
-        rt: OptimizerLRSchedulerConfig = {"optimizer": optimizer}  # type: ignore
-        if self.optimizer_params.lr_scheduler is not None:
-            lr_scheduler = CosineLRScheduler(
-                optimizer,
-                t_initial=self.optimizer_params.lr_scheduler.t_initial,
-                lr_min=self.optimizer_params.lr_scheduler.lr_min,
-                warmup_t=self.optimizer_params.lr_scheduler.warmup_t,
-                warmup_lr_init=self.optimizer_params.lr_scheduler.warmup_lr_init,  # type: ignore
-                warmup_prefix=True,
-                cycle_limit=self.optimizer_params.lr_scheduler.cycle_limit,
-                cycle_mul=1,
-            )
-            lr_scheduler_config: LRSchedulerConfigType = {
-                "scheduler": lr_scheduler,  # type: ignore
-                "interval": self.optimizer_params.lr_scheduler.step_unit,
-                "frequency": self.optimizer_params.lr_scheduler.frequency,
-                "monitor": None,
-                "strict": True,
-                "name": "learning_rate",
-            }
-            rt.update({"lr_scheduler": lr_scheduler_config})
-        return rt
+        return self.optimizer.configure_optimizers(self.model.parameters())
 
     @override
     def lr_scheduler_step(self, scheduler: CosineLRScheduler, metric: Any | None) -> None:  # type: ignore
@@ -484,19 +451,7 @@ class DLRMModule(BaseModule):
         Raises:
             ValueError: If the configured step_unit is not 'epoch' or 'step'
         """
-        match self.optimizer_params.lr_scheduler.step_unit:
-            case "epoch":
-                steps = self.current_epoch
-            case "step":
-                steps = self.global_step
-            case _:
-                raise ValueError(
-                    f"Invalid step unit: {self.optimizer_params.lr_scheduler.step_unit}"
-                )
-        if metric is None:
-            scheduler.step(epoch=steps)  # NOTE: epochとあるが、epochでもstepでもどちらでもOK
-        else:
-            scheduler.step(epoch=steps, metric=metric)
+        self.optimizer.lr_scheduler_step(scheduler, metric, self.current_epoch, self.global_step)
 
     def summary(
         self,

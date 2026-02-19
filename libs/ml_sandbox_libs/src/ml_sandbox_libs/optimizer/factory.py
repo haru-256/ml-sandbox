@@ -1,7 +1,9 @@
+"""Factory function to create optimizers from Hydra config."""
+
 from omegaconf import DictConfig
 
-from my_types import LRSchedulerParams, OptimizerParams
-from optimizer import AdamWCosine
+from ml_sandbox_libs.my_types import LRSchedulerParams, OptimizerParams
+from ml_sandbox_libs.optimizer.adam_w_cosine import AdamWCosine
 
 
 def create_optimizer(cfg: DictConfig) -> AdamWCosine:

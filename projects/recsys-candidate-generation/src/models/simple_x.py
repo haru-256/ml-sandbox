@@ -4,15 +4,16 @@ import torch
 import torch.nn as nn
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.optimizer import Optimizer
+from ml_sandbox_libs.training import ExperimentMonitor
 from ml_sandbox_libs.utils.metrics import RetrievalMetrics, create_retrieval_inputs
 from ml_sandbox_libs.utils.similarity import calc_cosine_similarity
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torchinfo import ModelStatistics, summary
 
 from loss import CCL
-from optimizer import Optimizer
 
-from .base import BaseModule, ExperimentMonitor
+from .base import BaseModule
 from .modules.base import AveragePoolingIgnoringPadding
 from .two_tower import ItemTower, UserTower
 
@@ -393,11 +394,11 @@ class SimpleXModule(BaseModule):
 
         # calc ranking metrics
         scores, target, _ = create_retrieval_inputs(pos_cos_sim, neg_cos_sim)
-        self.retrieval_metrics(scores, target)
+        self.retrieval_metrics.update(scores, target)
 
         self.monitor.logging_step(
             {
-                "loss": loss,
+                "loss": loss.item(),
                 "hit_rate": self.retrieval_metrics.hit_rate,
                 "ndcg": self.retrieval_metrics.ndcg,
                 "mrr": self.retrieval_metrics.mrr,

@@ -3,6 +3,8 @@ from typing import Any, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.optimizer import Optimizer
+from ml_sandbox_libs.training import ExperimentMonitor
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -15,9 +17,7 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
-from optimizer import Optimizer
-
-from .base import BaseModule, ExperimentMonitor
+from .base import BaseModule
 from .modules.transformer_embedding import TransformerEmbeddings
 from .modules.transformer_encoder_block import TransformerEncoderBlock
 
@@ -238,7 +238,7 @@ class SASRecModule(BaseModule):
 
         # calc ranking metrics
         logits, target, _ = create_retrieval_inputs(pos_logits, neg_logits)
-        self.retrieval_metrics(logits, target)
+        self.retrieval_metrics.update(logits, target)
 
         self.monitor.logging_step(
             {

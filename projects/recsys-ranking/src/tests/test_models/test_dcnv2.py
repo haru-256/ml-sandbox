@@ -1,0 +1,166 @@
+"""Tests for DCNv2 model."""
+
+from typing import Any, cast
+
+import pytest
+import torch
+from torch import nn
+
+from models.dcnv2 import DCNv2
+
+
+@pytest.fixture
+def base_params() -> dict[str, Any]:
+    return dict(
+        num_items=1000,
+        feature_embedding_dims=32,
+        cross_num_layers=2,
+        deep_hidden_dims=[64, 32],
+        item_pad_idx=0,
+    )
+
+
+@pytest.fixture
+def sample_batch_size() -> int:
+    return 16
+
+
+@pytest.fixture
+def sample_seq_len() -> int:
+    return 10
+
+
+@pytest.fixture
+def sample_input(sample_batch_size: int, sample_seq_len: int) -> tuple[torch.Tensor, torch.Tensor]:
+    item_history = torch.randint(1, 1000, (sample_batch_size, sample_seq_len))
+    target_item_ids = torch.randint(1, 1000, (sample_batch_size,))
+    return item_history, target_item_ids
+
+
+class TestDCNv2CrossType:
+    """Tests for DCNv2 with CrossNetV2 (full-rank)."""
+
+    @pytest.fixture
+    def model(self, base_params: dict[str, Any]) -> DCNv2:
+        return DCNv2(**base_params, cross_net_type="cross")
+
+    def test_initialization(self, model: DCNv2) -> None:
+        assert hasattr(model, "embedding_layer")
+        assert hasattr(model, "cross_net")
+        assert hasattr(model, "deep_net")
+        assert hasattr(model, "output_layer")
+        assert len(model.feature_map) == 2
+        assert "last_item_id" in model.feature_map
+        assert "target_item_id" in model.feature_map
+
+    def test_forward_shape(
+        self,
+        model: DCNv2,
+        sample_input: tuple[torch.Tensor, torch.Tensor],
+        sample_batch_size: int,
+    ) -> None:
+        item_history, target_item_ids = sample_input
+        out = model(item_history, target_item_ids)
+        assert out.shape == (sample_batch_size,)
+        assert out.dtype == torch.float32
+
+    def test_forward_finite(
+        self,
+        model: DCNv2,
+        sample_input: tuple[torch.Tensor, torch.Tensor],
+    ) -> None:
+        item_history, target_item_ids = sample_input
+        out = model(item_history, target_item_ids)
+        assert torch.isfinite(out).all()
+
+    def test_gradient_flow(
+        self, model: DCNv2, sample_input: tuple[torch.Tensor, torch.Tensor]
+    ) -> None:
+        item_history, target_item_ids = sample_input
+        out = model(item_history, target_item_ids)
+        out.sum().backward()
+        for name, param in model.named_parameters():
+            assert param.grad is not None, f"No gradient for {name}"
+
+    def test_different_batch_sizes(self, model: DCNv2, sample_seq_len: int) -> None:
+        for batch_size in [1, 4, 32]:
+            item_history = torch.randint(1, 1000, (batch_size, sample_seq_len))
+            target_item_ids = torch.randint(1, 1000, (batch_size,))
+            out = model(item_history, target_item_ids)
+            assert out.shape == (batch_size,)
+
+    def test_eval_mode_determinism(
+        self, model: DCNv2, sample_input: tuple[torch.Tensor, torch.Tensor]
+    ) -> None:
+        model.eval()
+        item_history, target_item_ids = sample_input
+        with torch.no_grad():
+            out1 = model(item_history, target_item_ids)
+            out2 = model(item_history, target_item_ids)
+        assert torch.allclose(out1, out2)
+
+    def test_uses_last_item_from_history(self, model: DCNv2, sample_seq_len: int) -> None:
+        """The model should use only the last item from item history."""
+        batch_size = 4
+        item_history1 = torch.randint(1, 900, (batch_size, sample_seq_len))
+        item_history2 = item_history1.clone()
+        # Change all but the last position — outputs should be the same
+        item_history2[:, :-1] = torch.randint(1, 900, (batch_size, sample_seq_len - 1))
+        target_item_ids = torch.randint(1, 1000, (batch_size,))
+        model.eval()
+        with torch.no_grad():
+            out1 = model(item_history1, target_item_ids)
+            out2 = model(item_history2, target_item_ids)
+        assert torch.allclose(out1, out2)
+
+    def test_padding_idx_zero_gradient(self, model: DCNv2) -> None:
+        """Padding index (0) embeddings should have zero gradient."""
+        item_history = torch.zeros(4, 5, dtype=torch.long)
+        target_item_ids = torch.zeros(4, dtype=torch.long)
+        out = model(item_history, target_item_ids)
+        out.sum().backward()
+        emb = cast(nn.Embedding, model.embedding_layer.feature_encoder["last_item_id"])
+        assert emb.weight.grad is not None
+        # padding_idx row should remain zero grad
+        assert torch.allclose(emb.weight.grad[0], torch.zeros_like(emb.weight.grad[0]))
+
+
+class TestDCNv2MoEType:
+    """Tests for DCNv2 with CrossNetV2MoE."""
+
+    @pytest.fixture
+    def model(self, base_params: dict[str, Any]) -> DCNv2:
+        return DCNv2(**base_params, cross_net_type="cross_moe", num_experts=4)
+
+    def test_forward_shape(
+        self,
+        model: DCNv2,
+        sample_input: tuple[torch.Tensor, torch.Tensor],
+        sample_batch_size: int,
+    ) -> None:
+        item_history, target_item_ids = sample_input
+        out = model(item_history, target_item_ids)
+        assert out.shape == (sample_batch_size,)
+
+    def test_gradient_flow(
+        self, model: DCNv2, sample_input: tuple[torch.Tensor, torch.Tensor]
+    ) -> None:
+        item_history, target_item_ids = sample_input
+        out = model(item_history, target_item_ids)
+        out.sum().backward()
+        for name, param in model.named_parameters():
+            assert param.grad is not None, f"No gradient for {name}"
+
+    @pytest.mark.parametrize("num_experts", [1, 2, 8])
+    def test_various_num_experts(self, base_params: dict[str, Any], num_experts: int) -> None:
+        model = DCNv2(**base_params, cross_net_type="cross_moe", num_experts=num_experts)
+        item_history = torch.randint(1, 1000, (8, 10))
+        target_item_ids = torch.randint(1, 1000, (8,))
+        out = model(item_history, target_item_ids)
+        assert out.shape == (8,)
+
+
+class TestDCNv2InvalidInput:
+    def test_invalid_cross_net_type(self, base_params: dict[str, Any]) -> None:
+        with pytest.raises(ValueError, match="cross_net_type must be"):
+            DCNv2(**base_params, cross_net_type="invalid")  # type: ignore[arg-type]

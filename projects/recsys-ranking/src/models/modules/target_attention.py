@@ -68,7 +68,7 @@ class DINAttention(nn.Module):
             hidden_normalize=hidden_normalize,
             hidden_activation=hidden_activation,
             hidden_activation_kwargs=(
-                [{'num_features': num_features} for num_features in hidden_dims]
+                [{"num_features": num_features} for num_features in hidden_dims]
                 if hidden_activation == ActivationType.DICE
                 else None
             ),

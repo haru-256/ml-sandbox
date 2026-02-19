@@ -1,3 +1,5 @@
+"""AdamW optimizer with cosine learning rate scheduler."""
+
 from collections.abc import Iterator
 from typing import Any
 
@@ -6,10 +8,12 @@ import torch.nn as nn
 from lightning.pytorch.utilities.types import LRSchedulerConfigType, OptimizerLRSchedulerConfig
 from timm.scheduler.cosine_lr import CosineLRScheduler
 
-from my_types import LRSchedulerParams
+from ml_sandbox_libs.my_types import LRSchedulerParams
 
 
 class AdamWCosine:
+    """AdamW optimizer with cosine learning rate scheduler."""
+
     def __init__(
         self,
         lr: float,
