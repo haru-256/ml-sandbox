@@ -67,7 +67,7 @@ class CrossNetV2(nn.Module):
             rank: Rank for low-rank matrix decomposition.
         """
         super().__init__()
-        super().__init__()
+
         if in_features <= 0:
             raise ValueError(f"in_features must be positive, got {in_features}")
         if num_layers <= 0:
@@ -208,7 +208,7 @@ class CrossNetV2MoE(nn.Module):
         rank: int,
         num_experts: int,
         normalize: NormalizeType | None = None,
-        activation: ActivationType | None = "tanh",
+        activation: ActivationType | None = ActivationType.TANH,
         activation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialize CrossNetV2MoE with specified layers, rank, and experts.
@@ -221,7 +221,7 @@ class CrossNetV2MoE(nn.Module):
             activation: Activation function to use in experts (default: "tanh").
         """
         super().__init__()
-        super().__init__()
+
         if in_features <= 0:
             raise ValueError(f"in_features must be positive, got {in_features}")
         if num_layers <= 0:

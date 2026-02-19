@@ -123,7 +123,7 @@ recsys-ranking/
 - [x] DLRM: Deep Learning Recommendation Model
 - [x] DIN: Deep Interest Network
 - [ ] DCN: <https://arxiv.org/abs/1708.05123>
-- [ ] DCN-V2: <https://arxiv.org/abs/2008.13535>
+- [x] DCN-V2: <https://arxiv.org/abs/2008.13535>
 - [ ] FinalNet: <https://www.ruizhang.info/publications/SIGIR%202023%20Short_FINAL.pdf>
 
 ### DeepFM
