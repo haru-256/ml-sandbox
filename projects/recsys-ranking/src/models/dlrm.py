@@ -315,7 +315,7 @@ class DLRMModule(BaseModule):
             torch.Tensor: Prediction logits for each target item, shape (batch_size,)
                 Higher values indicate stronger recommendation confidence
         """
-        return self.model(item_history, target_item_ids)
+        return self.model(item_id_history=item_history, target_item_ids=target_item_ids)
 
     @override
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]

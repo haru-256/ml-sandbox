@@ -403,7 +403,8 @@ class TwoTowerModule(BaseModule):
         """
         user, pos_item, neg_item = batch.user_index, batch.pos_item_index, batch.neg_item_indexes
         # (B, D), (B, D), (B, N, D)
-        user_emb, pos_item_emb, neg_item_emb = self(user, pos_item, neg_item)
+        # (B, D), (B, D), (B, N, D)
+        user_emb, pos_item_emb, neg_item_emb = self(user=user, pos_item=pos_item, neg_item=neg_item)
         # (B, 1), (B, N)
         pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
         pos_logits = pos_logits.unsqueeze(1)
@@ -445,7 +446,8 @@ class TwoTowerModule(BaseModule):
         """
         user, pos_item, neg_item = batch.user_index, batch.pos_item_index, batch.neg_item_indexes
         # (B, D), (B, D), (B, N, D)
-        user_emb, pos_item_emb, neg_item_emb = self(user, pos_item, neg_item)
+        # (B, D), (B, D), (B, N, D)
+        user_emb, pos_item_emb, neg_item_emb = self(user=user, pos_item=pos_item, neg_item=neg_item)
         assert pos_item_emb.size(0) == batch.user_index.size(0) * 1
         # (B, 1), (B, N)
         pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)

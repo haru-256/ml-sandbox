@@ -322,7 +322,12 @@ class SimpleXModule(BaseModule):
             pos_item_emb: Positive item embedding, shape (batch_size, out_dim)
             neg_item_emb: Negative item embedding, shape (batch_size, neg_sample_size, out_dim)
         """
-        return self.model(user, item_history, pos_item, neg_item)
+        return self.model(
+            user_ids=user,
+            item_id_history=item_history,
+            pos_item_ids=pos_item,
+            neg_item_ids=neg_item,
+        )
 
     @override
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
@@ -345,7 +350,10 @@ class SimpleXModule(BaseModule):
             batch.neg_item_indexes,
         )
         # (B, D), (B, D), (B, N, D)
-        user_emb, pos_item_emb, neg_item_emb = self(user, item_history, pos_item, neg_item)
+        # (B, D), (B, D), (B, N, D)
+        user_emb, pos_item_emb, neg_item_emb = self(
+            user=user, item_history=item_history, pos_item=pos_item, neg_item=neg_item
+        )
         # (B, 1), (B, N)
         pos_cos_sim, neg_cos_sim = calc_cosine_similarity(user_emb, pos_item_emb, neg_item_emb)
         pos_cos_sim = pos_cos_sim.unsqueeze(1)
@@ -385,7 +393,10 @@ class SimpleXModule(BaseModule):
             batch.neg_item_indexes,
         )
         # (B, D), (B, D), (B, N, D)
-        user_emb, pos_item_emb, neg_item_emb = self(user, item_history, pos_item, neg_item)
+        # (B, D), (B, D), (B, N, D)
+        user_emb, pos_item_emb, neg_item_emb = self(
+            user=user, item_history=item_history, pos_item=pos_item, neg_item=neg_item
+        )
         # (B, 1), (B, N)
         pos_cos_sim, neg_cos_sim = calc_cosine_similarity(user_emb, pos_item_emb, neg_item_emb)
         pos_cos_sim = pos_cos_sim.unsqueeze(1)

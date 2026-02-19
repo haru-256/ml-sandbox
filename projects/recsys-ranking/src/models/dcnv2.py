@@ -316,7 +316,7 @@ class DCNv2Module(BaseModule):
         Returns:
             torch.Tensor: Prediction logits of shape (batch_size,).
         """
-        return self.model(item_history, target_item_ids)
+        return self.model(item_id_history=item_history, target_item_ids=target_item_ids)
 
     def _calc_logits(self, batch: AmazonReviewsSeqRecBatch) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute logits for positive and negative samples.

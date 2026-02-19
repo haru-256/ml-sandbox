@@ -175,7 +175,9 @@ class SASRecModule(BaseModule):
             neg_item_emb: negative item embedding, shape (batch_size, neg_sample_size, hidden_size)
 
         """
-        return self.model(item_history, pos_item, neg_item)
+        return self.model(
+            item_id_history=item_history, pos_item_ids=pos_item, neg_item_ids=neg_item
+        )
 
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         (item_history, pos_item, neg_item) = (
@@ -184,7 +186,10 @@ class SASRecModule(BaseModule):
             batch.neg_item_indexes,
         )
         # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
+        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
+        out, pos_item_emb, neg_item_emb = self(
+            item_history=item_history, pos_item=pos_item, neg_item=neg_item
+        )
 
         # extract the last hidden state for user embedding, shape (batch_size, hidden_size)
         user_emb = out[:, -1, :]
@@ -218,7 +223,10 @@ class SASRecModule(BaseModule):
             batch.neg_item_indexes,
         )
         # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        out, pos_item_emb, neg_item_emb = self(item_history, pos_item, neg_item)
+        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
+        out, pos_item_emb, neg_item_emb = self(
+            item_history=item_history, pos_item=pos_item, neg_item=neg_item
+        )
         assert pos_item_emb.size(0) == batch.item_history.size(0)
 
         # extract the last hidden state for user embedding, shape (batch_size, hidden_size)
