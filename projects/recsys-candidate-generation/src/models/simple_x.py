@@ -4,15 +4,16 @@ import torch
 import torch.nn as nn
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.optimizer import Optimizer
+from ml_sandbox_libs.training import ExperimentMonitor
 from ml_sandbox_libs.utils.metrics import RetrievalMetrics, create_retrieval_inputs
 from ml_sandbox_libs.utils.similarity import calc_cosine_similarity
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torchinfo import ModelStatistics, summary
 
 from loss import CCL
-from optimizer import Optimizer
 
-from .base import BaseModule, ExperimentMonitor
+from .base import BaseModule
 from .modules.base import AveragePoolingIgnoringPadding
 from .two_tower import ItemTower, UserTower
 
@@ -321,7 +322,12 @@ class SimpleXModule(BaseModule):
             pos_item_emb: Positive item embedding, shape (batch_size, out_dim)
             neg_item_emb: Negative item embedding, shape (batch_size, neg_sample_size, out_dim)
         """
-        return self.model(user, item_history, pos_item, neg_item)
+        return self.model(
+            user_ids=user,
+            item_id_history=item_history,
+            pos_item_ids=pos_item,
+            neg_item_ids=neg_item,
+        )
 
     @override
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
@@ -344,7 +350,10 @@ class SimpleXModule(BaseModule):
             batch.neg_item_indexes,
         )
         # (B, D), (B, D), (B, N, D)
-        user_emb, pos_item_emb, neg_item_emb = self(user, item_history, pos_item, neg_item)
+        # (B, D), (B, D), (B, N, D)
+        user_emb, pos_item_emb, neg_item_emb = self(
+            user=user, item_history=item_history, pos_item=pos_item, neg_item=neg_item
+        )
         # (B, 1), (B, N)
         pos_cos_sim, neg_cos_sim = calc_cosine_similarity(user_emb, pos_item_emb, neg_item_emb)
         pos_cos_sim = pos_cos_sim.unsqueeze(1)
@@ -384,7 +393,10 @@ class SimpleXModule(BaseModule):
             batch.neg_item_indexes,
         )
         # (B, D), (B, D), (B, N, D)
-        user_emb, pos_item_emb, neg_item_emb = self(user, item_history, pos_item, neg_item)
+        # (B, D), (B, D), (B, N, D)
+        user_emb, pos_item_emb, neg_item_emb = self(
+            user=user, item_history=item_history, pos_item=pos_item, neg_item=neg_item
+        )
         # (B, 1), (B, N)
         pos_cos_sim, neg_cos_sim = calc_cosine_similarity(user_emb, pos_item_emb, neg_item_emb)
         pos_cos_sim = pos_cos_sim.unsqueeze(1)
@@ -393,11 +405,11 @@ class SimpleXModule(BaseModule):
 
         # calc ranking metrics
         scores, target, _ = create_retrieval_inputs(pos_cos_sim, neg_cos_sim)
-        self.retrieval_metrics(scores, target)
+        self.retrieval_metrics.update(scores, target)
 
         self.monitor.logging_step(
             {
-                "loss": loss,
+                "loss": loss.item(),
                 "hit_rate": self.retrieval_metrics.hit_rate,
                 "ndcg": self.retrieval_metrics.ndcg,
                 "mrr": self.retrieval_metrics.mrr,

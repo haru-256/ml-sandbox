@@ -7,12 +7,12 @@ import torch
 from lightning.pytorch.callbacks import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 from loguru import logger
+from ml_sandbox_libs.optimizer import create_optimizer
 from ml_sandbox_libs.utils import setup_logger
 from omegaconf import DictConfig
 
 from data.factory import create_datamodule
 from models.factory import create_model_module
-from optimizer.factory import create_optimizer
 
 
 def create_trainer(cfg: DictConfig, save_dir: pathlib.Path) -> L.Trainer:

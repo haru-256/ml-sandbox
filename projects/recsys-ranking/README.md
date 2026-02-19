@@ -67,9 +67,9 @@ uv run python src/fit.py model=DeepFM data.batch_size=32
 - **広大なサイズ**: 33の異なるカテゴリにわたる4,800万の製品に関する5億7,154万件のレビューが含まれています。
 - **最新のデータ**: レビューは1996年5月から2023年9月までの期間をカバーしています。
 - **豊富なデータポイント**: データセットには豊富な特徴が含まれています。
-  - **ユーザーレビュー**: 評価（1.0から5.0）、レビューのタイトルと本文、役立つ投票、ユーザーが投稿した画像などが含まれます。
-  - **アイテムメタデータ**: 製品に関する詳細情報（説明、価格、ブランド、生画像、動画、ストア名、階層化されたカテゴリなど）が提供されます。
-  - **インタラクションリンク**: ユーザーとアイテムのインタラクションや「一緒に購入された」データも含まれています。
+    - **ユーザーレビュー**: 評価（1.0から5.0）、レビューのタイトルと本文、役立つ投票、ユーザーが投稿した画像などが含まれます。
+    - **アイテムメタデータ**: 製品に関する詳細情報（説明、価格、ブランド、生画像、動画、ストア名、階層化されたカテゴリなど）が提供されます。
+    - **インタラクションリンク**: ユーザーとアイテムのインタラクションや「一緒に購入された」データも含まれています。
 
 ### 2023年版の新機能
 
@@ -105,10 +105,15 @@ recsys-ranking/
     ├── fit.py              # トレーニングスクリプト
     ├── config/             # 設定ファイル（Hydraなど）
     ├── const/              # 定数定義
+    ├── loss/               # 損失関数
     ├── models/             # モデル定義
-    ├── my_types/           # 型定義
+    ├── my_types/           # ランキング固有の型定義（FeatureSpec, FeatureType など）
+    ├── utils/              # ユーティリティ
     └── tests/              # テストコード
 ```
+
+> **Note**: optimizer・LRSchedulerParams・OptimizerParams・ExperimentMonitor は
+> `ml_sandbox_libs` に移管済みです。各モジュールは `ml_sandbox_libs.*` から直接 import しています。
 
 ## モデル
 
@@ -118,7 +123,7 @@ recsys-ranking/
 - [x] DLRM: Deep Learning Recommendation Model
 - [x] DIN: Deep Interest Network
 - [ ] DCN: <https://arxiv.org/abs/1708.05123>
-- [ ] DCN-V2: <https://arxiv.org/abs/2008.13535>
+- [x] DCN-V2: <https://arxiv.org/abs/2008.13535>
 - [ ] FinalNet: <https://www.ruizhang.info/publications/SIGIR%202023%20Short_FINAL.pdf>
 
 ### DeepFM

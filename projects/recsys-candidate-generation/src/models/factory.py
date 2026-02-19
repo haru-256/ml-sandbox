@@ -2,11 +2,11 @@ from ml_sandbox_libs.data.amazon_reviews_dataset import (
     AmazonReviewsSeqRecDataModule,
     SpecialItemIndex,
 )
+from ml_sandbox_libs.optimizer import AdamWCosine
 from omegaconf import DictConfig
 
 from models import SASRecModule, SimpleXModule, TwoTowerModule, gSASRecModule
 from models.base import BaseModule
-from optimizer import AdamWCosine
 
 
 def create_two_tower_module(

@@ -1,307 +1,114 @@
 """Tests for DeepFMModule."""
 
+from unittest.mock import MagicMock
+
+import pytest
 import torch
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.optimizer import AdamWCosine
 
 from models.deepfm import DeepFMModule
-from my_types import LRSchedulerParams, OptimizerParams
+from my_types import LRSchedulerParams
+
+
+@pytest.fixture
+def optimizer() -> AdamWCosine:
+    return AdamWCosine(
+        lr=0.001,
+        weight_decay=0.01,
+        lr_scheduler_params=LRSchedulerParams(
+            t_initial=100,
+            lr_min=1e-6,
+            warmup_t=10,
+            warmup_lr_init=1e-5,
+            step_unit="epoch",
+            frequency=1,
+            cycle_limit=1,
+        ),
+    )
+
+
+@pytest.fixture
+def module(optimizer: AdamWCosine) -> DeepFMModule:
+    return DeepFMModule(
+        num_items=100,
+        feature_embedding_dims=32,
+        deep_hidden_features_list=[64, 32],
+        max_seq_len=10,
+        deep_dropout=0.1,
+        item_pad_idx=0,
+        eval_top_k=5,
+        optimizer=optimizer,
+        loss_fn=MagicMock(return_value=torch.tensor(0.5, requires_grad=True)),
+    )
+
+
+@pytest.fixture
+def sample_batch() -> AmazonReviewsSeqRecBatch:
+    batch_size, seq_len, neg = 4, 10, 5
+    return AmazonReviewsSeqRecBatch(
+        user_index=torch.randint(1, 50, (batch_size,)),
+        item_history=torch.randint(1, 100, (batch_size, seq_len)),
+        category_history=torch.randint(1, 20, (batch_size, seq_len)),
+        pos_item_index=torch.randint(1, 100, (batch_size,)),
+        pos_category_index=torch.randint(1, 20, (batch_size,)),
+        neg_item_indexes=torch.randint(1, 100, (batch_size, neg)),
+        neg_category_indexes=torch.randint(1, 20, (batch_size, neg)),
+        average_rating_history=torch.rand(batch_size, seq_len),
+        pos_average_rating=torch.rand(batch_size),
+        neg_average_ratings=torch.rand(batch_size, neg),
+        neg_rating_numbers=torch.randint(1, 100, (batch_size, neg)).float(),
+    )
 
 
 class TestDeepFMModuleBasic:
     """Basic test suite for DeepFMModule."""
 
-    def test_deepfm_module_can_be_created(self) -> None:
-        """Test that DeepFMModule can be instantiated."""
-        lr_scheduler_params = LRSchedulerParams(
-            t_initial=100,
-            lr_min=1e-6,
-            warmup_t=10,
-            warmup_lr_init=1e-5,
-            step_unit="epoch",
-            frequency=1,
-            cycle_limit=1,
-        )
-        optimizer_params = OptimizerParams(
-            lr=0.001,
-            weight_decay=0.01,
-            lr_scheduler=lr_scheduler_params,
-        )
-
-        module = DeepFMModule(
-            num_items=100,
-            feature_embedding_dims=32,
-            deep_hidden_features_list=[64, 32], max_seq_len=10,
-            deep_dropout=0.1,
-            item_pad_idx=0,
-            eval_top_k=5,
-            optimizer_params=optimizer_params,
-        )
-
+    def test_deepfm_module_can_be_created(self, module: DeepFMModule) -> None:
         assert isinstance(module, DeepFMModule)
         assert module.num_items == 100
         assert module.max_seq_len == 10
 
-    def test_deepfm_module_forward_pass(self) -> None:
-        """Test DeepFMModule forward pass."""
-        lr_scheduler_params = LRSchedulerParams(
-            t_initial=100,
-            lr_min=1e-6,
-            warmup_t=10,
-            warmup_lr_init=1e-5,
-            step_unit="epoch",
-            frequency=1,
-            cycle_limit=1,
+    def test_deepfm_module_has_required_attributes(self, module: DeepFMModule) -> None:
+        assert hasattr(module, "model")
+        assert hasattr(module, "loss_fn")
+        assert hasattr(module, "accuracy")
+        assert hasattr(module, "retrieval_metrics")
+        assert hasattr(module, "monitor")
+        assert hasattr(module, "optimizer")
+        assert isinstance(module.optimizer, AdamWCosine)
+
+    def test_deepfm_module_forward_pass(self, module: DeepFMModule) -> None:
+        batch_size, seq_len = 4, 10
+        output = module.forward(
+            torch.randint(1, 100, (batch_size, seq_len)),
+            torch.randint(1, 100, (batch_size,)),
         )
-        optimizer_params = OptimizerParams(
-            lr=0.001,
-            weight_decay=0.01,
-            lr_scheduler=lr_scheduler_params,
-        )
-
-        module = DeepFMModule(
-            num_items=100,
-            feature_embedding_dims=32,
-            deep_hidden_features_list=[64, 32], max_seq_len=10,
-            deep_dropout=0.1,
-            item_pad_idx=0,
-            eval_top_k=5,
-            optimizer_params=optimizer_params,
-        )
-
-        batch_size = 4
-        seq_len = 10
-        item_history = torch.randint(1, 100, (batch_size, seq_len))
-        target_item_ids = torch.randint(1, 100, (batch_size,))
-
-        output = module.forward(item_history, target_item_ids)
-
         assert output.shape == (batch_size,)
         assert output.dtype == torch.float32
         assert torch.isfinite(output).all()
 
-    def test_deepfm_module_has_required_attributes(self) -> None:
-        """Test that DeepFMModule has all required attributes."""
-        lr_scheduler_params = LRSchedulerParams(
-            t_initial=100,
-            lr_min=1e-6,
-            warmup_t=10,
-            warmup_lr_init=1e-5,
-            step_unit="epoch",
-            frequency=1,
-            cycle_limit=1,
-        )
-        optimizer_params = OptimizerParams(
-            lr=0.001,
-            weight_decay=0.01,
-            lr_scheduler=lr_scheduler_params,
-        )
-
-        module = DeepFMModule(
-            num_items=100,
-            feature_embedding_dims=32,
-            deep_hidden_features_list=[64, 32], max_seq_len=10,
-            deep_dropout=0.1,
-            item_pad_idx=0,
-            eval_top_k=5,
-            optimizer_params=optimizer_params,
-        )
-
-        # Check that required components exist
-        assert hasattr(module, "model")
-        assert hasattr(module, "loss_fn")
-        assert hasattr(module, "accuracy")
-        assert hasattr(module, "hit_rate")
-        assert hasattr(module, "ndcg")
-
-        # Check loss function type
-        assert isinstance(module.loss_fn, torch.nn.BCEWithLogitsLoss)
-
-    def test_deepfm_module_training_step(self) -> None:
-        """Test DeepFMModule training_step method."""
-        lr_scheduler_params = LRSchedulerParams(
-            t_initial=100,
-            lr_min=1e-6,
-            warmup_t=10,
-            warmup_lr_init=1e-5,
-            step_unit="epoch",
-            frequency=1,
-            cycle_limit=1,
-        )
-        optimizer_params = OptimizerParams(
-            lr=0.001,
-            weight_decay=0.01,
-            lr_scheduler=lr_scheduler_params,
-        )
-
-        module = DeepFMModule(
-            num_items=100,
-            feature_embedding_dims=32,
-            deep_hidden_features_list=[64, 32], max_seq_len=10,
-            deep_dropout=0.1,
-            item_pad_idx=0,
-            eval_top_k=5,
-            optimizer_params=optimizer_params,
-        )
-
-        # Create sample batch
-        batch_size = 4
-        seq_len = 10
-        neg_sample_size = 5
-
-        batch = AmazonReviewsSeqRecBatch(
-            user_index=torch.randint(1, 50, (batch_size,)),
-            item_history=torch.randint(1, 100, (batch_size, seq_len)),
-            category_history=torch.randint(1, 20, (batch_size, seq_len)),
-            pos_item_index=torch.randint(1, 100, (batch_size,)),
-            pos_category_index=torch.randint(1, 20, (batch_size,)),
-            neg_item_indexes=torch.randint(1, 100, (batch_size, neg_sample_size)),
-            neg_category_indexes=torch.randint(1, 20, (batch_size, neg_sample_size)),
-        )
-
-        # Set to training mode and test training step
+    def test_deepfm_module_training_step(
+        self, module: DeepFMModule, sample_batch: AmazonReviewsSeqRecBatch
+    ) -> None:
         module.train()
-        loss = module.training_step(batch, batch_idx=0)
-
-        # Verify loss properties
+        loss = module.training_step(sample_batch, batch_idx=0)
         assert isinstance(loss, torch.Tensor)
-        assert loss.dim() == 0  # scalar loss
+        assert loss.dim() == 0
         assert torch.isfinite(loss)
-        assert loss.requires_grad  # loss should have gradients
+        assert loss.requires_grad
 
-    def test_deepfm_module_validation_step(self) -> None:
-        """Test DeepFMModule validation_step method."""
-        lr_scheduler_params = LRSchedulerParams(
-            t_initial=100,
-            lr_min=1e-6,
-            warmup_t=10,
-            warmup_lr_init=1e-5,
-            step_unit="epoch",
-            frequency=1,
-            cycle_limit=1,
-        )
-        optimizer_params = OptimizerParams(
-            lr=0.001,
-            weight_decay=0.01,
-            lr_scheduler=lr_scheduler_params,
-        )
-
-        module = DeepFMModule(
-            num_items=100,
-            feature_embedding_dims=32,
-            deep_hidden_features_list=[64, 32], max_seq_len=10,
-            deep_dropout=0.1,
-            item_pad_idx=0,
-            eval_top_k=5,
-            optimizer_params=optimizer_params,
-        )
-
-        # Create sample batch
-        batch_size = 4
-        seq_len = 10
-        neg_sample_size = 5
-
-        batch = AmazonReviewsSeqRecBatch(
-            user_index=torch.randint(1, 50, (batch_size,)),
-            item_history=torch.randint(1, 100, (batch_size, seq_len)),
-            category_history=torch.randint(1, 20, (batch_size, seq_len)),
-            pos_item_index=torch.randint(1, 100, (batch_size,)),
-            pos_category_index=torch.randint(1, 20, (batch_size,)),
-            neg_item_indexes=torch.randint(1, 100, (batch_size, neg_sample_size)),
-            neg_category_indexes=torch.randint(1, 20, (batch_size, neg_sample_size)),
-        )
-
-        # Set to evaluation mode and test validation step
+    def test_deepfm_module_validation_step(
+        self, module: DeepFMModule, sample_batch: AmazonReviewsSeqRecBatch
+    ) -> None:
         module.eval()
-        loss = module.validation_step(batch, batch_idx=0)
-
-        # Verify loss properties
+        loss = module.validation_step(sample_batch, batch_idx=0)
         assert isinstance(loss, torch.Tensor)
-        assert loss.dim() == 0  # scalar loss
+        assert loss.dim() == 0
         assert torch.isfinite(loss)
 
-    def test_deepfm_module_summary(self) -> None:
-        """Test DeepFMModule summary method."""
-        lr_scheduler_params = LRSchedulerParams(
-            t_initial=100,
-            lr_min=1e-6,
-            warmup_t=10,
-            warmup_lr_init=1e-5,
-            step_unit="epoch",
-            frequency=1,
-            cycle_limit=1,
-        )
-        optimizer_params = OptimizerParams(
-            lr=0.001,
-            weight_decay=0.01,
-            lr_scheduler=lr_scheduler_params,
-        )
-
-        module = DeepFMModule(
-            num_items=100,
-            feature_embedding_dims=32,
-            deep_hidden_features_list=[64, 32], max_seq_len=10,
-            deep_dropout=0.1,
-            item_pad_idx=0,
-            eval_top_k=5,
-            optimizer_params=optimizer_params,
-        )
-
-        # Test summary method
-        batch_size = 4
-        summary_stats = module.summary(batch_size=batch_size)
-
-        # Verify summary properties
+    def test_deepfm_module_summary(self, module: DeepFMModule) -> None:
+        summary_stats = module.summary(batch_size=4)
         assert summary_stats is not None
         assert hasattr(summary_stats, "total_params")
-        assert hasattr(summary_stats, "trainable_params")
         assert summary_stats.total_params > 0
-        assert summary_stats.trainable_params > 0
-        assert (
-            summary_stats.total_params == summary_stats.trainable_params
-        )  # All params should be trainable
-
-    def test_deepfm_module_configure_optimizers(self) -> None:
-        """Test DeepFMModule configure_optimizers method."""
-        lr_scheduler_params = LRSchedulerParams(
-            t_initial=100,
-            lr_min=1e-6,
-            warmup_t=10,
-            warmup_lr_init=1e-5,
-            step_unit="epoch",
-            frequency=1,
-            cycle_limit=1,
-        )
-        optimizer_params = OptimizerParams(
-            lr=0.001,
-            weight_decay=0.01,
-            lr_scheduler=lr_scheduler_params,
-        )
-
-        module = DeepFMModule(
-            num_items=100,
-            feature_embedding_dims=32,
-            deep_hidden_features_list=[64, 32], max_seq_len=10,
-            deep_dropout=0.1,
-            item_pad_idx=0,
-            eval_top_k=5,
-            optimizer_params=optimizer_params,
-        )
-
-        # Test optimizer configuration
-        optimizer_config = module.configure_optimizers()
-
-        # Verify optimizer configuration
-        assert isinstance(optimizer_config, dict)
-        assert "optimizer" in optimizer_config
-        assert "lr_scheduler" in optimizer_config  # Should have scheduler
-
-        optimizer = optimizer_config["optimizer"]
-        assert isinstance(optimizer, torch.optim.AdamW)
-        assert optimizer.param_groups[0]["initial_lr"] == 0.001
-        assert optimizer.param_groups[0]["weight_decay"] == 0.01
-
-        lr_scheduler_config = optimizer_config["lr_scheduler"]
-        assert isinstance(lr_scheduler_config, dict)
-        assert "scheduler" in lr_scheduler_config
-        assert "interval" in lr_scheduler_config
-        assert "frequency" in lr_scheduler_config

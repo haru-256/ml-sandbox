@@ -1,90 +1,86 @@
 # ml_sandbox_libs
 
-This repository contains a collection of utilities and libraries for machine learning experiments and development.
+複数の推薦システムプロジェクト間で共有するユーティリティ・共通コンポーネントのライブラリです。
 
-## Directory Structure
+## モジュール構成
 
-The repository is organized as follows:
+```
+src/ml_sandbox_libs/
+├── my_types.py          # 共通型定義（LRSchedulerParams, OptimizerParams）
+├── optimizer/           # Optimizer 実装
+│   ├── base.py          # Optimizer プロトコル
+│   ├── adam_w_cosine.py # AdamW + CosineLR スケジューラ
+│   └── factory.py       # create_optimizer ファクトリ関数
+├── training/
+│   └── monitor.py       # ExperimentMonitor (ログ・モニタリング)
+├── data/                # データセット・DataModule
+├── utils/               # 汎用ユーティリティ
+│   ├── metrics.py       # 検索・分類メトリクス
+│   ├── similarity.py    # 類似度計算
+│   └── utils.py         # ロガー設定など
+└── tests/               # テスト
+```
+
+## インストール
 
 ```sh
-ml-sandbox/
-├── ml_sandbox_libs/       # Main package with utility libraries
-│   ├── __init__.py        # Package initialization
-│   ├── data/              # Data handling utilities
-│   ├── models/            # Model implementations
-│   ├── training/          # Training utilities
-│   ├── evaluation/        # Metrics and evaluation tools
-│   └── utils/             # General utilities
-├── examples/              # Usage examples
-├── tests/                 # Test cases
-└── README.md              # This file
+# CPU 環境
+make install
+
+# GPU 環境（CUDA 検出時は自動的に GPU 向け PyTorch を使用）
+make install
 ```
 
-## Installation
+または手動で:
 
-### Local Development Installation
-
-For local development, we recommend using [uv](https://github.com/astral-sh/uv) which provides fast package installation.
-
-1. First, install uv if you don't have it:
-
-```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-2. Create and activate a virtual environment:
-
-```bash
-# Create a virtual environment
-uv venv
-
-# Activate the virtual environment
-source .venv/bin/activate  # On Unix/macOS
-# OR
-.venv\Scripts\activate     # On Windows
-```
-
-3. Install the package in development mode:
-
-```bash
-# Install the package locally in development mode
+```sh
+uv venv && source .venv/bin/activate
 uv pip install -e .
 ```
 
-### Installing with Dependencies
+## 主要コンポーネント
 
-To install with all dependencies:
-
-```bash
-# Install with all dependencies
-uv pip install -e ".[all]"
-```
-
-For specific dependency groups:
-
-```bash
-# Install with only torch-related dependencies
-uv pip install -e ".[torch]"
-
-# Install with only visualization dependencies
-uv pip install -e ".[viz]"
-```
-
-## Usage
-
-Import the libraries in your Python code:
+### 型定義 (`my_types`)
 
 ```python
-# Import modules from the package
-from ml_sandbox_libs.utils import some_utility
-from ml_sandbox_libs.models import some_model
-
-# Use them in your code
-result = some_utility.process_data(data)
-model = some_model.create_model(params)
+from ml_sandbox_libs.my_types import LRSchedulerParams, OptimizerParams
 ```
 
-## Contributing
+### Optimizer
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+```python
+from ml_sandbox_libs.optimizer import AdamWCosine, Optimizer, create_optimizer
+
+optimizer = AdamWCosine(
+    lr=1e-3,
+    weight_decay=1e-2,
+    lr_scheduler_params=LRSchedulerParams(
+        step_unit="epoch", t_initial=100, warmup_t=5,
+        warmup_lr_init=1e-5, lr_min=1e-6, frequency=1, cycle_limit=1,
+    ),
+)
+```
+
+### ExperimentMonitor
+
+Lightning モジュール内でのロギングを統一する `ExperimentMonitor`:
+
+```python
+from ml_sandbox_libs.training import ExperimentMonitor
+
+class MyModule(L.LightningModule):
+    def __init__(self, ...):
+        self.monitor = ExperimentMonitor(self)
+
+    def training_step(self, batch, batch_idx):
+        ...
+        self.monitor.logging_step({"loss": loss}, stage="train", batch_idx=batch_idx)
+```
+
+## 開発
+
+```sh
+make lint   # ruff + mypy
+make fmt    # ruff format
+make test   # pytest
+```

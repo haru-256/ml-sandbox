@@ -3,6 +3,8 @@ from typing import Any, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.optimizer import Optimizer
+from ml_sandbox_libs.training import ExperimentMonitor
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -14,9 +16,7 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
-from optimizer import Optimizer
-
-from .base import BaseModule, ExperimentMonitor
+from .base import BaseModule
 from .modules.base import IdEmbedding, LinearBlock
 
 
@@ -403,7 +403,8 @@ class TwoTowerModule(BaseModule):
         """
         user, pos_item, neg_item = batch.user_index, batch.pos_item_index, batch.neg_item_indexes
         # (B, D), (B, D), (B, N, D)
-        user_emb, pos_item_emb, neg_item_emb = self(user, pos_item, neg_item)
+        # (B, D), (B, D), (B, N, D)
+        user_emb, pos_item_emb, neg_item_emb = self(user=user, pos_item=pos_item, neg_item=neg_item)
         # (B, 1), (B, N)
         pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
         pos_logits = pos_logits.unsqueeze(1)
@@ -445,7 +446,8 @@ class TwoTowerModule(BaseModule):
         """
         user, pos_item, neg_item = batch.user_index, batch.pos_item_index, batch.neg_item_indexes
         # (B, D), (B, D), (B, N, D)
-        user_emb, pos_item_emb, neg_item_emb = self(user, pos_item, neg_item)
+        # (B, D), (B, D), (B, N, D)
+        user_emb, pos_item_emb, neg_item_emb = self(user=user, pos_item=pos_item, neg_item=neg_item)
         assert pos_item_emb.size(0) == batch.user_index.size(0) * 1
         # (B, 1), (B, N)
         pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
@@ -460,12 +462,12 @@ class TwoTowerModule(BaseModule):
 
         # calc ranking metrics
         logits, target, _ = create_retrieval_inputs(pos_logits, neg_logits)
-        self.retrieval_metrics(logits, target)
+        self.retrieval_metrics.update(logits, target)
 
         self.monitor.logging_step(
             {
-                "loss": loss,
-                "accuracy": accuracy,
+                "loss": loss.item(),
+                "accuracy": accuracy.item(),
                 "hit_rate": self.retrieval_metrics.hit_rate,
                 "ndcg": self.retrieval_metrics.ndcg,
                 "mrr": self.retrieval_metrics.mrr,

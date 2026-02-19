@@ -1,27 +1,12 @@
 from dataclasses import dataclass
 from enum import StrEnum
 
+from ml_sandbox_libs.my_types import LRSchedulerParams, OptimizerParams
 
-@dataclass(frozen=True)
-class OptimizerParams:
-    """Loss parameters."""
-
-    lr: float
-    weight_decay: float
-    lr_scheduler: "LRSchedulerParams"
-
-
-@dataclass(frozen=True)
-class LRSchedulerParams:
-    """Learning rate scheduler parameters."""
-
-    step_unit: str
-    frequency: int
-    t_initial: int
-    warmup_t: int
-    warmup_lr_init: float
-    lr_min: float
-    cycle_limit: int
+__all__ = [
+    "LRSchedulerParams",
+    "OptimizerParams",
+]
 
 
 class FeatureType(StrEnum):

@@ -2,6 +2,7 @@ defaults:
   - _self_
   - hydra: default
   - model: dlrm
+  - loss: bce
 
 save_dir: ./results/
 debug: true
@@ -19,7 +20,7 @@ data:
   eval_top_k: 30 # nDCGやMRRを評価する上位K
 
 optimizer:
-  lr: 0.00001
+  lr: 1e-4
   gradient_clip_val: 1.0
   weight_decay: 0
   lr_scheduler: # cosine annealingの設定
@@ -27,8 +28,8 @@ optimizer:
     frequency: 1 # 学習率を減衰させる頻度
     t_initial: 100 # 学習率を減衰させるstep数, このstep後min_lrに到達する
     warmup_t: 3 # warmupのstep数。このstep後にlrに到達し、その後は減衰する
-    warmup_lr_init: 0.000001 # warmupの開始時の学習率
-    lr_min: 0.0000001 # 最小の学習率。この値まで減衰させる
+    warmup_lr_init: 1e-6 # warmupの開始時の学習率
+    lr_min: 1e-6 # 最小の学習率。この値まで減衰させる
     cycle_limit: 1 # restartの回数, 1: 通常のcosine annealing, 2以上: cosine annealing with restarts
 
 log:

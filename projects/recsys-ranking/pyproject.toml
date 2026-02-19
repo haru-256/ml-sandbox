@@ -11,7 +11,7 @@ dependencies = [
   "wandb~=0.21.1",
   "timm~=1.0.19",
   "ml-sandbox-libs",
-  "job-runner",
+  "vertex-job-runner",
 ]
 name = "recsys-ranking"
 version = "0.1.0"
@@ -34,6 +34,7 @@ conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
 [tool.uv.sources]
 ml-sandbox-libs = { path = "../../libs/ml_sandbox_libs", editable = true }
 job-runner = { path = "../../apps/job_runner", editable = true }
+vertex-job-runner = { path = "../../apps/vertex-job-runner", editable = true }
 torch = [
   { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'Darwin'" },
   { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'Darwin'" },
