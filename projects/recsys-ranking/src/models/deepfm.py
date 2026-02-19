@@ -240,7 +240,7 @@ class DeepFMModule(BaseModule):
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
-        accuracy: torch.Tensor = self.accuracy(pos_logits, neg_logits)
+        accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         self.monitor.logging_step(
             {
