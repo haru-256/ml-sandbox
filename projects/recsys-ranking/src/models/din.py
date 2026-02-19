@@ -432,7 +432,7 @@ class DINModule(BaseModule):
         pos_logits, neg_logits = self._calc_logits(batch)
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
-        loss: torch.Tensor = self.loss_fn(logits, labels)
+        loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         self.monitor.logging_step(
