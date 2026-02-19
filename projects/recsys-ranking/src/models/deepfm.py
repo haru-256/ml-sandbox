@@ -240,7 +240,7 @@ class DeepFMModule(BaseModule):
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
-        accuracy: torch.Tensor = self.accuracy(logits, labels)
+        accuracy: torch.Tensor = self.accuracy(pos_logits, neg_logits)
 
         self.monitor.logging_step(
             {
@@ -278,7 +278,7 @@ class DeepFMModule(BaseModule):
         # for imbalanced, extract the first item logits, shape (batch_size, 1)
         _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
         logits, labels = create_classification_inputs(_pos_logits, _neg_logits)
-        loss: torch.Tensor = self.loss_fn(logits, labels)
+        loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         # calc ranking metrics

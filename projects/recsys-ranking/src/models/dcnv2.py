@@ -391,15 +391,6 @@ class DCNv2Module(BaseModule):
         """
         pos_logits, neg_logits = self._calc_logits(batch)
 
-        # Use only one negative sample for classification metrics to avoid imbalance
-        _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
-        # Use only one negative sample for classification metrics/loss to avoid imbalance
-        # Note: If loss_fn handles neg_logits internally (e.g. gBCE), we should pass all negs?
-        # But standard BCE assumes 1:1 or 1:N.
-        # However, our LossFn implementations (BCE, gBCE) take (pos, neg).
-        # gBCE handles multiple negatives. Standard BCE implementation in this project also concatenates them.
-        # So passing raw pos_logits/neg_logits is correct for compliance with LossFn interface.
-
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
 
         # For accuracy, we might still want balanced inputs or raw logits?
