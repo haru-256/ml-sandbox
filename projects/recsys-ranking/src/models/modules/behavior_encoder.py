@@ -13,7 +13,8 @@ class BehaviorEncoder(nn.Module):
     """Aggregate behavior history into a single item-sized representation.
 
     Supports two aggregation methods:
-    - ``mean``: padding-aware average pooling via MaskedMeanPooling
+        - ``mean``: padding-aware average pooling via MaskedMeanPooling,
+            followed by a learnable same-dimension linear projection
     - ``din_attention``: target-aware DIN attention pooling
 
     For both methods, when all positions are padding a shared trainable global
@@ -33,11 +34,13 @@ class BehaviorEncoder(nn.Module):
         super().__init__()
         self.encoder_type = encoder_type
         self.mean_pooling: MaskedMeanPooling | None = None
+        self.mean_projection: nn.Linear | None = None
         self.attention: DINAttention | None = None
 
         match encoder_type:
             case "mean":
                 self.mean_pooling = MaskedMeanPooling(embedding_dims=input_dims)
+                self.mean_projection = nn.Linear(input_dims, input_dims, bias=True)
             case "din_attention":
                 self.attention = DINAttention(
                     input_dims=input_dims,
@@ -75,7 +78,9 @@ class BehaviorEncoder(nn.Module):
         match self.encoder_type:
             case "mean":
                 assert self.mean_pooling is not None
-                return self.mean_pooling(history_sequence, padding_mask)
+                assert self.mean_projection is not None
+                pooled = self.mean_pooling(history_sequence, padding_mask)
+                return self.mean_projection(pooled)
             case "din_attention":
                 assert self.attention is not None
                 return self.attention(

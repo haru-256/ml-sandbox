@@ -187,41 +187,6 @@ class TestDIN:
 
             assert output.shape == (batch_size,), f"Failed for din_hidden_dims={din_hidden_dims}"
 
-    def test_attention_mechanism_works(self) -> None:
-        """Test that attention mechanism produces different outputs for different targets."""
-        batch_size, _ = 2, 3
-        num_items = 10
-        num_categories = 5
-        feature_embedding_dims = 8
-
-        model = DIN(
-            num_items=num_items,
-            num_categories=num_categories,
-            feature_embedding_dims=feature_embedding_dims,
-            din_hidden_dims=[4],
-            dnn_hidden_dims=[16],
-            item_pad_idx=0,
-            category_pad_idx=0,
-        )
-
-        # Same history, different targets
-        item_id_history = torch.tensor([[1, 2, 3], [1, 2, 3]])
-        category_id_history = torch.tensor([[1, 2, 3], [1, 2, 3]])
-        target_item_ids = torch.tensor([1, 2])  # Different targets
-        target_category_ids = torch.tensor([1, 2])
-
-        output = model(
-            item_id_history=item_id_history,
-            category_id_history=category_id_history,
-            target_item_ids=target_item_ids,
-            target_category_ids=target_category_ids,
-        )
-
-        # Different targets should produce different outputs (with high probability)
-        assert output.shape == (batch_size,)
-        # Note: We can't guarantee different outputs due to random initialization,
-        # but we can check the mechanism doesn't crash
-
     def test_gradient_flow(self) -> None:
         """Test that gradients flow through the model properly."""
         batch_size = 2

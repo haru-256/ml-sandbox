@@ -45,6 +45,7 @@ class TestDCNv2CrossType:
         return DCNv2(**base_params, cross_net_type="cross")
 
     def test_initialization(self, model: DCNv2) -> None:
+        """Verify initialization."""
         assert hasattr(model, "embedding_layer")
         assert hasattr(model, "behavior_encoder")
         assert hasattr(model, "cross_net")
@@ -60,6 +61,7 @@ class TestDCNv2CrossType:
         sample_input: tuple[torch.Tensor, torch.Tensor],
         sample_batch_size: int,
     ) -> None:
+        """Verify forward shape."""
         item_history, target_item_ids = sample_input
         out = model(item_history, target_item_ids)
         assert out.shape == (sample_batch_size,)
@@ -70,6 +72,7 @@ class TestDCNv2CrossType:
         model: DCNv2,
         sample_input: tuple[torch.Tensor, torch.Tensor],
     ) -> None:
+        """Verify forward finite."""
         item_history, target_item_ids = sample_input
         out = model(item_history, target_item_ids)
         assert torch.isfinite(out).all()
@@ -77,6 +80,7 @@ class TestDCNv2CrossType:
     def test_gradient_flow(
         self, model: DCNv2, sample_input: tuple[torch.Tensor, torch.Tensor]
     ) -> None:
+        """Verify gradient flow."""
         item_history, target_item_ids = sample_input
         out = model(item_history, target_item_ids)
         out.sum().backward()
@@ -84,6 +88,7 @@ class TestDCNv2CrossType:
             assert param.grad is not None, f"No gradient for {name}"
 
     def test_different_batch_sizes(self, model: DCNv2, sample_seq_len: int) -> None:
+        """Verify different batch sizes."""
         for batch_size in [1, 4, 32]:
             item_history = torch.randint(1, 1000, (batch_size, sample_seq_len))
             target_item_ids = torch.randint(1, 1000, (batch_size,))
@@ -93,6 +98,7 @@ class TestDCNv2CrossType:
     def test_eval_mode_determinism(
         self, model: DCNv2, sample_input: tuple[torch.Tensor, torch.Tensor]
     ) -> None:
+        """Verify eval mode determinism."""
         model.eval()
         item_history, target_item_ids = sample_input
         with torch.no_grad():
@@ -145,6 +151,7 @@ class TestDCNv2CrossType:
         assert torch.allclose(emb.weight.grad[0], torch.zeros_like(emb.weight.grad[0]))
 
     def test_din_behavior_encoder_forward_shape(self, base_params: dict[str, Any]) -> None:
+        """Verify din behavior encoder forward shape."""
         model = DCNv2(
             **base_params,
             cross_net_type="cross",
@@ -170,6 +177,7 @@ class TestDCNv2MoEType:
         sample_input: tuple[torch.Tensor, torch.Tensor],
         sample_batch_size: int,
     ) -> None:
+        """Verify forward shape."""
         item_history, target_item_ids = sample_input
         out = model(item_history, target_item_ids)
         assert out.shape == (sample_batch_size,)
@@ -177,6 +185,7 @@ class TestDCNv2MoEType:
     def test_gradient_flow(
         self, model: DCNv2, sample_input: tuple[torch.Tensor, torch.Tensor]
     ) -> None:
+        """Verify gradient flow."""
         item_history, target_item_ids = sample_input
         out = model(item_history, target_item_ids)
         out.sum().backward()
@@ -185,6 +194,7 @@ class TestDCNv2MoEType:
 
     @pytest.mark.parametrize("num_experts", [1, 2, 8])
     def test_various_num_experts(self, base_params: dict[str, Any], num_experts: int) -> None:
+        """Verify various num experts."""
         model = DCNv2(**base_params, cross_net_type="cross_moe", num_experts=num_experts)
         item_history = torch.randint(1, 1000, (8, 10))
         target_item_ids = torch.randint(1, 1000, (8,))
@@ -194,9 +204,11 @@ class TestDCNv2MoEType:
 
 class TestDCNv2InvalidInput:
     def test_invalid_cross_net_type(self, base_params: dict[str, Any]) -> None:
+        """Verify invalid cross net type."""
         with pytest.raises(ValueError, match="cross_net_type must be"):
             DCNv2(**base_params, cross_net_type="invalid")  # type: ignore[arg-type]
 
     def test_invalid_behavior_encoder_type(self, base_params: dict[str, Any]) -> None:
+        """Verify invalid behavior encoder type."""
         with pytest.raises(ValueError, match="behavior encoder type must be"):
             DCNv2(**base_params, behavior_encoder_type="invalid")  # type: ignore[arg-type]

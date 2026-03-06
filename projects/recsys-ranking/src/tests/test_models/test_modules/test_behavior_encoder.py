@@ -6,7 +6,12 @@ from my_types import ActivationType
 
 class TestBehaviorEncoder:
     def test_mean_ignores_padding(self) -> None:
+        """Verify mean encoder ignores padded positions during aggregation."""
         encoder = BehaviorEncoder(input_dims=2, encoder_type="mean")
+        assert encoder.mean_projection is not None
+        with torch.no_grad():
+            encoder.mean_projection.weight.copy_(torch.eye(2))
+            encoder.mean_projection.bias.zero_()
         target = torch.zeros(2, 2)
         history = torch.tensor(
             [
@@ -32,10 +37,14 @@ class TestBehaviorEncoder:
         torch.testing.assert_close(out, expected)
 
     def test_mean_returns_global_embedding_for_all_padding(self) -> None:
+        """Verify mean encoder returns global embedding when history is fully padded."""
         encoder = BehaviorEncoder(input_dims=3, encoder_type="mean")
         assert encoder.mean_pooling is not None
+        assert encoder.mean_projection is not None
         with torch.no_grad():
             encoder.mean_pooling.global_embedding.copy_(torch.tensor([0.5, -0.5, 1.5]))
+            encoder.mean_projection.weight.copy_(torch.eye(3))
+            encoder.mean_projection.bias.zero_()
 
         target = torch.zeros(2, 3)
         history = torch.zeros(2, 4, 3)
@@ -52,6 +61,7 @@ class TestBehaviorEncoder:
         torch.testing.assert_close(out, expected)
 
     def test_din_attention_pooling_respects_padding(self) -> None:
+        """Verify DIN attention pooling excludes masked history positions."""
         encoder = BehaviorEncoder(
             input_dims=2,
             encoder_type="din_attention",
@@ -76,6 +86,7 @@ class TestBehaviorEncoder:
         torch.testing.assert_close(out, expected, atol=1e-6, rtol=1e-6)
 
     def test_din_attention_returns_global_embedding_for_all_padding(self) -> None:
+        """Verify DIN attention path returns global embedding for all-padding history."""
         encoder = BehaviorEncoder(
             input_dims=2,
             encoder_type="din_attention",

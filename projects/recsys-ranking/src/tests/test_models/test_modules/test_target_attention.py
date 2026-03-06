@@ -7,6 +7,7 @@ from my_types import ActivationType
 
 class TestDINAttention:
     def test_forward_shape_with_all_valid_mask(self) -> None:
+        """Verify forward shape with all valid mask."""
         B, H, D = 2, 3, 4
         attn = DINAttention(
             input_dims=D,
@@ -25,6 +26,7 @@ class TestDINAttention:
         assert torch.isfinite(out).all()
 
     def test_masking_without_softmax(self) -> None:
+        """Verify masking without softmax."""
         B, _, D = 1, 4, 3
         attn = DINAttention(
             input_dims=D,
@@ -59,6 +61,7 @@ class TestDINAttention:
         torch.testing.assert_close(out.squeeze(0), expected)
 
     def test_softmax_respects_mask(self) -> None:
+        """Verify softmax respects mask."""
         B, _, D = 1, 3, 2
         attn = DINAttention(
             input_dims=D,
@@ -84,6 +87,7 @@ class TestDINAttention:
         torch.testing.assert_close(out.squeeze(0), expected, atol=1e-6, rtol=1e-6)
 
     def test_padding_mask_bool_required(self) -> None:
+        """Verify padding mask bool required."""
         B, H, D = 1, 2, 2
         attn = DINAttention(
             input_dims=D,

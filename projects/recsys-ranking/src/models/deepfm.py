@@ -84,6 +84,14 @@ class DeepFM(nn.Module):
 
         Raises:
             ValueError: If deep_hidden_features_list is empty
+
+        TODO:
+            Support behavior-encoder based history aggregation like DCNv2/DLRM.
+            The main design challenge is FM first-order terms: current first-order
+            uses categorical IDs, while behavior encoder outputs dense vectors.
+            Candidate approaches:
+            1) Keep target_item_id first-order term and add nn.Linear(D, 1) for behavior vector.
+            2) Introduce a dedicated hybrid first-order module for mixed ID/vector inputs.
         """
         super().__init__()
         self.feature_map = {
@@ -129,8 +137,15 @@ class DeepFM(nn.Module):
 
         Returns:
             torch.Tensor: Prediction logits of shape (batch_size,)
+
+        TODO:
+            Replace last-item shortcut with behavior encoder aggregation of full
+            history. For safe migration, first apply aggregated behavior to
+            second-order/deep branches, then redesign first-order branch with a
+            hybrid formulation.
         """
 
+        # TODO: migrate from last-item proxy to behavior encoder output.
         last_item_ids = item_id_history[:, -1]  # (B,)
         inputs: dict[str, torch.Tensor] = OrderedDict()
         inputs["last_item_id"] = last_item_ids

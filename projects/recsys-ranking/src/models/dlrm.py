@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Any, override
+from typing import Any, Literal, override
 
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
@@ -20,6 +20,7 @@ from loss import LossFn
 from my_types import ActivationType, FeatureSpec, FeatureType, NormalizeType
 
 from .base import BaseModule
+from .modules.behavior_encoder import BehaviorEncoder
 from .modules.feature_embedding_dict import FeatureEmbeddingDict
 from .modules.interaction import SecondOrderInteraction
 from .modules.mlp import MLP
@@ -73,6 +74,12 @@ class DLRM(nn.Module):
         feature_embedding_dims: int,
         dense_hidden_features_list: list[int],
         top_hidden_features_list: list[int],
+        behavior_encoder_type: Literal["mean", "din_attention"] = "mean",
+        behavior_din_hidden_dims: list[int] | None = None,
+        behavior_din_activation: ActivationType | None = ActivationType.DICE,
+        behavior_din_normalize: NormalizeType | None = None,
+        behavior_din_dropout: float = 0.0,
+        behavior_din_use_softmax: bool = False,
         dense_activation: ActivationType | None = None,
         dense_normalize: NormalizeType | None = None,
         dense_dropout: float = 0.0,
@@ -88,6 +95,18 @@ class DLRM(nn.Module):
             feature_embedding_dims: Embedding dimension for categorical features.
             dense_hidden_features_list: Hidden sizes for dense-feature MLP (if used).
             top_hidden_features_list: Hidden sizes for the top prediction MLP.
+            behavior_encoder_type: History aggregation method. Either ``"mean"``
+                or ``"din_attention"``. Defaults to ``"mean"``.
+            behavior_din_hidden_dims: Hidden layer sizes for DIN attention used by
+                ``behavior_encoder_type="din_attention"``. Defaults to [] when omitted.
+            behavior_din_activation: Activation for DIN attention hidden layers.
+                Defaults to ``ActivationType.DICE``.
+            behavior_din_normalize: Normalization for DIN attention hidden layers.
+                Defaults to None.
+            behavior_din_dropout: Dropout probability for DIN attention hidden layers.
+                Defaults to 0.0.
+            behavior_din_use_softmax: Whether to normalize DIN attention weights with
+                softmax. Defaults to False.
             dense_activation: Optional activation for dense MLP; default None.
             dense_normalize: Optional normalization for dense MLP; default None.
             dense_dropout: Dropout probability for dense MLP; default 0.0.
@@ -101,9 +120,10 @@ class DLRM(nn.Module):
             Dense features support is implemented but not actively used.
         """
         super().__init__()
+        self.item_pad_idx = item_pad_idx
         self.sparse_feature_map = {
-            "last_item_id": FeatureSpec(
-                type_=FeatureType.CATEGORICAL,
+            "item_id_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
                 padding_idx=item_pad_idx,
@@ -121,6 +141,15 @@ class DLRM(nn.Module):
 
         # NOTE: DLRMはsparse feature(categorical feature)のみをembeddingし、dense featureはMLPでembeddingする
         self.sparse_embedding_layer = FeatureEmbeddingDict(self.sparse_feature_map)
+        self.behavior_encoder = BehaviorEncoder(
+            input_dims=feature_embedding_dims,
+            encoder_type=behavior_encoder_type,
+            attention_hidden_dims=behavior_din_hidden_dims,
+            attention_hidden_activation=behavior_din_activation,
+            attention_hidden_normalize=behavior_din_normalize,
+            attention_hidden_dropout=behavior_din_dropout,
+            attention_use_softmax=behavior_din_use_softmax,
+        )
         if len(self.dense_feature_map) > 0:
             self.dense_embedding_layer = MLP(
                 in_features=len(self.dense_feature_map),
@@ -161,7 +190,8 @@ class DLRM(nn.Module):
         """Forward pass for DLRM model.
 
         Processes the input through the DLRM architecture:
-        1. Embeds sparse categorical features (last_item_id, target_item_id)
+        1. Embeds sparse categorical features (item_id_history, target_item_id)
+        2. Aggregates history into a behavior embedding
         2. Computes second-order feature interactions using inner product
         3. Processes interaction outputs through top MLP for final prediction
 
@@ -173,22 +203,28 @@ class DLRM(nn.Module):
             torch.Tensor: Prediction logits of shape (batch_size,)
 
         Note:
-            Currently only uses the last item from the history sequence.
             Dense features are supported but not used in the current implementation.
         """
 
-        last_item_ids = item_id_history[:, -1]  # (B,)
         sparse_feature_dict: dict[str, torch.Tensor] = OrderedDict()
-        sparse_feature_dict["last_item_id"] = last_item_ids
+        sparse_feature_dict["item_id_history"] = item_id_history
         sparse_feature_dict["target_item_id"] = target_item_ids
         dense_feature_dict: dict[str, torch.Tensor] = OrderedDict()
 
-        # element shape: (B, D)
+        # item_id_history: (B, H, D), target_item_id: (B, D)
         sparse_emb_dict: OrderedDict[str, torch.Tensor] = self.sparse_embedding_layer(
             sparse_feature_dict
         )
-        # (B, num_sparse_features * D)
-        sparse_embs = torch.stack(list(sparse_emb_dict.values()), dim=1)
+        history_emb = sparse_emb_dict["item_id_history"]
+        target_emb = sparse_emb_dict["target_item_id"]
+        padding_mask = item_id_history != self.item_pad_idx
+        behavior_emb = self.behavior_encoder(
+            target_item=target_emb,
+            history_sequence=history_emb,
+            padding_mask=padding_mask,
+        )
+        # (B, num_sparse_features, D)
+        sparse_embs = torch.stack([behavior_emb, target_emb], dim=1)
         dense_embs = None
         if len(self.dense_feature_map) > 0:
             # (B, num_dense_features)
@@ -249,6 +285,12 @@ class DLRMModule(BaseModule):
         eval_top_k: int,
         optimizer: Optimizer,
         loss_fn: LossFn,
+        behavior_encoder_type: Literal["mean", "din_attention"] = "mean",
+        behavior_din_hidden_dims: list[int] | None = None,
+        behavior_din_activation: ActivationType | None = ActivationType.DICE,
+        behavior_din_normalize: NormalizeType | None = None,
+        behavior_din_dropout: float = 0.0,
+        behavior_din_use_softmax: bool = False,
         dense_activation: ActivationType | None = None,
         dense_normalize: NormalizeType | None = None,
         dense_dropout: float = 0.0,
@@ -268,6 +310,18 @@ class DLRMModule(BaseModule):
             eval_top_k: Top-k for retrieval metrics.
             optimizer: Optimizer strategy object.
             loss_fn: Loss function instance.
+            behavior_encoder_type: History aggregation method. Either ``"mean"``
+                or ``"din_attention"``. Defaults to ``"mean"``.
+            behavior_din_hidden_dims: Hidden layer sizes for DIN attention used by
+                ``behavior_encoder_type="din_attention"``. Defaults to [] when omitted.
+            behavior_din_activation: Activation for DIN attention hidden layers.
+                Defaults to ``ActivationType.DICE``.
+            behavior_din_normalize: Normalization for DIN attention hidden layers.
+                Defaults to None.
+            behavior_din_dropout: Dropout probability for DIN attention hidden layers.
+                Defaults to 0.0.
+            behavior_din_use_softmax: Whether to normalize DIN attention weights with
+                softmax. Defaults to False.
             dense_activation: Optional activation for dense MLP; default None.
             dense_normalize: Optional normalization for dense MLP; default None.
             dense_dropout: Dropout probability for dense MLP; default 0.0.
@@ -285,6 +339,12 @@ class DLRMModule(BaseModule):
             dense_hidden_features_list=dense_hidden_features_list,
             top_hidden_features_list=top_hidden_features_list,
             item_pad_idx=item_pad_idx,
+            behavior_encoder_type=behavior_encoder_type,
+            behavior_din_hidden_dims=behavior_din_hidden_dims,
+            behavior_din_activation=behavior_din_activation,
+            behavior_din_normalize=behavior_din_normalize,
+            behavior_din_dropout=behavior_din_dropout,
+            behavior_din_use_softmax=behavior_din_use_softmax,
             dense_activation=dense_activation,
             dense_normalize=dense_normalize,
             dense_dropout=dense_dropout,
