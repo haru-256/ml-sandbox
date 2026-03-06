@@ -46,11 +46,12 @@ class TestDCNv2CrossType:
 
     def test_initialization(self, model: DCNv2) -> None:
         assert hasattr(model, "embedding_layer")
+        assert hasattr(model, "behavior_encoder")
         assert hasattr(model, "cross_net")
         assert hasattr(model, "deep_net")
         assert hasattr(model, "output_layer")
         assert len(model.feature_map) == 2
-        assert "last_item_id" in model.feature_map
+        assert "item_id_history" in model.feature_map
         assert "target_item_id" in model.feature_map
 
     def test_forward_shape(
@@ -99,19 +100,38 @@ class TestDCNv2CrossType:
             out2 = model(item_history, target_item_ids)
         assert torch.allclose(out1, out2)
 
-    def test_uses_last_item_from_history(self, model: DCNv2, sample_seq_len: int) -> None:
-        """The model should use only the last item from item history."""
-        batch_size = 4
-        item_history1 = torch.randint(1, 900, (batch_size, sample_seq_len))
-        item_history2 = item_history1.clone()
-        # Change all but the last position — outputs should be the same
-        item_history2[:, :-1] = torch.randint(1, 900, (batch_size, sample_seq_len - 1))
-        target_item_ids = torch.randint(1, 1000, (batch_size,))
+    def test_uses_full_history(self, model: DCNv2) -> None:
+        """Changing earlier history positions should change outputs."""
+        embedding_dims = model.feature_map["item_id_history"].embedding_dims
+        model.cross_net = nn.Identity()
+        model.deep_net = nn.Identity()
+        model.output_layer = nn.Linear(embedding_dims * 4, 1, bias=False)
+
+        embedding = cast(nn.Embedding, model.embedding_layer.feature_encoder["item_id_history"])
+        with torch.no_grad():
+            embedding.weight.zero_()
+            for item_id in range(1, 10):
+                embedding.weight[item_id].fill_(float(item_id))
+            model.output_layer.weight.fill_(1.0)
+
+        item_history1 = torch.tensor(
+            [
+                [1, 2, 3, 4, 5],
+                [1, 1, 1, 1, 5],
+            ]
+        )
+        item_history2 = torch.tensor(
+            [
+                [9, 9, 9, 4, 5],
+                [8, 8, 8, 8, 5],
+            ]
+        )
+        target_item_ids = torch.tensor([7, 7])
         model.eval()
         with torch.no_grad():
             out1 = model(item_history1, target_item_ids)
             out2 = model(item_history2, target_item_ids)
-        assert torch.allclose(out1, out2)
+        assert not torch.allclose(out1, out2)
 
     def test_padding_idx_zero_gradient(self, model: DCNv2) -> None:
         """Padding index (0) embeddings should have zero gradient."""
@@ -119,10 +139,22 @@ class TestDCNv2CrossType:
         target_item_ids = torch.zeros(4, dtype=torch.long)
         out = model(item_history, target_item_ids)
         out.sum().backward()
-        emb = cast(nn.Embedding, model.embedding_layer.feature_encoder["last_item_id"])
+        emb = cast(nn.Embedding, model.embedding_layer.feature_encoder["item_id_history"])
         assert emb.weight.grad is not None
         # padding_idx row should remain zero grad
         assert torch.allclose(emb.weight.grad[0], torch.zeros_like(emb.weight.grad[0]))
+
+    def test_din_behavior_encoder_forward_shape(self, base_params: dict[str, Any]) -> None:
+        model = DCNv2(
+            **base_params,
+            cross_net_type="cross",
+            behavior_encoder_type="din_attention",
+            behavior_din_hidden_dims=[16],
+        )
+        item_history = torch.randint(1, 1000, (8, 10))
+        target_item_ids = torch.randint(1, 1000, (8,))
+        out = model(item_history, target_item_ids)
+        assert out.shape == (8,)
 
 
 class TestDCNv2MoEType:
@@ -164,3 +196,7 @@ class TestDCNv2InvalidInput:
     def test_invalid_cross_net_type(self, base_params: dict[str, Any]) -> None:
         with pytest.raises(ValueError, match="cross_net_type must be"):
             DCNv2(**base_params, cross_net_type="invalid")  # type: ignore[arg-type]
+
+    def test_invalid_behavior_encoder_type(self, base_params: dict[str, Any]) -> None:
+        with pytest.raises(ValueError, match="behavior encoder type must be"):
+            DCNv2(**base_params, behavior_encoder_type="invalid")  # type: ignore[arg-type]

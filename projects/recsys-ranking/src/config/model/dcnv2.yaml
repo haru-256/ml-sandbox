@@ -1,0 +1,23 @@
+name: "DCNv2"
+
+feature_embedding_dims: 32
+
+behavior_encoder_type: mean
+behavior_din_hidden_dims: [16]
+behavior_din_activation: dice
+behavior_din_normalize: null
+behavior_din_dropout: 0.0
+behavior_din_use_softmax: false
+
+cross_num_layers: 3
+cross_net_type: cross_moe
+num_experts: 4
+cross_rank: 32
+cross_activation: relu
+cross_activation_kwargs: null
+cross_normalize: null
+
+deep_hidden_dims: [128, 64]
+deep_activation: relu
+deep_normalize: batch
+deep_dropout: 0.5
