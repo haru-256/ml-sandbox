@@ -3,7 +3,7 @@
 import pytest
 import torch
 
-from models.modules.masked_mean_pooling import MaskedMeanPooling
+from models.modules.base.masked_mean_pooling import MaskedMeanPooling
 
 
 class TestMaskedMeanPooling:

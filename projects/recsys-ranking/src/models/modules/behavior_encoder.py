@@ -32,13 +32,13 @@ class BehaviorEncoder(nn.Module):
     ) -> None:
         super().__init__()
         self.encoder_type = encoder_type
+        self.mean_pooling: MaskedMeanPooling | None = None
+        self.attention: DINAttention | None = None
 
         match encoder_type:
             case "mean":
                 self.mean_pooling = MaskedMeanPooling(embedding_dims=input_dims)
-                self.attention: DINAttention | None = None
             case "din_attention":
-                self.mean_pooling: MaskedMeanPooling | None = None
                 self.attention = DINAttention(
                     input_dims=input_dims,
                     hidden_dims=attention_hidden_dims or [],

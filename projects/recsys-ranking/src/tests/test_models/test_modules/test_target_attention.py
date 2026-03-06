@@ -124,7 +124,7 @@ class TestDINAttention:
 
     def test_mixed_padding_and_valid(self) -> None:
         """Test batch with some samples having all padding and others with valid history."""
-        B, H, D = 2, 2, 2
+        B, D = 2, 2
         attn = DINAttention(
             input_dims=D,
             hidden_dims=[],
