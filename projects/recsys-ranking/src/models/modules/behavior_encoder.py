@@ -15,7 +15,7 @@ class BehaviorEncoder(nn.Module):
     Supports two aggregation methods:
         - ``mean``: padding-aware average pooling via MaskedMeanPooling,
             followed by a learnable same-dimension linear projection
-    - ``din_attention``: target-aware DIN attention pooling
+        - ``din_attention``: target-aware DIN attention pooling
 
     For both methods, when all positions are padding a shared trainable global
     embedding is returned instead (managed internally by each encoder).
