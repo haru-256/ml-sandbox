@@ -15,6 +15,7 @@ class TestCrossLayerV2:
     """Tests for the _CrossLayerV2 private class."""
 
     def test_forward_shape(self) -> None:
+        """Verify forward shape."""
         batch_size, d, r = 8, 32, 16
         layer = _CrossLayerV2(in_features=d, rank=r)
         x_0 = torch.randn(batch_size, d)
@@ -46,22 +47,27 @@ class TestCrossNetV2:
         return CrossNetV2(in_features=64, num_layers=3, rank=16)
 
     def test_output_dims_property(self, model: CrossNetV2) -> None:
+        """Verify output dims property."""
         assert model.output_dims == 64
 
     def test_num_cross_layers(self, model: CrossNetV2) -> None:
+        """Verify num cross layers."""
         assert len(model.cross_layers) == 3
 
     def test_forward_shape(self, model: CrossNetV2) -> None:
+        """Verify forward shape."""
         x = torch.randn(16, 64)
         out = model(x)
         assert out.shape == (16, 64)
 
     def test_forward_dtype(self, model: CrossNetV2) -> None:
+        """Verify forward dtype."""
         x = torch.randn(8, 64)
         out = model(x)
         assert out.dtype == torch.float32
 
     def test_gradient_flow(self, model: CrossNetV2) -> None:
+        """Verify gradient flow."""
         x = torch.randn(8, 64, requires_grad=True)
         out = model(x)
         loss = out.sum()
@@ -71,36 +77,43 @@ class TestCrossNetV2:
             assert param.grad is not None, f"No gradient for {name}"
 
     def test_invalid_in_features(self) -> None:
+        """Verify invalid in features."""
         with pytest.raises(ValueError, match="in_features must be positive"):
             CrossNetV2(in_features=0, num_layers=2, rank=16)
 
     def test_invalid_num_layers(self) -> None:
+        """Verify invalid num layers."""
         with pytest.raises(ValueError, match="num_layers must be positive"):
             CrossNetV2(in_features=32, num_layers=0, rank=16)
 
     def test_invalid_rank(self) -> None:
+        """Verify invalid rank."""
         with pytest.raises(ValueError, match="rank must be positive"):
             CrossNetV2(in_features=32, num_layers=2, rank=0)
 
     @pytest.mark.parametrize("num_layers", [1, 2, 5])
     def test_various_num_layers(self, num_layers: int) -> None:
+        """Verify various num layers."""
         model = CrossNetV2(in_features=32, num_layers=num_layers, rank=8)
         x = torch.randn(4, 32)
         out = model(x)
         assert out.shape == (4, 32)
 
     def test_different_batch_sizes(self, model: CrossNetV2) -> None:
+        """Verify different batch sizes."""
         for batch_size in [1, 4, 32, 128]:
             x = torch.randn(batch_size, 64)
             out = model(x)
             assert out.shape == (batch_size, 64)
 
     def test_output_is_finite(self, model: CrossNetV2) -> None:
+        """Verify output is finite."""
         x = torch.randn(16, 64)
         out = model(x)
         assert torch.isfinite(out).all()
 
     def test_determinism_in_eval_mode(self, model: CrossNetV2) -> None:
+        """Verify determinism in eval mode."""
         model.eval()
         x = torch.randn(8, 64)
         out1 = model(x)
@@ -112,6 +125,7 @@ class TestCrossLayerV2MoE:
     """Tests for the _CrossLayerV2MoE private class."""
 
     def test_forward_shape(self) -> None:
+        """Verify forward shape."""
         batch_size, d, e, r = 8, 32, 4, 16
         layer = _CrossLayerV2MoE(
             in_features=d, num_experts=e, rank=r, normalize=None, activation=None
@@ -141,22 +155,27 @@ class TestCrossNetV2MoE:
         return CrossNetV2MoE(in_features=64, num_layers=3, num_experts=4, rank=16)
 
     def test_output_dims_property(self, model: CrossNetV2MoE) -> None:
+        """Verify output dims property."""
         assert model.output_dims == 64
 
     def test_num_cross_layers(self, model: CrossNetV2MoE) -> None:
+        """Verify num cross layers."""
         assert len(model.cross_layers) == 3
 
     def test_forward_shape(self, model: CrossNetV2MoE) -> None:
+        """Verify forward shape."""
         x = torch.randn(16, 64)
         out = model(x)
         assert out.shape == (16, 64)
 
     def test_forward_dtype(self, model: CrossNetV2MoE) -> None:
+        """Verify forward dtype."""
         x = torch.randn(8, 64)
         out = model(x)
         assert out.dtype == torch.float32
 
     def test_gradient_flow(self, model: CrossNetV2MoE) -> None:
+        """Verify gradient flow."""
         x = torch.randn(8, 64, requires_grad=True)
         out = model(x)
         loss = out.sum()
@@ -166,23 +185,28 @@ class TestCrossNetV2MoE:
             assert param.grad is not None, f"No gradient for {name}"
 
     def test_invalid_in_features(self) -> None:
+        """Verify invalid in features."""
         with pytest.raises(ValueError, match="in_features must be positive"):
             CrossNetV2MoE(in_features=0, num_layers=2, num_experts=4, rank=16)
 
     def test_invalid_num_layers(self) -> None:
+        """Verify invalid num layers."""
         with pytest.raises(ValueError, match="num_layers must be positive"):
             CrossNetV2MoE(in_features=32, num_layers=0, num_experts=4, rank=16)
 
     def test_invalid_num_experts(self) -> None:
+        """Verify invalid num experts."""
         with pytest.raises(ValueError, match="num_experts must be positive"):
             CrossNetV2MoE(in_features=32, num_layers=2, num_experts=0, rank=16)
 
     def test_invalid_rank(self) -> None:
+        """Verify invalid rank."""
         with pytest.raises(ValueError, match="rank must be positive"):
             CrossNetV2MoE(in_features=32, num_layers=2, num_experts=4, rank=0)
 
     @pytest.mark.parametrize("num_experts", [1, 2, 8])
     def test_various_num_experts(self, num_experts: int) -> None:
+        """Verify various num experts."""
         model = CrossNetV2MoE(in_features=32, num_layers=2, num_experts=num_experts, rank=8)
         x = torch.randn(4, 32)
         out = model(x)
@@ -190,23 +214,27 @@ class TestCrossNetV2MoE:
 
     @pytest.mark.parametrize("num_layers", [1, 2, 5])
     def test_various_num_layers(self, num_layers: int) -> None:
+        """Verify various num layers."""
         model = CrossNetV2MoE(in_features=32, num_layers=num_layers, num_experts=3, rank=8)
         x = torch.randn(4, 32)
         out = model(x)
         assert out.shape == (4, 32)
 
     def test_different_batch_sizes(self, model: CrossNetV2MoE) -> None:
+        """Verify different batch sizes."""
         for batch_size in [1, 4, 32, 128]:
             x = torch.randn(batch_size, 64)
             out = model(x)
             assert out.shape == (batch_size, 64)
 
     def test_output_is_finite(self, model: CrossNetV2MoE) -> None:
+        """Verify output is finite."""
         x = torch.randn(16, 64)
         out = model(x)
         assert torch.isfinite(out).all()
 
     def test_determinism_in_eval_mode(self, model: CrossNetV2MoE) -> None:
+        """Verify determinism in eval mode."""
         model.eval()
         x = torch.randn(8, 64)
         out1 = model(x)

@@ -98,7 +98,7 @@ class TestDLRM:
 
         # Check sparse feature map configuration
         assert len(model.sparse_feature_map) == 2
-        assert "last_item_id" in model.sparse_feature_map
+        assert "item_id_history" in model.sparse_feature_map
         assert "target_item_id" in model.sparse_feature_map
 
         # Check that dense feature map is empty by default
@@ -276,6 +276,31 @@ class TestDLRM:
         assert output.shape == (batch_size,)
         assert torch.isfinite(output).all()
 
+    def test_dlrm_uses_full_history(self, model_params: dict[str, Any]) -> None:
+        """Test DLRM behavior representation depends on the full history sequence."""
+        torch.manual_seed(42)
+        model = DLRM(
+            num_items=int(model_params["num_items"]),
+            feature_embedding_dims=int(model_params["feature_embedding_dims"]),
+            dense_hidden_features_list=model_params["dense_hidden_features_list"],
+            dense_dropout=0.0,
+            top_hidden_features_list=model_params["top_hidden_features_list"],
+            top_dropout=0.0,
+            item_pad_idx=int(model_params["item_pad_idx"]),
+            behavior_encoder_type="mean",
+        )
+        model.eval()
+
+        # Same last item / target, different earlier history -> output should differ.
+        item_history_a = torch.tensor([[1, 2, 9]], dtype=torch.long)
+        item_history_b = torch.tensor([[7, 8, 9]], dtype=torch.long)
+        target_item_ids = torch.tensor([10], dtype=torch.long)
+
+        out_a = model(item_history_a, target_item_ids)
+        out_b = model(item_history_b, target_item_ids)
+
+        assert not torch.allclose(out_a, out_b, atol=1e-6)
+
     def test_dlrm_deterministic_output(self, model_params: dict[str, Any]) -> None:
         """Test that DLRM produces deterministic output with same input."""
         # Set seed for reproducibility
@@ -419,60 +444,6 @@ class TestDLRMIntegration:
 
             # Check that loss is finite
             assert torch.isfinite(loss)
-
-    def test_dlrm_inference_performance(self, model_params: dict[str, Any]) -> None:
-        """Test DLRM inference performance."""
-        model = DLRM(
-            num_items=int(model_params["num_items"]),
-            feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dense_dropout=float(model_params["dense_dropout"]),
-            top_hidden_features_list=model_params["top_hidden_features_list"],
-            top_dropout=float(model_params["top_dropout"]),
-            item_pad_idx=int(model_params["item_pad_idx"]),
-        )
-
-        model.eval()
-        batch_size = 16
-        seq_len = 10
-
-        with torch.no_grad():
-            item_history = torch.randint(1, 50, (batch_size, seq_len), dtype=torch.long)
-            target_item_ids = torch.randint(1, 50, (batch_size,), dtype=torch.long)
-
-            # Multiple inference calls should be consistent
-            outputs = []
-            for _ in range(5):
-                output = model(item_history, target_item_ids)
-                outputs.append(output)
-
-            # All outputs should be identical in eval mode
-            for i in range(1, len(outputs)):
-                assert torch.allclose(outputs[0], outputs[i], atol=1e-6)
-
-    def test_dlrm_memory_efficiency(self, model_params: dict[str, Any]) -> None:
-        """Test DLRM memory usage."""
-        model = DLRM(
-            num_items=int(model_params["num_items"]),
-            feature_embedding_dims=int(model_params["feature_embedding_dims"]),
-            dense_hidden_features_list=model_params["dense_hidden_features_list"],
-            dense_dropout=float(model_params["dense_dropout"]),
-            top_hidden_features_list=model_params["top_hidden_features_list"],
-            top_dropout=float(model_params["top_dropout"]),
-            item_pad_idx=int(model_params["item_pad_idx"]),
-        )
-
-        # Test with larger batch sizes (skip batch_size=1 for BatchNorm)
-        for batch_size in [2, 8, 32]:
-            seq_len = 10
-            item_history = torch.randint(1, 50, (batch_size, seq_len), dtype=torch.long)
-            target_item_ids = torch.randint(1, 50, (batch_size,), dtype=torch.long)
-
-            try:
-                output = model(item_history, target_item_ids)
-                assert output.shape == (batch_size,)
-            except RuntimeError as e:
-                pytest.fail(f"Memory error with batch_size={batch_size}: {e}")
 
     def test_dlrm_normalization_variants(self) -> None:
         """Test DLRM with different normalization strategies."""

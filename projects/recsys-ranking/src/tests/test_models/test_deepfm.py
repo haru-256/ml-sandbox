@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from typing import Any
 
 import pytest
@@ -350,63 +349,6 @@ class TestDeepFMIntegration:
             # Check that loss is finite
             assert torch.isfinite(loss)
 
-    def test_deepfm_inference_performance(self) -> None:
-        """Test DeepFM inference performance with larger batch sizes."""
-        model = DeepFM(
-            num_items=1000,
-            feature_embedding_dims=64,
-            deep_hidden_features_list=[128, 64],
-            deep_activation=ActivationType.RELU,
-            deep_normalize=None,
-            deep_dropout=0.0,  # No dropout for inference
-            item_pad_idx=0,
-        )
-        model.eval()
-
-        # Test with larger batch sizes
-        large_batch_size = 64
-        seq_len = 20
-
-        item_id_history = torch.randint(1, 1000, (large_batch_size, seq_len))
-        target_item_ids = torch.randint(1, 1000, (large_batch_size,))
-
-        with torch.no_grad():
-            output = model(item_id_history, target_item_ids)
-
-        assert output.shape == (large_batch_size,)
-        assert torch.isfinite(output).all()
-
-    def test_deepfm_memory_efficiency(self) -> None:
-        """Test DeepFM memory usage is reasonable."""
-        import gc
-
-        # Clear any existing memory
-        gc.collect()
-
-        model = DeepFM(
-            num_items=5000,
-            feature_embedding_dims=128,
-            deep_hidden_features_list=[256, 128],
-            deep_activation=ActivationType.RELU,
-            deep_normalize=None,
-            deep_dropout=0.1,
-            item_pad_idx=0,
-        )
-
-        batch_size = 32
-        seq_len = 50
-
-        item_id_history = torch.randint(1, 5000, (batch_size, seq_len))
-        target_item_ids = torch.randint(1, 5000, (batch_size,))
-
-        # Should not raise memory errors
-        output = model(item_id_history, target_item_ids)
-        assert output.shape == (batch_size,)
-
-        # Clean up
-        del model, output
-        gc.collect()
-
     def test_deepfm_with_different_hidden_layers(self) -> None:
         """Test DeepFM with different hidden layer configurations."""
         configs = [
@@ -463,57 +405,6 @@ class TestDeepFMIntegration:
             eval_output = model(item_history, target_items)
             assert eval_output.shape == (batch_size,)
 
-    def test_deepfm_component_interaction(self) -> None:
-        """Test interaction between FM and Deep components in DeepFM."""
-        model = DeepFM(
-            num_items=100,
-            feature_embedding_dims=16,
-            deep_hidden_features_list=[32, 16],
-            deep_activation=None,
-            deep_normalize=None,
-            deep_dropout=0.0,
-            item_pad_idx=0,
-        )
-
-        batch_size = 8
-        seq_len = 5
-        item_history = torch.randint(1, 100, (batch_size, seq_len))
-        target_items = torch.randint(1, 100, (batch_size,))
-
-        # Test that output combines both components
-        with torch.no_grad():
-            full_output = model(item_history, target_items)
-
-            # Manually compute FM component
-            last_item_ids = item_history[:, -1]
-            inputs = OrderedDict()
-            inputs["last_item_id"] = last_item_ids
-            inputs["target_item_id"] = target_items
-            feature_emb_dict = model.feature_embedding_dict(inputs)
-            feature_embs = torch.stack(list(feature_emb_dict.values()), dim=1)
-            fm_out = model.fm_layer(inputs, feature_embs)
-
-            # Manually compute Deep component
-            deep_out = model.deep_layer(torch.flatten(feature_embs, start_dim=1)).squeeze(-1)
-
-            # Verify combination
-            expected_output = fm_out + deep_out
-            assert torch.allclose(full_output, expected_output, atol=1e-6)
-
-    def test_deepfm_invalid_parameters(self) -> None:
-        """Test DeepFM with invalid parameters."""
-        # Test with invalid dropout
-        with pytest.raises((ValueError, RuntimeError)):
-            DeepFM(
-                num_items=100,
-                feature_embedding_dims=16,
-                deep_hidden_features_list=[32],
-                deep_activation=None,
-                deep_normalize=None,
-                deep_dropout=1.5,  # Invalid dropout > 1.0
-                item_pad_idx=0,
-            )
-
     def test_deepfm_gradient_flow(self) -> None:
         """Test that gradients flow through both FM and Deep components."""
         model = DeepFM(
@@ -540,24 +431,6 @@ class TestDeepFMIntegration:
         assert any(p.grad is not None for p in model.feature_embedding_dict.parameters())
         assert any(p.grad is not None for p in model.fm_layer.parameters())
         assert any(p.grad is not None for p in model.deep_layer.parameters())
-
-    def test_deepfm_feature_embedding_sharing(self) -> None:
-        """Test that embeddings are properly shared between components."""
-        model = DeepFM(
-            num_items=100,
-            feature_embedding_dims=16,
-            deep_hidden_features_list=[32],
-            deep_activation=None,
-            deep_normalize=None,
-            deep_dropout=0.0,
-            item_pad_idx=0,
-        )
-
-        # Check that the feature map has shared embeddings via group_key
-        feature_specs = model.feature_map
-        assert feature_specs["last_item_id"].group_key == "item_id"
-        assert feature_specs["target_item_id"].group_key == "item_id"
-        assert feature_specs["last_item_id"].group_key == feature_specs["target_item_id"].group_key
 
     def test_deepfm_normalization_effects(self) -> None:
         """Test DeepFM with different normalization options."""

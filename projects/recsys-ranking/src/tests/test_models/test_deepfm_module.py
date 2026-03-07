@@ -65,11 +65,13 @@ class TestDeepFMModuleBasic:
     """Basic test suite for DeepFMModule."""
 
     def test_deepfm_module_can_be_created(self, module: DeepFMModule) -> None:
+        """Verify deepfm module can be created."""
         assert isinstance(module, DeepFMModule)
         assert module.num_items == 100
         assert module.max_seq_len == 10
 
     def test_deepfm_module_has_required_attributes(self, module: DeepFMModule) -> None:
+        """Verify deepfm module has required attributes."""
         assert hasattr(module, "model")
         assert hasattr(module, "loss_fn")
         assert hasattr(module, "accuracy")
@@ -79,6 +81,7 @@ class TestDeepFMModuleBasic:
         assert isinstance(module.optimizer, AdamWCosine)
 
     def test_deepfm_module_forward_pass(self, module: DeepFMModule) -> None:
+        """Verify deepfm module forward pass."""
         batch_size, seq_len = 4, 10
         output = module.forward(
             torch.randint(1, 100, (batch_size, seq_len)),
@@ -91,6 +94,7 @@ class TestDeepFMModuleBasic:
     def test_deepfm_module_training_step(
         self, module: DeepFMModule, sample_batch: AmazonReviewsSeqRecBatch
     ) -> None:
+        """Verify deepfm module training step."""
         module.train()
         loss = module.training_step(sample_batch, batch_idx=0)
         assert isinstance(loss, torch.Tensor)
@@ -101,6 +105,7 @@ class TestDeepFMModuleBasic:
     def test_deepfm_module_validation_step(
         self, module: DeepFMModule, sample_batch: AmazonReviewsSeqRecBatch
     ) -> None:
+        """Verify deepfm module validation step."""
         module.eval()
         loss = module.validation_step(sample_batch, batch_idx=0)
         assert isinstance(loss, torch.Tensor)
@@ -108,6 +113,7 @@ class TestDeepFMModuleBasic:
         assert torch.isfinite(loss)
 
     def test_deepfm_module_summary(self, module: DeepFMModule) -> None:
+        """Verify deepfm module summary."""
         summary_stats = module.summary(batch_size=4)
         assert summary_stats is not None
         assert hasattr(summary_stats, "total_params")

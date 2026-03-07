@@ -65,6 +65,7 @@ def sample_batch() -> AmazonReviewsSeqRecBatch:
 
 class TestDINModule:
     def test_init_creates_proper_components(self, module: DINModule) -> None:
+        """Verify init creates proper components."""
         assert hasattr(module, "hparams")
         assert hasattr(module, "model")
         assert hasattr(module, "loss_fn")
@@ -75,6 +76,7 @@ class TestDINModule:
         assert isinstance(module.model, DIN)
 
     def test_forward_pass(self, module: DINModule) -> None:
+        """Verify forward pass."""
         batch_size, seq_len = 3, 10
         output = module.forward(
             item_history=torch.randint(1, 50, (batch_size, seq_len)),
@@ -86,6 +88,7 @@ class TestDINModule:
         assert torch.isfinite(output).all()
 
     def test_training_step(self, module: DINModule, sample_batch: AmazonReviewsSeqRecBatch) -> None:
+        """Verify training step."""
         module.monitor.logging_step = Mock()
         loss = module.training_step(sample_batch, batch_idx=0)
 
@@ -99,6 +102,7 @@ class TestDINModule:
     def test_validation_step(
         self, module: DINModule, sample_batch: AmazonReviewsSeqRecBatch
     ) -> None:
+        """Verify validation step."""
         module.monitor.logging_step = Mock()
         loss = module.validation_step(sample_batch, batch_idx=0)
 
@@ -109,11 +113,13 @@ class TestDINModule:
         assert {"loss", "hit_rate", "ndcg"} <= logged.keys()
 
     def test_summary_generation(self, module: DINModule) -> None:
+        """Verify summary generation."""
         summary_stats = module.summary(batch_size=2, depth=2, verbose=0)
         assert summary_stats is not None
         assert hasattr(summary_stats, "total_params")
 
     def test_different_normalize_options(self, optimizer: AdamWCosine) -> None:
+        """Verify different normalize options."""
         for normalize in (None, NormalizeType.BATCH, NormalizeType.LAYER):
             mod = DINModule(
                 num_items=50,

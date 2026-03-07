@@ -2,6 +2,14 @@ name: "DLRM"
 
 feature_embedding_dims: 32 # 1 fieldあたりのembedding次元数
 
+# user behavior encoder
+behavior_encoder_type: mean # [mean, din_attention]
+behavior_din_hidden_dims: []
+behavior_din_activation: dice
+behavior_din_normalize: null
+behavior_din_dropout: 0.0
+behavior_din_use_softmax: false
+
 # DLRMのdense feature をエンコードするMLP
 dense_hidden_features_list: [128, 64] # Dense Feature MLPの隠れ層のユニット数
 dense_activation: relu # Dense Feature MLPの活性化関数

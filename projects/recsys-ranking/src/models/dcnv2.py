@@ -32,6 +32,7 @@ from loss import LossFn
 from my_types import ActivationType, FeatureSpec, FeatureType, NormalizeType
 
 from .base import BaseModule
+from .modules.behavior_encoder import BehaviorEncoder
 from .modules.cross_net import CrossNetV2, CrossNetV2MoE
 from .modules.feature_embedding_dict import FeatureEmbeddingDict
 from .modules.mlp import MLP
@@ -41,17 +42,19 @@ class DCNv2(nn.Module):
     """Deep & Cross Network V2 (Parallel) for recommendation systems.
 
     Architecture (Parallel):
-    1. Embedding layer: Maps sparse categorical features (last_item_id, target_item_id)
-       to dense embeddings and concatenates them.
-    2. Cross Network: Applied to the concatenated embedding in parallel.
+     1. Embedding layer: Maps sparse categorical features (item history, target item)
+         to dense embeddings.
+     2. Behavior encoder: Aggregates the item history into a single behavior vector.
+     3. Cross Network: Applied to the concatenated behavior and target embedding.
        Either CrossNetV2 (full-rank) or CrossNetV2MoE (Mixture-of-Experts).
-    3. Deep Network (MLP): Applied to the concatenated embedding in parallel.
-    4. Output: Cross and Deep outputs are concatenated then projected to a scalar logit.
+     4. Deep Network (MLP): Applied to the same concatenated input in parallel.
+     5. Output: Cross and Deep outputs are concatenated then projected to a scalar logit.
 
     Key characteristics:
     - Parallel structure for complementary explicit and implicit feature crossing
     - Supports CrossNetV2 and CrossNetV2MoE cross networks
-    - Uses the same feature set as DLRM: last_item_id and target_item_id
+    - Uses full behavior history instead of only the last interacted item
+    - Supports mean pooling and DIN attention pooling for history aggregation
 
     Example:
         >>> model = DCNv2(
@@ -77,6 +80,12 @@ class DCNv2(nn.Module):
         cross_num_layers: int,
         deep_hidden_dims: list[int],
         cross_net_type: Literal["cross", "cross_moe"] = "cross_moe",
+        behavior_encoder_type: Literal["mean", "din_attention"] = "mean",
+        behavior_din_hidden_dims: list[int] | None = None,
+        behavior_din_activation: ActivationType | None = ActivationType.DICE,
+        behavior_din_normalize: NormalizeType | None = None,
+        behavior_din_dropout: float = 0.0,
+        behavior_din_use_softmax: bool = False,
         num_experts: int = 4,
         cross_rank: int = 32,
         cross_activation: ActivationType | None = None,
@@ -94,6 +103,18 @@ class DCNv2(nn.Module):
             feature_embedding_dims: Embedding dimension for categorical features.
             cross_num_layers: Number of layers in the Cross Network.
             deep_hidden_dims: Hidden layer sizes for the Deep Network (MLP).
+            behavior_encoder_type: History aggregation method. Either ``"mean"``
+                or ``"din_attention"``. Defaults to ``"mean"``.
+            behavior_din_hidden_dims: Hidden layer sizes for DIN attention used by
+                ``behavior_encoder_type="din_attention"``. Defaults to [] when omitted.
+            behavior_din_activation: Activation for DIN attention hidden layers.
+                Defaults to DICE.
+            behavior_din_normalize: Normalization for DIN attention hidden layers.
+                Defaults to None.
+            behavior_din_dropout: Dropout probability for DIN attention hidden layers.
+                Defaults to 0.0.
+            behavior_din_use_softmax: Whether to normalize DIN attention weights with
+                softmax. Defaults to False.
             cross_net_type: Type of cross network. Either ``"cross"`` (CrossNetV2)
                 or ``"cross_moe"`` (CrossNetV2MoE). Defaults to ``"cross_moe"``.
             num_experts: Number of experts per layer (only used when
@@ -108,17 +129,18 @@ class DCNv2(nn.Module):
             item_pad_idx: Padding index for item embeddings. Defaults to 0.
 
         Raises:
-            ValueError: If ``cross_net_type`` is not ``"cross"`` or ``"cross_moe"``.
+            ValueError: If ``cross_net_type`` or ``behavior_encoder_type`` is invalid.
 
         Notes:
             ``cross_rank`` is used for low-rank decomposition of weight matrices
             (V: D->r, U: r->D).
         """
         super().__init__()
+        self.item_pad_idx = item_pad_idx
 
         self.feature_map = {
-            "last_item_id": FeatureSpec(
-                type_=FeatureType.CATEGORICAL,
+            "item_id_history": FeatureSpec(
+                type_=FeatureType.CATEGORICAL_SEQUENCE,
                 embedding_dims=feature_embedding_dims,
                 num_ids=num_items,
                 padding_idx=item_pad_idx,
@@ -134,8 +156,18 @@ class DCNv2(nn.Module):
         }
 
         self.embedding_layer = FeatureEmbeddingDict(self.feature_map)
+        self.behavior_encoder = BehaviorEncoder(
+            input_dims=feature_embedding_dims,
+            encoder_type=behavior_encoder_type,
+            attention_hidden_dims=behavior_din_hidden_dims,
+            attention_hidden_activation=behavior_din_activation,
+            attention_hidden_normalize=behavior_din_normalize,
+            attention_hidden_dropout=behavior_din_dropout,
+            attention_use_softmax=behavior_din_use_softmax,
+        )
+
         # Total embedding dimension fed into Cross & Deep networks
-        in_features = self.embedding_layer.output_dims  # 2 * feature_embedding_dims
+        in_features = feature_embedding_dims * 2
 
         # Cross Network
         match cross_net_type:
@@ -188,9 +220,10 @@ class DCNv2(nn.Module):
         """Forward pass for DCNv2 model.
 
         Processes inputs through the Parallel DCN V2 architecture:
-        1. Embeds last item from history and target item
-        2. Applies Cross Network and Deep Network in parallel
-        3. Concatenates outputs and projects to a scalar logit
+        1. Embeds item history and target item
+        2. Aggregates history into a behavior embedding
+        3. Applies Cross Network and Deep Network in parallel
+        4. Concatenates outputs and projects to a scalar logit
 
         Args:
             item_id_history: Item history tensor of shape (batch_size, seq_len).
@@ -199,15 +232,21 @@ class DCNv2(nn.Module):
         Returns:
             torch.Tensor: Prediction logits of shape (batch_size,).
         """
-        last_item_ids = item_id_history[:, -1]  # (B,)
-
         feature_dict: dict[str, torch.Tensor] = OrderedDict(
-            last_item_id=last_item_ids,
+            item_id_history=item_id_history,
             target_item_id=target_item_ids,
         )
         emb_dict: OrderedDict[str, torch.Tensor] = self.embedding_layer(feature_dict)
+        history_emb = emb_dict["item_id_history"]  # (B, H, D)
+        target_emb = emb_dict["target_item_id"]  # (B, D)
+        padding_mask = item_id_history != self.item_pad_idx
+        behavior_emb = self.behavior_encoder(
+            target_item=target_emb,
+            history_sequence=history_emb,
+            padding_mask=padding_mask,
+        )
         # (B, 2 * D)
-        x = torch.cat(list(emb_dict.values()), dim=-1)
+        x = torch.cat([behavior_emb, target_emb], dim=-1)
 
         # Parallel branches
         cross_out = self.cross_net(x)  # (B, 2 * D)
@@ -242,6 +281,12 @@ class DCNv2Module(BaseModule):
         optimizer: Optimizer,
         loss_fn: LossFn,
         cross_net_type: Literal["cross", "cross_moe"] = "cross_moe",
+        behavior_encoder_type: Literal["mean", "din_attention"] = "mean",
+        behavior_din_hidden_dims: list[int] | None = None,
+        behavior_din_activation: ActivationType | None = ActivationType.DICE,
+        behavior_din_normalize: NormalizeType | None = None,
+        behavior_din_dropout: float = 0.0,
+        behavior_din_use_softmax: bool = False,
         num_experts: int = 4,
         cross_rank: int = 32,
         cross_activation: ActivationType | None = None,
@@ -262,6 +307,13 @@ class DCNv2Module(BaseModule):
             item_pad_idx: Padding index used for item features.
             eval_top_k: Top-k items to consider for evaluation metrics.
             optimizer: Optimizer strategy object.
+            behavior_encoder_type: History aggregation method, ``"mean"`` or
+                ``"din_attention"``. Defaults to ``"mean"``.
+            behavior_din_hidden_dims: Hidden layer sizes for DIN behavior aggregation.
+            behavior_din_activation: Optional activation for DIN behavior aggregation.
+            behavior_din_normalize: Optional normalization for DIN behavior aggregation.
+            behavior_din_dropout: Dropout probability for DIN behavior aggregation.
+            behavior_din_use_softmax: Whether to apply softmax in DIN behavior aggregation.
             cross_net_type: Type of cross network, ``"cross"`` or ``"cross_moe"``.
                 Defaults to ``"cross_moe"``.
             num_experts: Number of experts per MoE layer (ignored for ``"cross"``).
@@ -284,6 +336,12 @@ class DCNv2Module(BaseModule):
             feature_embedding_dims=feature_embedding_dims,
             cross_num_layers=cross_num_layers,
             deep_hidden_dims=deep_hidden_dims,
+            behavior_encoder_type=behavior_encoder_type,
+            behavior_din_hidden_dims=behavior_din_hidden_dims,
+            behavior_din_activation=behavior_din_activation,
+            behavior_din_normalize=behavior_din_normalize,
+            behavior_din_dropout=behavior_din_dropout,
+            behavior_din_use_softmax=behavior_din_use_softmax,
             cross_net_type=cross_net_type,
             num_experts=num_experts,
             cross_rank=cross_rank,
