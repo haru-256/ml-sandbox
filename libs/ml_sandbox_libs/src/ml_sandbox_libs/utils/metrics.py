@@ -1,6 +1,7 @@
 from typing import Literal, override
 
 import torch
+from torch import nn
 from torchmetrics import Metric
 
 
@@ -323,7 +324,7 @@ class NDCG(Metric):
         return self.total / self.count  # type: ignore[return-value,operator]
 
 
-class RetrievalMetrics:
+class RetrievalMetrics(nn.Module):
     """Refactoring metrics to be computed in a single pass.
 
     This class computes HitRate, MRR, and NDCG efficiently by sharing
@@ -338,6 +339,8 @@ class RetrievalMetrics:
         """
         super().__init__()
         self.top_k = top_k
+        # Register retrieval metrics as submodules so Lightning can discover
+        # nested torchmetrics objects through named_modules() when log_dict logs them.
         self.hit_rate = HitRate(top_k=top_k)
         self.mrr = MRR(top_k=top_k)
         self.ndcg = NDCG(top_k=top_k)
@@ -373,6 +376,18 @@ class RetrievalMetrics:
             "ndcg": self.ndcg.compute(),
         }
 
+    def metric_dict(self) -> dict[str, Metric]:
+        """Return the registered metric objects for Lightning logging.
+
+        Returns:
+            Dictionary containing the nested torchmetrics objects.
+        """
+        return {
+            "hit_rate": self.hit_rate,
+            "mrr": self.mrr,
+            "ndcg": self.ndcg,
+        }
+
     def reset(self) -> None:
         """Reset all metrics."""
         self.hit_rate.reset()
@@ -389,9 +404,13 @@ def format_metrics_dict(metrics_dict: dict[str, float | torch.Tensor | Metric]) 
     Returns:
         formatted string
     """
-    return " ".join(
-        [
-            f"{k}: {v:.4f}" if isinstance(v, float | torch.Tensor) else f"{k}: {v.compute():.4f}"
-            for k, v in metrics_dict.items()
-        ]
-    )
+    formatted_metrics: list[str] = []
+    for key, value in metrics_dict.items():
+        if isinstance(value, Metric):
+            scalar_value: float | torch.Tensor = value.compute()
+        else:
+            scalar_value = value
+        if isinstance(scalar_value, torch.Tensor):
+            scalar_value = scalar_value.item()
+        formatted_metrics.append(f"{key}: {float(scalar_value):.4f}")
+    return " ".join(formatted_metrics)

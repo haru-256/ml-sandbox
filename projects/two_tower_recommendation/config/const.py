@@ -1,2 +1,0 @@
-# 評価時のネガティブサンプル数
-EVAL_NEGATIVE_SAMPLE_SIZE = 100

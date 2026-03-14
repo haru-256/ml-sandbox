@@ -1,11 +1,11 @@
 """Factory functions for creating model modules from configuration."""
 
+from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecDataModule
+from ml_sandbox_libs.models.base import BaseModule
+from ml_sandbox_libs.models.types import ActivationType, NormalizeType, enum_from_str
 from ml_sandbox_libs.optimizer import Optimizer
+from ml_sandbox_libs.training import ScoreLossFn
 from omegaconf import DictConfig
-
-from loss import LossFn
-from my_types import ActivationType, NormalizeType
-from utils import enum_from_str
 
 from .dcnv2 import DCNv2Module
 from .deepfm import DeepFMModule
@@ -13,11 +13,17 @@ from .din import DINModule
 from .dlrm import DLRMModule
 
 
-def create_dlrm(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> DLRMModule:
+def create_dlrm(
+    cfg: DictConfig,
+    datamodule: AmazonReviewsSeqRecDataModule,
+    optimizer: Optimizer,
+    loss_fn: ScoreLossFn,
+) -> DLRMModule:
     """Create DLRM model module from configuration.
 
     Args:
         cfg: Configuration dictionary.
+        datamodule: Data module instance.
         optimizer: Optimizer instance.
         loss_fn: Loss function instance.
 
@@ -25,12 +31,12 @@ def create_dlrm(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> DLRMM
         DLRMModule: Instantiated model module.
     """
     return DLRMModule(
-        num_items=cfg.data.num_items,
+        num_items=len(datamodule.item2index),
         feature_embedding_dims=cfg.model.feature_embedding_dims,
         dense_hidden_features_list=cfg.model.dense_hidden_features_list,
         top_hidden_features_list=cfg.model.top_hidden_features_list,
         max_seq_len=cfg.data.max_seq_len,
-        item_pad_idx=cfg.data.item_pad_idx,
+        item_pad_idx=datamodule.item_pad_idx,
         eval_top_k=cfg.data.eval_top_k,
         optimizer=optimizer,
         loss_fn=loss_fn,
@@ -49,11 +55,17 @@ def create_dlrm(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> DLRMM
     )
 
 
-def create_din(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> DINModule:
+def create_din(
+    cfg: DictConfig,
+    datamodule: AmazonReviewsSeqRecDataModule,
+    optimizer: Optimizer,
+    loss_fn: ScoreLossFn,
+) -> DINModule:
     """Create DIN model module from configuration.
 
     Args:
         cfg: Configuration dictionary.
+        datamodule: Data module instance.
         optimizer: Optimizer instance.
         loss_fn: Loss function instance.
 
@@ -61,31 +73,38 @@ def create_din(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> DINMod
         DINModule: Instantiated model module.
     """
     return DINModule(
-        num_items=cfg.data.num_items,
-        num_categories=cfg.data.num_categories,
+        num_items=len(datamodule.item2index),
+        num_categories=len(datamodule.category2index),
         feature_embedding_dims=cfg.model.feature_embedding_dims,
         din_hidden_dims=cfg.model.din_hidden_dims,
         dnn_hidden_dims=cfg.model.dnn_hidden_dims,
         max_seq_len=cfg.data.max_seq_len,
-        item_pad_idx=cfg.data.item_pad_idx,
-        category_pad_idx=cfg.data.category_pad_idx,
+        item_pad_idx=datamodule.item_pad_idx,
+        category_pad_idx=datamodule.category_pad_idx,
         eval_top_k=cfg.data.eval_top_k,
         optimizer=optimizer,
         loss_fn=loss_fn,
         din_activation=enum_from_str(ActivationType, cfg.model.din_activation),
         din_normalize=enum_from_str(NormalizeType, cfg.model.din_normalize),
         din_dropout=cfg.model.din_dropout,
+        din_use_softmax=cfg.model.din_use_softmax,
         dnn_activation=enum_from_str(ActivationType, cfg.model.dnn_activation),
         dnn_normalize=enum_from_str(NormalizeType, cfg.model.dnn_normalize),
         dnn_dropout=cfg.model.dnn_dropout,
     )
 
 
-def create_deepfm(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> DeepFMModule:
+def create_deepfm(
+    cfg: DictConfig,
+    datamodule: AmazonReviewsSeqRecDataModule,
+    optimizer: Optimizer,
+    loss_fn: ScoreLossFn,
+) -> DeepFMModule:
     """Create DeepFM model module from configuration.
 
     Args:
         cfg: Configuration dictionary.
+        datamodule: Data module instance.
         optimizer: Optimizer instance.
         loss_fn: Loss function instance.
 
@@ -93,11 +112,11 @@ def create_deepfm(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> Dee
         DeepFMModule: Instantiated model module.
     """
     return DeepFMModule(
-        num_items=cfg.data.num_items,
+        num_items=len(datamodule.item2index),
         feature_embedding_dims=cfg.model.feature_embedding_dims,
         deep_hidden_features_list=cfg.model.deep_hidden_features_list,
         max_seq_len=cfg.data.max_seq_len,
-        item_pad_idx=cfg.data.item_pad_idx,
+        item_pad_idx=datamodule.item_pad_idx,
         eval_top_k=cfg.data.eval_top_k,
         optimizer=optimizer,
         loss_fn=loss_fn,
@@ -107,11 +126,17 @@ def create_deepfm(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> Dee
     )
 
 
-def create_dcnv2(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> DCNv2Module:
+def create_dcnv2(
+    cfg: DictConfig,
+    datamodule: AmazonReviewsSeqRecDataModule,
+    optimizer: Optimizer,
+    loss_fn: ScoreLossFn,
+) -> DCNv2Module:
     """Create DCNv2 model module from configuration.
 
     Args:
         cfg: Configuration dictionary.
+        datamodule: Data module instance.
         optimizer: Optimizer instance.
         loss_fn: Loss function instance.
 
@@ -119,12 +144,12 @@ def create_dcnv2(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> DCNv
         DCNv2Module: Instantiated model module.
     """
     return DCNv2Module(
-        num_items=cfg.data.num_items,
+        num_items=len(datamodule.item2index),
         feature_embedding_dims=cfg.model.feature_embedding_dims,
         cross_num_layers=cfg.model.cross_num_layers,
         deep_hidden_dims=cfg.model.deep_hidden_dims,
         max_seq_len=cfg.data.max_seq_len,
-        item_pad_idx=cfg.data.item_pad_idx,
+        item_pad_idx=datamodule.item_pad_idx,
         eval_top_k=cfg.data.eval_top_k,
         optimizer=optimizer,
         loss_fn=loss_fn,
@@ -138,9 +163,42 @@ def create_dcnv2(cfg: DictConfig, optimizer: Optimizer, loss_fn: LossFn) -> DCNv
         num_experts=cfg.model.num_experts,
         cross_rank=cfg.model.cross_rank,
         cross_activation=enum_from_str(ActivationType, cfg.model.cross_activation),
-        cross_activation_kwargs=cfg.model.cross_activation_kwargs,
         cross_normalize=enum_from_str(NormalizeType, cfg.model.cross_normalize),
         deep_activation=enum_from_str(ActivationType, cfg.model.deep_activation),
         deep_normalize=enum_from_str(NormalizeType, cfg.model.deep_normalize),
         deep_dropout=cfg.model.deep_dropout,
     )
+
+
+def create_model_module(
+    cfg: DictConfig,
+    datamodule: AmazonReviewsSeqRecDataModule,
+    optimizer: Optimizer,
+    loss_fn: ScoreLossFn,
+) -> BaseModule:
+    """Create LightningModule from configuration.
+
+    Args:
+        cfg: Configuration dictionary.
+        optimizer: Optimizer instance.
+        loss_fn: Loss function instance.
+
+    Returns:
+        BaseModule: Instantiated LightningModule.
+
+    Raises:
+        ValueError: If model name is not supported.
+    """
+    model_name = cfg.model.name.lower()
+
+    match model_name:
+        case "dlrm":
+            return create_dlrm(cfg, datamodule, optimizer, loss_fn)
+        case "din":
+            return create_din(cfg, datamodule, optimizer, loss_fn)
+        case "deepfm":
+            return create_deepfm(cfg, datamodule, optimizer, loss_fn)
+        case "dcnv2":
+            return create_dcnv2(cfg, datamodule, optimizer, loss_fn)
+        case _:
+            raise ValueError(f"Unknown model name: {model_name}")

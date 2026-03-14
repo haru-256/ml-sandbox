@@ -8,9 +8,8 @@ This example shows how to use the FeatureEmbeddingDict with all three supported 
 """
 
 import torch
-
-from models.modules.feature_embedding_dict import FeatureEmbeddingDict
-from my_types import FeatureSpec, FeatureType
+from ml_sandbox_libs.models.modules import FeatureEmbeddingDict
+from ml_sandbox_libs.models.types import FeatureSpec, FeatureType
 
 
 def main() -> None:

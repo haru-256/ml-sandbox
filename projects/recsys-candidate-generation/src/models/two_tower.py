@@ -3,8 +3,10 @@ from typing import Any, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.models.base import BaseModule
+from ml_sandbox_libs.models.modules import MLP, ActivationType, IdEmbedding, NormalizeType
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ExperimentMonitor
+from ml_sandbox_libs.training import ExperimentMonitor, ScoreLossFn
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -16,9 +18,6 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
-from .base import BaseModule
-from .modules.base import IdEmbedding, LinearBlock
-
 
 class UserTower(nn.Module):
     def __init__(
@@ -27,10 +26,10 @@ class UserTower(nn.Module):
         out_dim: int,
         user_id_dim: int,
         hidden_dims: list[int],
-        normalization: str | None,
-        activation: str | None,
+        normalize: NormalizeType | None,
+        activation: ActivationType | None,
         dropout: float = 0.0,
-    ):
+    ) -> None:
         """User tower module for the Two-Tower model.
 
         Embeds user IDs and processes them through a series of linear layers
@@ -42,38 +41,24 @@ class UserTower(nn.Module):
             out_dim: The final output dimension of the user embedding.
             user_id_dim: The dimension of the initial user ID embedding.
             hidden_dims: A list of dimensions for the hidden linear layers.
-            normalization: The type of normalization to use in the linear blocks
-                (e.g., "batch", "layer"). None for no normalization.
+            normalize: Optional normalization type for hidden layers.
             activation: The type of activation function to use in the linear blocks
-                (e.g., "relu", "leaky_relu"). None for no activation.
+                None for no activation.
             dropout: Dropout probability for the linear blocks. Defaults to 0.0.
 
         """
         super().__init__()
-        self.out_dim = out_dim
-        self.user_id_dim = user_id_dim
-
-        # num_users + 1 to account for unknown index: 1
-        self.id_embedding = IdEmbedding(num_users + 1, self.user_id_dim, padding_idx=None)
-        if hidden_dims is not None and len(hidden_dims) != 0:
-            blocks: list[LinearBlock] = [
-                LinearBlock(
-                    in_features=self.user_id_dim if i == 0 else hidden_dims[i - 1],
-                    out_features=hidden_dim,
-                    normalize=normalization,
-                    activation=activation,
-                    dropout=dropout,
-                )
-                for i, hidden_dim in enumerate(hidden_dims)
-            ]
-            self.hidden_layers = nn.Sequential(*blocks)
-            output_layer_in_features = hidden_dims[-1]
-        else:
-            self.hidden_layers = nn.Identity()
-            output_layer_in_features = self.user_id_dim
-        self.output_layer = nn.Linear(
-            in_features=output_layer_in_features,
-            out_features=self.out_dim,
+        self.id_embedding = IdEmbedding(num_users + 1, user_id_dim, padding_idx=None)
+        self.encoder = MLP(
+            in_features=user_id_dim,
+            hidden_features_list=hidden_dims,
+            out_features=out_dim,
+            hidden_normalize=normalize,
+            hidden_activation=activation,
+            hidden_dropout=dropout,
+            out_normalize=None,
+            out_activation=None,
+            out_dropout=0.0,
         )
 
     def forward(
@@ -99,10 +84,7 @@ class UserTower(nn.Module):
             raise NotImplementedError("user feature is not implemented yet")
 
         emb = self.id_embedding(user_ids)
-        h = self.hidden_layers(emb)
-        out = self.output_layer(h)
-
-        return out
+        return self.encoder(emb)
 
 
 class ItemTower(nn.Module):
@@ -112,11 +94,11 @@ class ItemTower(nn.Module):
         out_dim: int,
         item_id_dim: int,
         hidden_dims: list[int] | None,
-        normalization: str | None,
-        activation: str | None,
+        normalize: NormalizeType | None,
+        activation: ActivationType | None,
         dropout: float,
         padding_idx: int,
-    ):
+    ) -> None:
         """Item tower module for the Two-Tower model.
 
         Embeds item IDs and processes them through a series of linear layers
@@ -128,39 +110,25 @@ class ItemTower(nn.Module):
             out_dim: The final output dimension of the item embedding.
             item_id_dim: The dimension of the initial item ID embedding.
             hidden_dims: A list of dimensions for the hidden linear layers.
-            normalization: The type of normalization to use in the linear blocks
-                (e.g., "batch", "layer"). None for no normalization.
+            normalize: Optional normalization type for hidden layers.
             activation: The type of activation function to use in the linear blocks
-                (e.g., "relu", "leaky_relu"). None for no activation.
+                None for no activation.
             dropout: Dropout probability for the linear blocks.
             padding_idx: Index used for padding in the item ID embedding table.
 
         """
         super().__init__()
-        self.out_dim = out_dim
-        self.item_id_dim = item_id_dim
-
-        # num_items + 2 to account for unknown index and padding index
-        self.id_embedding = IdEmbedding(num_items + 2, self.item_id_dim, padding_idx=padding_idx)
-        if hidden_dims is not None and len(hidden_dims) != 0:
-            blocks: list[LinearBlock] = [
-                LinearBlock(
-                    in_features=self.item_id_dim if i == 0 else hidden_dims[i - 1],
-                    out_features=hidden_dim,
-                    normalize=normalization,
-                    activation=activation,
-                    dropout=dropout,
-                )
-                for i, hidden_dim in enumerate(hidden_dims)
-            ]
-            self.hidden_layers = nn.Sequential(*blocks)
-            output_layer_in_features = hidden_dims[-1]
-        else:
-            self.hidden_layers = nn.Identity()
-            output_layer_in_features = self.item_id_dim
-        self.output_layer = nn.Linear(
-            in_features=output_layer_in_features,
-            out_features=self.out_dim,
+        self.id_embedding = IdEmbedding(num_items + 2, item_id_dim, padding_idx=padding_idx)
+        self.encoder = MLP(
+            in_features=item_id_dim,
+            hidden_features_list=hidden_dims or [],
+            out_features=out_dim,
+            hidden_normalize=normalize,
+            hidden_activation=activation,
+            hidden_dropout=dropout,
+            out_normalize=None,
+            out_activation=None,
+            out_dropout=0.0,
         )
 
     def forward(
@@ -186,10 +154,7 @@ class ItemTower(nn.Module):
             raise NotImplementedError("item feature is not implemented yet")
 
         emb = self.id_embedding(item_ids)
-        h = self.hidden_layers(emb)
-        out = self.output_layer(h)
-
-        return out
+        return self.encoder(emb)
 
 
 class TwoTower(nn.Module):
@@ -202,10 +167,10 @@ class TwoTower(nn.Module):
         item_id_dim: int,
         padding_idx: int,
         hidden_dims: list[int],
-        normalization: str | None,
-        activation: str | None,
+        normalize: NormalizeType | None,
+        activation: ActivationType | None,
         dropout: float,
-    ):
+    ) -> None:
         """Two-Tower model architecture.
 
         Consists of a UserTower and an ItemTower that produce embeddings independently.
@@ -229,7 +194,7 @@ class TwoTower(nn.Module):
             out_dim=out_dim,
             user_id_dim=user_id_dim,
             hidden_dims=hidden_dims,
-            normalization=normalization,
+            normalize=normalize,
             activation=activation,
             dropout=dropout,
         )
@@ -238,7 +203,7 @@ class TwoTower(nn.Module):
             out_dim=out_dim,
             item_id_dim=item_id_dim,
             hidden_dims=hidden_dims,
-            normalization=normalization,
+            normalize=normalize,
             activation=activation,
             dropout=dropout,
             padding_idx=padding_idx,
@@ -315,12 +280,13 @@ class TwoTowerModule(BaseModule):
         user_id_dim: int,
         item_id_dim: int,
         hidden_dims: list[int],
-        normalization: str | None,
-        activation: str | None,
+        normalize: NormalizeType | None,
+        activation: ActivationType | None,
         dropout: float,
         pad_idx: int,
         eval_top_k: int,
         optimizer: Optimizer,
+        loss_fn: ScoreLossFn,
     ) -> None:
         """LightningModule for training and evaluating the Two-Tower model.
 
@@ -334,17 +300,18 @@ class TwoTowerModule(BaseModule):
             user_id_dim: The dimension of the initial user ID embedding.
             item_id_dim: The dimension of the initial item ID embedding.
             hidden_dims: A list of dimensions for the hidden linear layers in both towers.
-            normalization: The type of normalization to use in the linear blocks.
+            normalize: Optional normalization type for hidden layers.
             activation: The type of activation function to use in the linear blocks.
             dropout: Dropout probability for the linear blocks.
             pad_idx: Padding index for item embeddings.
             eval_top_k: The number of top items to consider for retrieval metrics
                 (HitRate, NDCG) during evaluation.
             optimizer: Optimizer strategy object.
+            loss_fn: Score-based loss function instance.
 
         """
         super().__init__()
-        self.save_hyperparameters(ignore=["optimizer"])
+        self.save_hyperparameters(ignore=["optimizer", "loss_fn"])
         self.num_users = num_users
         self.num_items = num_items
         self.model = TwoTower(
@@ -354,12 +321,12 @@ class TwoTowerModule(BaseModule):
             user_id_dim=user_id_dim,
             item_id_dim=item_id_dim,
             hidden_dims=hidden_dims,
-            normalization=normalization,
+            normalize=normalize,
             activation=activation,
             dropout=dropout,
             padding_idx=pad_idx,
         )
-        self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
+        self.loss_fn = loss_fn
         self.accuracy = BinaryAccuracy(threshold=0.5)
         self.retrieval_metrics = RetrievalMetrics(top_k=eval_top_k)
         self.optimizer = optimizer
@@ -410,7 +377,7 @@ class TwoTowerModule(BaseModule):
         pos_logits = pos_logits.unsqueeze(1)
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
-        loss: torch.Tensor = self.loss_fn(logits, labels)
+        loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         self.monitor.logging_step(
@@ -457,7 +424,7 @@ class TwoTowerModule(BaseModule):
         # calc loss, accuracy
         # for imbalanced, extract the first item logits, shape (batch_size, 1)
         logits, labels = create_classification_inputs(pos_logits[:, 0:1], neg_logits[:, 0:1])
-        loss: torch.Tensor = self.loss_fn(logits, labels)
+        loss: torch.Tensor = self.loss_fn(pos_logits[:, 0:1], neg_logits[:, 0:1])
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         # calc ranking metrics
@@ -468,9 +435,7 @@ class TwoTowerModule(BaseModule):
             {
                 "loss": loss.item(),
                 "accuracy": accuracy.item(),
-                "hit_rate": self.retrieval_metrics.hit_rate,
-                "ndcg": self.retrieval_metrics.ndcg,
-                "mrr": self.retrieval_metrics.mrr,
+                **self.retrieval_metrics.metric_dict(),
             },
             stage="val",
             batch_idx=batch_idx,
@@ -502,16 +467,14 @@ class TwoTowerModule(BaseModule):
     @override
     def summary(
         self,
-        batch_size: int,
-        neg_sample_size: int,
+        batch_size: int = 2,
         depth: int = 4,
         verbose: int = 0,
     ) -> ModelStatistics:
         """Generates and returns a summary of the TwoTower model using torchinfo.
 
         Args:
-            batch_size: The batch size to use for creating dummy input tensors.
-            neg_sample_size: The number of negative samples per user for dummy input.
+            batch_size: The batch size to use for creating dummy input tensors. Defaults to 2.
             depth: The maximum depth of nested modules to show in the summary. Defaults to 4.
             verbose: Verbosity level for torchinfo.summary (0: quiet, 1: print). Defaults to 0.
 
@@ -519,6 +482,7 @@ class TwoTowerModule(BaseModule):
             A ModelStatistics object containing the model summary information.
 
         """
+        neg_sample_size = 3
         user_ids = torch.randint(0, self.num_users, (batch_size,), dtype=torch.long)
         item_pos_ids = torch.randint(
             0,

@@ -1,7 +1,7 @@
 """Tests for ml_sandbox_libs.optimizer (AdamWCosine, Optimizer protocol)."""
 
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, cast
 from unittest.mock import MagicMock
 
 import pytest
@@ -9,8 +9,8 @@ import torch
 import torch.nn as nn
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 
-from ml_sandbox_libs.my_types import LRSchedulerParams
 from ml_sandbox_libs.optimizer import AdamWCosine, Optimizer
+from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 
 
 def _make_lr_params(step_unit: str = "epoch") -> LRSchedulerParams:
@@ -66,7 +66,7 @@ class TestAdamWCosine:
         opt = AdamWCosine(lr=1e-3, weight_decay=0.01, lr_scheduler_params=_make_lr_params())
         model = _make_simple_model()
         result = opt.configure_optimizers(model.parameters())
-        sched_config = result["lr_scheduler"]
+        sched_config = cast(dict[str, Any], result["lr_scheduler"])
         assert "scheduler" in sched_config
         assert "interval" in sched_config
         assert "frequency" in sched_config
@@ -76,7 +76,8 @@ class TestAdamWCosine:
         opt = AdamWCosine(lr=1e-3, weight_decay=0.01, lr_scheduler_params=_make_lr_params("epoch"))
         model = _make_simple_model()
         result = opt.configure_optimizers(model.parameters())
-        scheduler = result["lr_scheduler"]["scheduler"]
+        sched_config = cast(dict[str, Any], result["lr_scheduler"])
+        scheduler = cast(Any, sched_config["scheduler"])
 
         # Mock the step call to verify it is called with epoch=current_epoch
         scheduler.step = MagicMock()
@@ -88,7 +89,8 @@ class TestAdamWCosine:
         opt = AdamWCosine(lr=1e-3, weight_decay=0.01, lr_scheduler_params=_make_lr_params("step"))
         model = _make_simple_model()
         result = opt.configure_optimizers(model.parameters())
-        scheduler = result["lr_scheduler"]["scheduler"]
+        sched_config = cast(dict[str, Any], result["lr_scheduler"])
+        scheduler = cast(Any, sched_config["scheduler"])
 
         scheduler.step = MagicMock()
         opt.lr_scheduler_step(scheduler, metric=None, current_epoch=3, global_step=100)
@@ -99,7 +101,8 @@ class TestAdamWCosine:
         opt = AdamWCosine(lr=1e-3, weight_decay=0.01, lr_scheduler_params=_make_lr_params())
         model = _make_simple_model()
         result = opt.configure_optimizers(model.parameters())
-        scheduler = result["lr_scheduler"]["scheduler"]
+        sched_config = cast(dict[str, Any], result["lr_scheduler"])
+        scheduler = cast(Any, sched_config["scheduler"])
 
         scheduler.step = MagicMock()
         opt.lr_scheduler_step(scheduler, metric=0.95, current_epoch=2, global_step=50)
@@ -144,7 +147,17 @@ class TestOptimizerProtocol:
                 self, parameters: Iterator[nn.Parameter]
             ) -> OptimizerLRSchedulerConfig:
                 opt = torch.optim.SGD(parameters, lr=0.01)
-                return {"optimizer": opt}  # type: ignore[return-value]
+                return {
+                    "optimizer": opt,
+                    "lr_scheduler": {
+                        "scheduler": MagicMock(),
+                        "interval": "epoch",
+                        "frequency": 1,
+                        "monitor": None,
+                        "strict": True,
+                        "name": "learning_rate",
+                    },
+                }
 
             def lr_scheduler_step(
                 self,

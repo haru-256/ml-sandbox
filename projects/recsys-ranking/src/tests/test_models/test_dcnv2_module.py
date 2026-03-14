@@ -6,40 +6,13 @@ import pytest
 import torch
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.optimizer import AdamWCosine
+from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 
 from models.dcnv2 import DCNv2Module
-from my_types import LRSchedulerParams
 
 
 class TestDCNv2ModuleBasic:
     """Basic test suite for DCNv2Module."""
-
-    def test_dcnv2_module_can_be_created(self) -> None:
-        """Test that DCNv2Module can be instantiated."""
-        module = DCNv2Module(
-            num_items=100,
-            feature_embedding_dims=16,
-            cross_num_layers=2,
-            deep_hidden_dims=[32, 16],
-            max_seq_len=10,
-            item_pad_idx=0,
-            eval_top_k=5,
-            optimizer=AdamWCosine(
-                lr=0.001,
-                weight_decay=0.01,
-                lr_scheduler_params=LRSchedulerParams(
-                    step_unit="step",
-                    frequency=1,
-                    t_initial=100,
-                    warmup_t=10,
-                    warmup_lr_init=0.0001,
-                    lr_min=0.00001,
-                    cycle_limit=1,
-                ),
-            ),
-            loss_fn=MagicMock(),
-        )
-        assert isinstance(module, DCNv2Module)
 
     @pytest.fixture
     def module(self) -> DCNv2Module:

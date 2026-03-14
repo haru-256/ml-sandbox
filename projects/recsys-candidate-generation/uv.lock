@@ -1482,27 +1482,27 @@ requires-dist = [
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "numpy", specifier = ">=2.2.1" },
     { name = "polars", specifier = ">=1.18.0" },
-    { name = "pyg-lib", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27-cp312-cp312-macosx_14_0_universal2.whl" },
-    { name = "pyg-lib", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/pyg_lib-0.4.0%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "pyg-lib", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/pyg_lib-0.4.0%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" },
+    { name = "pyg-lib", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210-cp312-cp312-macosx_11_0_arm64.whl" },
+    { name = "pyg-lib", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { name = "pyg-lib", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcu128/pyg_lib-0.6.0.dev20260313%2Bpt210cu128-cp312-cp312-manylinux_2_28_x86_64.whl" },
     { name = "tensorboard", specifier = ">=2.18.0" },
     { name = "timm", specifier = ">=1.0.0" },
-    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'cpu'", specifier = "==2.7.1", index = "https://pypi.python.org/simple", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
-    { name = "torch", marker = "sys_platform != 'darwin' and extra == 'cpu'", specifier = "==2.7.1", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
-    { name = "torch", marker = "extra == 'gpu'", specifier = "==2.7.1", index = "https://download.pytorch.org/whl/cu126", conflict = { package = "ml-sandbox-libs", extra = "gpu" } },
-    { name = "torch-cluster", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-cluster", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_cluster-1.6.3%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-cluster", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_cluster-1.6.3%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-geometric", specifier = ">=2.6.1" },
-    { name = "torch-scatter", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-scatter", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_scatter-2.1.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-scatter", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_scatter-2.1.2%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-sparse", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" },
-    { name = "torch-sparse", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_sparse-0.6.18%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-sparse", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_sparse-0.6.18%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-spline-conv", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-spline-conv", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt27cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-spline-conv", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.7.0%2Bcu126/torch_spline_conv-1.2.2%2Bpt27cu126-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'cpu'", specifier = "==2.10.0", index = "https://pypi.python.org/simple", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
+    { name = "torch", marker = "sys_platform != 'darwin' and extra == 'cpu'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
+    { name = "torch", marker = "extra == 'gpu'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "ml-sandbox-libs", extra = "gpu" } },
+    { name = "torch-cluster", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" },
+    { name = "torch-cluster", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-cluster", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_cluster-1.6.3%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-geometric", specifier = ">=2.7.0" },
+    { name = "torch-scatter", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" },
+    { name = "torch-scatter", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-scatter", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_scatter-2.1.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-sparse", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" },
+    { name = "torch-sparse", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-sparse", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_sparse-0.6.18%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-spline-conv", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" },
+    { name = "torch-spline-conv", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-spline-conv", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_spline_conv-1.2.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
     { name = "torchinfo", specifier = ">=1.8.0" },
     { name = "torchmetrics", specifier = ">=1.7.3" },
 ]
@@ -3586,7 +3586,7 @@ wheels = [
 
 [[package]]
 name = "torch-geometric"
-version = "2.6.1"
+version = "2.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -3597,10 +3597,11 @@ dependencies = [
     { name = "pyparsing" },
     { name = "requests" },
     { name = "tqdm" },
+    { name = "xxhash" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e8/81/e1b015494cb9e0bf4c47cc8426e49736120248733be0e22072a5628ae9ed/torch_geometric-2.6.1.tar.gz", hash = "sha256:1f18f9d0fc4d2239d526221e4f22606a4a3895b5d965a9856d27610a3df662c6", size = 771490, upload-time = "2024-09-26T08:11:30.25Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/75/63/b210152635902da7fe79fcdd16517fae108f457a0ed22c737e702a9afbae/torch_geometric-2.7.0.tar.gz", hash = "sha256:f9099e4aece1a9f618c84dbaac33a77f43139736698c7e8bddf3301ef1f2e8d4", size = 876725, upload-time = "2025-10-15T20:48:03.443Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/03/9f/157e913626c1acfb3b19ce000b1a6e4e4fb177c0bc0ea0c67ca5bd714b5a/torch_geometric-2.6.1-py3-none-any.whl", hash = "sha256:8faeb353f9655f7dbec44c5e0b44c721773bdfb279994da96b9b8b12fd30f427", size = 1135632, upload-time = "2024-09-26T08:11:27.194Z" },
+    { url = "https://files.pythonhosted.org/packages/1e/d3/4dffd7300500465e0b4a2ae917dcb2ce771de0b9a772670365799a27c024/torch_geometric-2.7.0-py3-none-any.whl", hash = "sha256:6e0cd3ad824d484651ef5d308fc66c687bfcf5ba040d56d1e0fe0f81f365e292", size = 1275346, upload-time = "2025-10-15T20:48:01.949Z" },
 ]
 
 [[package]]

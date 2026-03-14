@@ -3,8 +3,9 @@ from typing import Any, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.models.base import BaseModule
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ExperimentMonitor
+from ml_sandbox_libs.training import ExperimentMonitor, ScoreLossFn
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -15,9 +16,6 @@ from timm.scheduler.cosine_lr import CosineLRScheduler
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
-from loss import gBCE
-
-from .base import BaseModule
 from .sasrec import SASRec
 
 
@@ -34,9 +32,8 @@ class gSASRecModule(BaseModule):
         pad_idx: int,
         float16: bool,
         eval_top_k: int,
-        t: float,
-        neg_sample_size: int,
         optimizer: Optimizer,
+        loss_fn: ScoreLossFn,
     ):
         """SASRec model module
 
@@ -51,12 +48,11 @@ class gSASRecModule(BaseModule):
             pad_idx: padding index
             float16: whether to use float16
             eval_top_k: number of top-k items for evaluation metrics
-            t: calibration parameter for gSASRec loss
-            neg_sample_size: negative sample size per positive sample. This parameter is used to calculate the gSASRec loss for alpha.
             optimizer: Optimizer strategy object.
+            loss_fn: Score-based loss function instance.
         """
         super().__init__()
-        self.save_hyperparameters(ignore=["optimizer"])
+        self.save_hyperparameters(ignore=["optimizer", "loss_fn"])
         self.num_items = num_items
         self.max_seq_len = max_seq_len
         self.model = SASRec(
@@ -70,7 +66,7 @@ class gSASRecModule(BaseModule):
             pad_idx=pad_idx,
             float16=float16,
         )
-        self.loss_fn = gBCE(neg_sample_size=neg_sample_size, num_items=num_items, t=t)
+        self.loss_fn = loss_fn
         self.accuracy = BinaryAccuracy(threshold=0.5)
         self.retrieval_metrics = RetrievalMetrics(top_k=eval_top_k)
         self.optimizer = optimizer
@@ -169,9 +165,7 @@ class gSASRecModule(BaseModule):
             {
                 "loss": loss,
                 "accuracy": accuracy,
-                "hit_rate": self.retrieval_metrics.hit_rate,
-                "ndcg": self.retrieval_metrics.ndcg,
-                "mrr": self.retrieval_metrics.mrr,
+                **self.retrieval_metrics.metric_dict(),
             },
             stage="val",
             batch_idx=_batch_idx,
@@ -202,20 +196,19 @@ class gSASRecModule(BaseModule):
     @override
     def summary(
         self,
-        batch_size: int,
-        neg_sample_size: int,
+        batch_size: int = 2,
         depth: int = 4,
         verbose: int = 0,
     ) -> ModelStatistics:
         """Print model summary
 
         Args:
-            batch_size: batch size
-            neg_sample_size: negative sample size
+            batch_size: Batch size to use for the summary computation. Defaults to 2.
             depth: depth. Defaults to 4.
             verbose: verbose. Defaults to 1.
 
         """
+        neg_sample_size = 3
         item_history = torch.randint(
             0,
             self.num_items,

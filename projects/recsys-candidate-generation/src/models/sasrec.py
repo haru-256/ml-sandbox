@@ -3,8 +3,10 @@ from typing import Any, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.models.base import BaseModule
+from ml_sandbox_libs.models.modules import TransformerEmbeddings, TransformerEncoderBlock
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ExperimentMonitor
+from ml_sandbox_libs.training import ExperimentMonitor, ScoreLossFn
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -16,10 +18,6 @@ from timm.scheduler.cosine_lr import CosineLRScheduler
 from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
-
-from .base import BaseModule
-from .modules.transformer_embedding import TransformerEmbeddings
-from .modules.transformer_encoder_block import TransformerEncoderBlock
 
 
 class SASRec(nn.Module):
@@ -121,6 +119,7 @@ class SASRecModule(BaseModule):
         float16: bool,
         eval_top_k: int,
         optimizer: Optimizer,
+        loss_fn: ScoreLossFn,
     ):
         """SASRec model module
 
@@ -136,10 +135,11 @@ class SASRecModule(BaseModule):
             float16: whether to use float16
             eval_top_k: number of top-k items for evaluation metrics
             optimizer: optimizer strategy object
+            loss_fn: Score-based loss function instance.
 
         """
         super().__init__()
-        self.save_hyperparameters(ignore=["optimizer"])
+        self.save_hyperparameters(ignore=["optimizer", "loss_fn"])
         self.num_items = num_items
         self.max_seq_len = max_seq_len
         self.model = SASRec(
@@ -153,7 +153,7 @@ class SASRecModule(BaseModule):
             pad_idx=pad_idx,
             float16=float16,
         )
-        self.loss_fn = nn.BCEWithLogitsLoss(reduction="mean")
+        self.loss_fn = loss_fn
         self.accuracy = BinaryAccuracy(threshold=0.5)
         self.retrieval_metrics = RetrievalMetrics(top_k=eval_top_k)
         self.optimizer = optimizer
@@ -200,7 +200,7 @@ class SASRecModule(BaseModule):
         assert pos_logits.size(1) == 1
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
-        loss: torch.Tensor = self.loss_fn(logits, labels)
+        loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         self.monitor.logging_step(
@@ -241,7 +241,7 @@ class SASRecModule(BaseModule):
         # for imbalanced, extract the first item logits, shape (batch_size, 1)
         _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
         logits, labels = create_classification_inputs(_pos_logits, _neg_logits)
-        loss: torch.Tensor = self.loss_fn(logits, labels)
+        loss: torch.Tensor = self.loss_fn(_pos_logits, _neg_logits)
         accuracy: torch.Tensor = self.accuracy(logits, labels)
 
         # calc ranking metrics
@@ -252,9 +252,7 @@ class SASRecModule(BaseModule):
             {
                 "loss": loss,
                 "accuracy": accuracy,
-                "hit_rate": self.retrieval_metrics.hit_rate,
-                "ndcg": self.retrieval_metrics.ndcg,
-                "mrr": self.retrieval_metrics.mrr,
+                **self.retrieval_metrics.metric_dict(),
             },
             stage="val",
             batch_idx=_batch_idx,
@@ -285,21 +283,19 @@ class SASRecModule(BaseModule):
     @override
     def summary(
         self,
-        batch_size: int,
-        neg_sample_size: int,
+        batch_size: int = 2,
         depth: int = 4,
         verbose: int = 0,
     ) -> ModelStatistics:
         """Print model summary
 
         Args:
-            batch_size: batch size
-            neg_sample_size: negative sample size
-            pos_sample_size: positive sample size
+            batch_size: Batch size to use for the summary computation. Defaults to 2.
             depth: depth. Defaults to 4.
             verbose: verbose. Defaults to 1.
 
         """
+        neg_sample_size = 3
         item_history = torch.randint(
             0,
             self.num_items,

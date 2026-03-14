@@ -15,6 +15,18 @@ from ml_sandbox_libs.data.amazon_reviews_dataset.seq_rec import (
 )
 
 
+def test_datamodule_exposes_special_indices(tmp_path: pathlib.Path) -> None:
+    """Expose special indices through the datamodule public API."""
+    dm = AmazonReviewsSeqRecDataModule(save_dir=tmp_path)
+
+    assert dm.special_item_index is SpecialItemIndex
+    assert dm.special_category_index is SpecialCategoryIndex
+    assert dm.item_pad_idx == int(SpecialItemIndex.PAD)
+    assert dm.item_unk_idx == int(SpecialItemIndex.UNK)
+    assert dm.category_pad_idx == int(SpecialCategoryIndex.PAD)
+    assert dm.category_unk_idx == int(SpecialCategoryIndex.UNK)
+
+
 def test_seq_rec_preprocess_dataset(mocker: MockerFixture) -> None:
     """Test the seq_rec_preprocess_dataset function."""
     # Create mock dataset_dict and metadata

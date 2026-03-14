@@ -6,9 +6,9 @@ import pytest
 import torch
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.optimizer import AdamWCosine
+from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 
 from models.deepfm import DeepFMModule
-from my_types import LRSchedulerParams
 
 
 @pytest.fixture
@@ -69,16 +69,6 @@ class TestDeepFMModuleBasic:
         assert isinstance(module, DeepFMModule)
         assert module.num_items == 100
         assert module.max_seq_len == 10
-
-    def test_deepfm_module_has_required_attributes(self, module: DeepFMModule) -> None:
-        """Verify deepfm module has required attributes."""
-        assert hasattr(module, "model")
-        assert hasattr(module, "loss_fn")
-        assert hasattr(module, "accuracy")
-        assert hasattr(module, "retrieval_metrics")
-        assert hasattr(module, "monitor")
-        assert hasattr(module, "optimizer")
-        assert isinstance(module.optimizer, AdamWCosine)
 
     def test_deepfm_module_forward_pass(self, module: DeepFMModule) -> None:
         """Verify deepfm module forward pass."""

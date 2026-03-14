@@ -4,8 +4,11 @@ from typing import Any, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.models.base import BaseModule
+from ml_sandbox_libs.models.modules import MLP, FeatureEmbeddingDict
+from ml_sandbox_libs.models.types import ActivationType, FeatureSpec, FeatureType, NormalizeType
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ExperimentMonitor
+from ml_sandbox_libs.training import ExperimentMonitor, ScoreLossFn
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -16,45 +19,25 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
-from loss import LossFn
-from my_types import ActivationType, FeatureSpec, FeatureType, NormalizeType
-
-from .base import BaseModule
-from .modules.feature_embedding_dict import FeatureEmbeddingDict
 from .modules.interaction import FactorizationMachine
-from .modules.mlp import MLP
 
 
 class DeepFM(nn.Module):
     """DeepFM model for recommendation systems.
 
-    DeepFM combines the strengths of factorization machines and deep neural networks
-    for recommendation tasks. It consists of:
-    1. FM component: Captures low-order feature interactions using factorization machines
-    2. Deep component: Captures high-order feature interactions through deep neural networks
+    DeepFM combines a factorization-machine branch for low-order feature
+    interactions with an MLP branch for higher-order interactions.
 
-    The model processes item history and target items through shared embeddings,
-    then combines FM and deep learning predictions for the final output.
+    Architecture:
+        1. Shared embeddings encode item history and target items.
+        2. The FM branch captures low-order pairwise feature interactions.
+        3. The deep branch captures higher-order non-linear interactions with an MLP.
+        4. Both branches are combined into a single ranking logit.
 
-    Architecture Details:
-    - Feature Embedding: Shared embeddings for last item and target item
-    - FM Layer: Factorization machine for modeling pairwise feature interactions
-    - Deep Layer: Multi-layer perceptron for capturing high-order non-linear interactions
-    - Output: Linear combination of FM and deep components
-
-    Example:
-        >>> model = DeepFM(
-        ...     num_items=10000,
-        ...     feature_embedding_dims=64,
-        ...     deep_hidden_features_list=[128, 64],
-        ...     deep_activation=ActivationType.RELU,
-        ...     deep_normalize=NormalizeType.BATCH,
-        ...     deep_dropout=0.1,
-        ...     item_pad_idx=0
-        ... )
-        >>> item_history = torch.randint(1, 10000, (32, 10))
-        >>> target_items = torch.randint(1, 10000, (32,))
-        >>> logits = model(item_history, target_items)  # Shape: (32,)
+    Key characteristics:
+        - Shared embedding space for sparse recommendation features
+        - Explicit low-order interactions via factorization machines
+        - Implicit higher-order interactions via deep layers
 
     Reference:
         Guo et al. "DeepFM: A Factorization-Machine based Neural Network for CTR Prediction"
@@ -193,7 +176,7 @@ class DeepFMModule(BaseModule):
         item_pad_idx: int,
         eval_top_k: int,
         optimizer: Optimizer,
-        loss_fn: LossFn,
+        loss_fn: ScoreLossFn,
         deep_activation: ActivationType | None = None,
         deep_normalize: NormalizeType | None = None,
         deep_dropout: float = 0.0,
@@ -222,7 +205,7 @@ class DeepFMModule(BaseModule):
         self.monitor = ExperimentMonitor(self)
 
     @override
-    def forward(self, item_history: torch.Tensor, target_item_ids: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+    def forward(self, item_history: torch.Tensor, target_item_ids: torch.Tensor) -> torch.Tensor:
         """Forward pass for DeepFM model
 
         Args:
@@ -235,7 +218,7 @@ class DeepFMModule(BaseModule):
         return self.model(item_id_history=item_history, target_item_ids=target_item_ids)
 
     @override
-    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]
+    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         # (B, L), (B,), (B, neg_sample_size)
         (item_history, pos_item, neg_item) = (
             batch.item_history,
@@ -271,7 +254,7 @@ class DeepFMModule(BaseModule):
         return loss
 
     @override
-    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]
+    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         # (B, L), (B,), (B, neg_sample_size)
         (item_history, pos_item, neg_item) = (
             batch.item_history,
@@ -306,9 +289,7 @@ class DeepFMModule(BaseModule):
                 "pos_logits": pos_logits.mean().item(),
                 "neg_logits": neg_logits.mean().item(),
                 "accuracy": accuracy.item(),
-                "hit_rate": self.retrieval_metrics.hit_rate,
-                "ndcg": self.retrieval_metrics.ndcg,
-                "mrr": self.retrieval_metrics.mrr,
+                **self.retrieval_metrics.metric_dict(),
             },
             stage="val",
             batch_idx=batch_idx,
@@ -336,16 +317,14 @@ class DeepFMModule(BaseModule):
 
     def summary(
         self,
-        batch_size: int,
+        batch_size: int = 2,
         depth: int = 4,
         verbose: int = 0,
     ) -> ModelStatistics:
         """Print model summary
 
         Args:
-            batch_size: batch size
-            neg_sample_size: negative sample size
-            pos_sample_size: positive sample size
+            batch_size: Batch size to use for the summary computation. Defaults to 2.
             depth: depth. Defaults to 4.
             verbose: verbose. Defaults to 1.
 

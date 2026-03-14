@@ -8,7 +8,7 @@ import torch.nn as nn
 from lightning.pytorch.utilities.types import LRSchedulerConfigType, OptimizerLRSchedulerConfig
 from timm.scheduler.cosine_lr import CosineLRScheduler
 
-from ml_sandbox_libs.my_types import LRSchedulerParams
+from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 
 
 class AdamWCosine:

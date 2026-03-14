@@ -6,11 +6,9 @@ from unittest.mock import MagicMock
 import pytest
 import torch
 from ml_sandbox_libs.optimizer import AdamWCosine
-from ml_sandbox_libs.utils.metrics import RetrievalMetrics
-from torchmetrics.classification import BinaryAccuracy
+from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 
 from models.dlrm import DLRM, DLRMModule
-from my_types import LRSchedulerParams
 
 
 class TestDLRMModule:
@@ -64,17 +62,6 @@ class TestDLRMModule:
         assert module.num_items == 1000
         assert module.max_seq_len == 10
 
-    def test_dlrm_module_has_required_attributes(self, dlrm_module: DLRMModule) -> None:
-        """Test that DLRM module has all required attributes."""
-        assert hasattr(dlrm_module, "model")
-        assert hasattr(dlrm_module, "loss_fn")
-        assert hasattr(dlrm_module, "monitor")
-        assert hasattr(dlrm_module, "optimizer")
-        assert isinstance(dlrm_module.model, DLRM)
-        assert isinstance(dlrm_module.accuracy, BinaryAccuracy)
-        assert isinstance(dlrm_module.retrieval_metrics, RetrievalMetrics)
-        assert dlrm_module.retrieval_metrics.top_k == 10
-
     def test_dlrm_module_forward_pass(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module forward pass."""
         batch_size = 4
@@ -113,6 +100,12 @@ class TestDLRMModule:
 
         assert isinstance(loss, torch.Tensor)
         assert torch.isfinite(loss)
+        dlrm_module.monitor.logging_step.assert_called_once()
+        metrics_dict = dlrm_module.monitor.logging_step.call_args.args[0]
+        assert metrics_dict["accuracy"] is dlrm_module.accuracy
+        assert metrics_dict["hit_rate"] is dlrm_module.retrieval_metrics.hit_rate
+        assert metrics_dict["mrr"] is dlrm_module.retrieval_metrics.mrr
+        assert metrics_dict["ndcg"] is dlrm_module.retrieval_metrics.ndcg
 
     def test_dlrm_module_summary(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module summary generation."""

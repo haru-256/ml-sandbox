@@ -107,13 +107,13 @@ recsys-ranking/
     ├── const/              # 定数定義
     ├── loss/               # 損失関数
     ├── models/             # モデル定義
-    ├── my_types/           # ランキング固有の型定義（FeatureSpec, FeatureType など）
     ├── utils/              # ユーティリティ
     └── tests/              # テストコード
 ```
 
-> **Note**: optimizer・LRSchedulerParams・OptimizerParams・ExperimentMonitor は
-> `ml_sandbox_libs` に移管済みです。各モジュールは `ml_sandbox_libs.*` から直接 import しています。
+> **Note**: 型定義・optimizer・ExperimentMonitor は `ml_sandbox_libs` に移管済みです。
+> model 用の型は `ml_sandbox_libs.models.types`、optimizer 用の型は
+> `ml_sandbox_libs.optimizer.types` から直接 import します。
 
 ## モデル
 

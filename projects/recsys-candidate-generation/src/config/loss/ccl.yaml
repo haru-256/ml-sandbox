@@ -1,0 +1,5 @@
+name: ccl
+
+# CCL parameters
+margin: 0.5
+negative_weight: 10.0

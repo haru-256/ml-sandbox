@@ -2,6 +2,7 @@ defaults:
   - _self_
   - hydra: default
   - model: two_tower
+  - loss: bce
 
 save_dir: ./results/
 debug: true

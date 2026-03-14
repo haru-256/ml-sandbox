@@ -29,6 +29,11 @@ install: ## Setup the project
 		uv sync --all-groups --extra=cpu; \
 	fi
 
+.PHONY: clean
+clean: ## Remove caches
+	rm -rf .mypy_cache .pytest_cache
+	fd -H --type directory __pycache__ . -x rm -rf
+
 .PHONY: help
 help: ## Show options
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \

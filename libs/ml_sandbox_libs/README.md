@@ -40,10 +40,10 @@ uv pip install -e .
 
 ## 主要コンポーネント
 
-### 型定義 (`my_types`)
+### 型定義 (`optimizer.types`)
 
 ```python
-from ml_sandbox_libs.my_types import LRSchedulerParams, OptimizerParams
+from ml_sandbox_libs.optimizer.types import LRSchedulerParams, OptimizerParams
 ```
 
 ### Optimizer
