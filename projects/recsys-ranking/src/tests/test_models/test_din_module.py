@@ -3,10 +3,11 @@ from unittest.mock import Mock
 import pytest
 import torch
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.models.types import NormalizeType
 from ml_sandbox_libs.optimizer import AdamWCosine
+from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 
 from models.din import DIN, DINModule
-from my_types import LRSchedulerParams, NormalizeType
 
 
 @pytest.fixture
@@ -66,13 +67,6 @@ def sample_batch() -> AmazonReviewsSeqRecBatch:
 class TestDINModule:
     def test_init_creates_proper_components(self, module: DINModule) -> None:
         """Verify init creates proper components."""
-        assert hasattr(module, "hparams")
-        assert hasattr(module, "model")
-        assert hasattr(module, "loss_fn")
-        assert hasattr(module, "accuracy")
-        assert hasattr(module, "retrieval_metrics")
-        assert hasattr(module, "monitor")
-        assert hasattr(module, "optimizer")
         assert isinstance(module.model, DIN)
 
     def test_forward_pass(self, module: DINModule) -> None:

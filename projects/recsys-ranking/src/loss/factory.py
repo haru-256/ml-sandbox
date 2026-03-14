@@ -1,11 +1,8 @@
+from ml_sandbox_libs.training import BCE, ScoreLossFn, gBCE
 from omegaconf import DictConfig
 
-from .base import LossFn
-from .bce import BCE
-from .g_bce import gBCE
 
-
-def create_loss(cfg: DictConfig, num_items: int, neg_sample_size: int) -> LossFn:
+def create_loss(cfg: DictConfig, num_items: int, neg_sample_size: int) -> ScoreLossFn:
     """Create loss function from configuration.
 
     Args:
@@ -14,7 +11,7 @@ def create_loss(cfg: DictConfig, num_items: int, neg_sample_size: int) -> LossFn
         neg_sample_size: Negative sample size (required for gBCE)
 
     Returns:
-        LossFn: Instantiated loss function (BCE or gBCE)
+        ScoreLossFn: Instantiated loss function (BCE or gBCE)
 
     Raises:
         ValueError: If loss name is not supported

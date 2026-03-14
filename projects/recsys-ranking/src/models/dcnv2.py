@@ -16,8 +16,11 @@ from typing import Any, Literal, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.models.base import BaseModule
+from ml_sandbox_libs.models.modules import MLP, BehaviorEncoder, FeatureEmbeddingDict
+from ml_sandbox_libs.models.types import ActivationType, FeatureSpec, FeatureType, NormalizeType
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ExperimentMonitor
+from ml_sandbox_libs.training import ExperimentMonitor, ScoreLossFn
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -28,46 +31,28 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
-from loss import LossFn
-from my_types import ActivationType, FeatureSpec, FeatureType, NormalizeType
-
-from .base import BaseModule
-from .modules.behavior_encoder import BehaviorEncoder
 from .modules.cross_net import CrossNetV2, CrossNetV2MoE
-from .modules.feature_embedding_dict import FeatureEmbeddingDict
-from .modules.mlp import MLP
 
 
 class DCNv2(nn.Module):
     """Deep & Cross Network V2 (Parallel) for recommendation systems.
 
-    Architecture (Parallel):
-     1. Embedding layer: Maps sparse categorical features (item history, target item)
-         to dense embeddings.
-     2. Behavior encoder: Aggregates the item history into a single behavior vector.
-     3. Cross Network: Applied to the concatenated behavior and target embedding.
-       Either CrossNetV2 (full-rank) or CrossNetV2MoE (Mixture-of-Experts).
-     4. Deep Network (MLP): Applied to the same concatenated input in parallel.
-     5. Output: Cross and Deep outputs are concatenated then projected to a scalar logit.
+    This variant applies a cross network and an MLP in parallel to the same
+    concatenated behavior and target-item embedding, then combines both outputs
+    into the final logit.
+
+    Architecture:
+        1. Feature embedding maps sparse categorical inputs to dense vectors.
+        2. Behavior encoder aggregates item history with mean pooling or DIN attention.
+        3. Cross network models explicit feature interactions with either CrossNetV2
+           or CrossNetV2MoE.
+        4. Deep network models higher-order implicit interactions through an MLP.
+        5. The cross and deep outputs are concatenated and projected to a scalar logit.
 
     Key characteristics:
-    - Parallel structure for complementary explicit and implicit feature crossing
-    - Supports CrossNetV2 and CrossNetV2MoE cross networks
-    - Uses full behavior history instead of only the last interacted item
-    - Supports mean pooling and DIN attention pooling for history aggregation
-
-    Example:
-        >>> model = DCNv2(
-        ...     num_items=10000,
-        ...     feature_embedding_dims=64,
-        ...     cross_num_layers=3,
-        ...     deep_hidden_dims=[256, 128],
-        ...     cross_net_type="cross",
-        ...     item_pad_idx=0,
-        ... )
-        >>> item_history = torch.randint(1, 10000, (32, 10))
-        >>> target_items = torch.randint(1, 10000, (32,))
-        >>> logits = model(item_history, target_items)  # Shape: (32,)
+        - Parallel explicit and implicit feature interaction modeling
+        - Selectable standard or mixture-of-experts cross network
+        - Full behavior-history encoding instead of only the last interacted item
 
     Reference:
         Wang et al. (2021) https://arxiv.org/abs/2008.13535
@@ -89,7 +74,6 @@ class DCNv2(nn.Module):
         num_experts: int = 4,
         cross_rank: int = 32,
         cross_activation: ActivationType | None = None,
-        cross_activation_kwargs: dict[str, Any] | None = None,
         cross_normalize: NormalizeType | None = None,
         deep_activation: ActivationType | None = None,
         deep_normalize: NormalizeType | None = None,
@@ -121,7 +105,6 @@ class DCNv2(nn.Module):
                 ``cross_net_type="cross_moe"``). Defaults to 4.
             cross_rank: Rank for low-rank decomposition. Defaults to 32.
             cross_activation: Activation type for the Cross Network. Defaults to None.
-            cross_activation_kwargs: Optional kwargs for cross activation. Defaults to None.
             cross_normalize: Normalization type for the Cross Network. Defaults to None.
             deep_activation: Activation type for the Deep Network. Defaults to None.
             deep_normalize: Normalization type for the Deep Network. Defaults to None.
@@ -177,7 +160,6 @@ class DCNv2(nn.Module):
                     num_layers=cross_num_layers,
                     rank=cross_rank,
                     activation=cross_activation,
-                    activation_kwargs=cross_activation_kwargs,
                     normalize=cross_normalize,
                 )
             case "cross_moe":
@@ -187,7 +169,6 @@ class DCNv2(nn.Module):
                     num_experts=num_experts,
                     rank=cross_rank,
                     activation=cross_activation,
-                    activation_kwargs=cross_activation_kwargs,
                     normalize=cross_normalize,
                 )
             case _:
@@ -279,7 +260,7 @@ class DCNv2Module(BaseModule):
         item_pad_idx: int,
         eval_top_k: int,
         optimizer: Optimizer,
-        loss_fn: LossFn,
+        loss_fn: ScoreLossFn,
         cross_net_type: Literal["cross", "cross_moe"] = "cross_moe",
         behavior_encoder_type: Literal["mean", "din_attention"] = "mean",
         behavior_din_hidden_dims: list[int] | None = None,
@@ -290,7 +271,6 @@ class DCNv2Module(BaseModule):
         num_experts: int = 4,
         cross_rank: int = 32,
         cross_activation: ActivationType | None = None,
-        cross_activation_kwargs: dict[str, Any] | None = None,
         cross_normalize: NormalizeType | None = None,
         deep_activation: ActivationType | None = None,
         deep_normalize: NormalizeType | None = None,
@@ -320,7 +300,6 @@ class DCNv2Module(BaseModule):
                 Defaults to 4.
             cross_rank: Rank for low-rank decomposition in the Cross Network. Defaults to 32.
             cross_activation: Optional activation for Cross Network. Defaults to None.
-            cross_activation_kwargs: Optional kwargs for cross activation. Defaults to None.
             cross_normalize: Optional normalization for Cross Network. Defaults to None.
             deep_activation: Optional activation for Deep Network. Defaults to None.
             deep_normalize: Optional normalization for Deep Network. Defaults to None.
@@ -346,7 +325,6 @@ class DCNv2Module(BaseModule):
             num_experts=num_experts,
             cross_rank=cross_rank,
             cross_activation=cross_activation,
-            cross_activation_kwargs=cross_activation_kwargs,
             cross_normalize=cross_normalize,
             deep_activation=deep_activation,
             deep_normalize=deep_normalize,
@@ -360,7 +338,7 @@ class DCNv2Module(BaseModule):
         self.monitor = ExperimentMonitor(self)
 
     @override
-    def forward(  # type: ignore[override]
+    def forward(
         self,
         item_history: torch.Tensor,
         target_item_ids: torch.Tensor,
@@ -403,7 +381,7 @@ class DCNv2Module(BaseModule):
         return pos_logits, neg_logits
 
     @override
-    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]
+    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Execute a single training step.
 
         Performs forward pass on positive and negative samples, computes binary
@@ -435,7 +413,7 @@ class DCNv2Module(BaseModule):
         return loss
 
     @override
-    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]
+    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Execute a single validation step.
 
         Computes classification loss / accuracy and ranking metrics (hit rate, NDCG).
@@ -456,7 +434,7 @@ class DCNv2Module(BaseModule):
         # We can use create_classification_inputs for accuracy.
         _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
         logits, labels = create_classification_inputs(_pos_logits, _neg_logits)
-        accuracy: torch.Tensor = self.accuracy(logits, labels)
+        self.accuracy(logits, labels)
 
         # Ranking metrics use all negative samples
         scores, target, _ = create_retrieval_inputs(pos_logits, neg_logits)
@@ -467,10 +445,8 @@ class DCNv2Module(BaseModule):
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
                 "neg_logits": neg_logits.mean().item(),
-                "accuracy": accuracy.item(),
-                "hit_rate": self.retrieval_metrics.hit_rate,
-                "ndcg": self.retrieval_metrics.ndcg,
-                "mrr": self.retrieval_metrics.mrr,
+                "accuracy": self.accuracy,
+                **self.retrieval_metrics.metric_dict(),
             },
             stage="val",
             batch_idx=batch_idx,
@@ -498,14 +474,14 @@ class DCNv2Module(BaseModule):
 
     def summary(
         self,
-        batch_size: int,
+        batch_size: int = 2,
         depth: int = 5,
         verbose: int = 0,
     ) -> ModelStatistics:
         """Generate and return model architecture summary.
 
         Args:
-            batch_size: Batch size to use for the summary computation.
+            batch_size: Batch size to use for the summary computation. Defaults to 2.
             depth: Maximum depth of nested modules to display. Defaults to 5.
             verbose: Verbosity level for the summary output. Defaults to 0.
 

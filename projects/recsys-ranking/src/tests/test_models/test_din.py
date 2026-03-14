@@ -1,7 +1,7 @@
 import torch
+from ml_sandbox_libs.models.types import ActivationType, NormalizeType
 
 from models.din import DIN
-from my_types import ActivationType, NormalizeType
 
 
 class TestDIN:
@@ -40,16 +40,10 @@ class TestDIN:
         assert set(model.feature_map.keys()) == expected_fields
 
         # Check target and sequence fields
-        assert len(model.target_fields) == 1
-        assert len(model.sequence_fields) == 1
-        assert model.target_fields[0] == ("target_item_id", "target_category_id")
-        assert model.sequence_fields[0] == ("item_id_history", "category_id_history")
+        assert model.target_fields == ("target_item_id", "target_category_id")
+        assert model.sequence_fields == ("item_id_history", "category_id_history")
 
-        # Check components exist
-        assert hasattr(model, "embedding_layer")
-        assert hasattr(model, "attention_layers")
-        assert hasattr(model, "dnn_layer")
-        assert len(model.attention_layers) == 1
+        assert model.attention_layer is not None
 
     def test_forward_shape_consistency(self) -> None:
         """Test forward pass produces correct output shapes."""
@@ -227,7 +221,7 @@ class TestDIN:
 
         # Check that gradients exist for key parameters
         embedding_params = list(model.embedding_layer.parameters())
-        attention_params = list(model.attention_layers.parameters())
+        attention_params = list(model.attention_layer.parameters())
         dnn_params = list(model.dnn_layer.parameters())
 
         assert len(embedding_params) > 0

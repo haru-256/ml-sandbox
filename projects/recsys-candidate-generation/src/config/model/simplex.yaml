@@ -10,8 +10,6 @@ hidden_dims: [128, 64] # 中間層の次元数
 
 # SimpleX specific parameters
 user_id_weight: 0.5 # 最終的なUser表現におけるUser ID embeddingの重み (0.0 - 1.0)
-margin: 0.5 # CCL lossのマージン (m)
-negative_weight: 10.0 # CCL lossにおける負例の重み (w)
 user_history_pooling: "mean" # 履歴の集約方法
 
 normalization: "batch"

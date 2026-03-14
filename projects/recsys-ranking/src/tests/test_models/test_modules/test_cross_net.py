@@ -2,6 +2,8 @@
 
 import pytest
 import torch
+from ml_sandbox_libs.models.modules.base.activation import Dice
+from ml_sandbox_libs.models.types import ActivationType
 
 from models.modules.cross_net import (
     CrossNetV2,
@@ -13,6 +15,12 @@ from models.modules.cross_net import (
 
 class TestCrossLayerV2:
     """Tests for the _CrossLayerV2 private class."""
+
+    def test_dice_activation_infers_num_features_from_rank(self) -> None:
+        """Dice activation should be built from the layer rank without external kwargs."""
+        layer = _CrossLayerV2(in_features=32, rank=16, activation=ActivationType.DICE)
+        assert isinstance(layer.activation, Dice)
+        assert layer.activation.alpha.shape[0] == 16
 
     def test_forward_shape(self) -> None:
         """Verify forward shape."""

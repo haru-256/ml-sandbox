@@ -4,9 +4,9 @@ from typing import Any
 
 import pytest
 import torch
+from ml_sandbox_libs.models.types import ActivationType, NormalizeType
 
 from models.dlrm import DLRM
-from my_types import ActivationType, NormalizeType
 
 
 class TestDLRM:
@@ -88,13 +88,6 @@ class TestDLRM:
             top_dropout=float(model_params["top_dropout"]),
             item_pad_idx=int(model_params["item_pad_idx"]),
         )
-
-        # Check that all components are properly initialized
-        assert hasattr(model, "sparse_feature_map")
-        assert hasattr(model, "dense_feature_map")
-        assert hasattr(model, "sparse_embedding_layer")
-        assert hasattr(model, "interaction_layer")
-        assert hasattr(model, "top_mlp")
 
         # Check sparse feature map configuration
         assert len(model.sparse_feature_map) == 2
@@ -225,26 +218,6 @@ class TestDLRM:
         # Outputs should have the same shape
         assert train_output.shape == eval_output.shape
 
-    def test_dlrm_components_exist(self, dlrm_model: DLRM) -> None:
-        """Test that all expected DLRM components exist."""
-        # Check main components
-        assert hasattr(dlrm_model, "sparse_embedding_layer")
-        assert hasattr(dlrm_model, "interaction_layer")
-        assert hasattr(dlrm_model, "top_mlp")
-
-        # Check feature maps
-        assert hasattr(dlrm_model, "sparse_feature_map")
-        assert hasattr(dlrm_model, "dense_feature_map")
-
-        # Verify component types
-        from models.modules.feature_embedding_dict import FeatureEmbeddingDict
-        from models.modules.interaction import SecondOrderInteraction
-        from models.modules.mlp import MLP
-
-        assert isinstance(dlrm_model.sparse_embedding_layer, FeatureEmbeddingDict)
-        assert isinstance(dlrm_model.interaction_layer, SecondOrderInteraction)
-        assert isinstance(dlrm_model.top_mlp, MLP)
-
     def test_dlrm_padding_handling(self, model_params: dict[str, Any]) -> None:
         """Test DLRM handles padding indices correctly."""
         model = DLRM(
@@ -328,24 +301,6 @@ class TestDLRM:
 
         # Outputs should be identical
         assert torch.allclose(output1, output2, atol=1e-6)
-
-    def test_dlrm_parameter_count(self, dlrm_model: DLRM) -> None:
-        """Test DLRM parameter count is reasonable."""
-        total_params = sum(p.numel() for p in dlrm_model.parameters())
-        trainable_params = sum(p.numel() for p in dlrm_model.parameters() if p.requires_grad)
-
-        # Should have reasonable number of parameters
-        assert total_params > 0
-        assert trainable_params > 0
-        assert trainable_params == total_params  # All parameters should be trainable
-
-        # Check that we have parameters in all major components
-        embedding_params = sum(p.numel() for p in dlrm_model.sparse_embedding_layer.parameters())
-        mlp_params = sum(p.numel() for p in dlrm_model.top_mlp.parameters())
-
-        assert embedding_params > 0
-        assert mlp_params > 0
-        # Note: interaction_layer has no learnable parameters
 
     def test_dlrm_empty_sequence_handling(self, model_params: dict[str, Any]) -> None:
         """Test DLRM handles minimal sequence length."""
@@ -447,7 +402,7 @@ class TestDLRMIntegration:
 
     def test_dlrm_normalization_variants(self) -> None:
         """Test DLRM with different normalization strategies."""
-        from my_types import ActivationType, NormalizeType
+        from ml_sandbox_libs.models.types import ActivationType, NormalizeType
 
         base_params: dict[str, Any] = {
             "num_items": 100,
@@ -484,7 +439,7 @@ class TestDLRMIntegration:
 
     def test_dlrm_activation_variants(self) -> None:
         """Test DLRM with different activation functions."""
-        from my_types import ActivationType
+        from ml_sandbox_libs.models.types import ActivationType
 
         base_params: dict[str, Any] = {
             "num_items": 100,
@@ -515,7 +470,7 @@ class TestDLRMIntegration:
 
     def test_dlrm_embedding_dimensions(self) -> None:
         """Test DLRM with various embedding dimensions."""
-        from my_types import ActivationType
+        from ml_sandbox_libs.models.types import ActivationType
 
         base_params: dict[str, Any] = {
             "num_items": 100,

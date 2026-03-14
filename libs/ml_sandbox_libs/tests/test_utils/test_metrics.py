@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from torch import nn
 
 from ml_sandbox_libs.utils.metrics import (
     MRR,
@@ -8,6 +9,7 @@ from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
     create_retrieval_inputs,
+    format_metrics_dict,
     hit_rate,
     mrr,
     ndcg,
@@ -170,6 +172,41 @@ def test_ndcg() -> None:
     expected_relevance = torch.tensor(dcg / idcg, dtype=torch.float32)
 
     torch.testing.assert_close(actual_relevance, expected_relevance)
+
+
+def test_retrieval_metrics_registers_nested_metrics_as_modules() -> None:
+    metrics = RetrievalMetrics(top_k=10)
+
+    assert isinstance(metrics, nn.Module)
+
+    named_modules = dict(metrics.named_modules())
+    assert named_modules["hit_rate"] is metrics.hit_rate
+    assert named_modules["mrr"] is metrics.mrr
+    assert named_modules["ndcg"] is metrics.ndcg
+
+    metric_dict = metrics.metric_dict()
+    assert metric_dict == {
+        "hit_rate": metrics.hit_rate,
+        "mrr": metrics.mrr,
+        "ndcg": metrics.ndcg,
+    }
+
+
+def test_format_metrics_dict_formats_scalars_and_metrics() -> None:
+    metric = HitRate(top_k=1)
+    score = torch.tensor([[0.1, 0.9], [0.9, 0.1]])
+    target = torch.tensor([[0, 1], [1, 0]])
+    metric.update(score, target)
+
+    formatted = format_metrics_dict(
+        {
+            "loss": 1.2345,
+            "tensor": torch.tensor(0.5),
+            "hit_rate": metric,
+        }
+    )
+
+    assert formatted == "loss: 1.2345 tensor: 0.5000 hit_rate: 1.0000"
 
 
 class TestMRR:

@@ -13,11 +13,10 @@ cross_num_layers: 3
 cross_net_type: cross_moe
 num_experts: 4
 cross_rank: 32
-cross_activation: relu
-cross_activation_kwargs: null
-cross_normalize: null
+cross_activation: silu
+cross_normalize: layer
 
 deep_hidden_dims: [128, 64]
-deep_activation: relu
-deep_normalize: batch
+deep_activation: silu
+deep_normalize: layer
 deep_dropout: 0.5

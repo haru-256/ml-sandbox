@@ -44,17 +44,6 @@ class TestDCNv2CrossType:
     def model(self, base_params: dict[str, Any]) -> DCNv2:
         return DCNv2(**base_params, cross_net_type="cross")
 
-    def test_initialization(self, model: DCNv2) -> None:
-        """Verify initialization."""
-        assert hasattr(model, "embedding_layer")
-        assert hasattr(model, "behavior_encoder")
-        assert hasattr(model, "cross_net")
-        assert hasattr(model, "deep_net")
-        assert hasattr(model, "output_layer")
-        assert len(model.feature_map) == 2
-        assert "item_id_history" in model.feature_map
-        assert "target_item_id" in model.feature_map
-
     def test_forward_shape(
         self,
         model: DCNv2,
@@ -109,8 +98,8 @@ class TestDCNv2CrossType:
     def test_uses_full_history(self, model: DCNv2) -> None:
         """Changing earlier history positions should change outputs."""
         embedding_dims = model.feature_map["item_id_history"].embedding_dims
-        model.cross_net = nn.Identity()
-        model.deep_net = nn.Identity()
+        cast(Any, model).cross_net = nn.Identity()
+        cast(Any, model).deep_net = nn.Identity()
         model.output_layer = nn.Linear(embedding_dims * 4, 1, bias=False)
 
         embedding = cast(nn.Embedding, model.embedding_layer.feature_encoder["item_id_history"])

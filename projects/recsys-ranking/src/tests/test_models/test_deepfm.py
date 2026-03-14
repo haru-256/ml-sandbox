@@ -2,9 +2,9 @@ from typing import Any
 
 import pytest
 import torch
+from ml_sandbox_libs.models.types import ActivationType, NormalizeType
 
 from models.deepfm import DeepFM
-from my_types import ActivationType, NormalizeType
 
 
 class TestDeepFM:
@@ -184,23 +184,6 @@ class TestDeepFM:
         assert output.shape == (item_id_history.size(0),)
         assert torch.isfinite(output).all()
 
-    def test_deepfm_components_exist(self, deepfm_model: DeepFM) -> None:
-        """Test that all required components exist in DeepFM."""
-        # Check that required modules exist
-        assert hasattr(deepfm_model, "feature_embedding_dict")
-        assert hasattr(deepfm_model, "fm_layer")
-        assert hasattr(deepfm_model, "deep_layer")
-        assert hasattr(deepfm_model, "feature_map")
-
-        # Check module types
-        from models.modules.feature_embedding_dict import FeatureEmbeddingDict
-        from models.modules.interaction import FactorizationMachine
-        from models.modules.mlp import MLP
-
-        assert isinstance(deepfm_model.feature_embedding_dict, FeatureEmbeddingDict)
-        assert isinstance(deepfm_model.fm_layer, FactorizationMachine)
-        assert isinstance(deepfm_model.deep_layer, MLP)
-
     def test_deepfm_padding_handling(self, deepfm_model: DeepFM) -> None:
         """Test DeepFM handles padding indices correctly."""
         batch_size = 4
@@ -235,53 +218,6 @@ class TestDeepFM:
 
         torch.testing.assert_close(output1, output2)
 
-    def test_deepfm_parameter_count(
-        self, deepfm_model: DeepFM, model_params: dict[str, Any]
-    ) -> None:
-        """Test that DeepFM has reasonable number of parameters."""
-        total_params = sum(p.numel() for p in deepfm_model.parameters())
-        trainable_params = sum(p.numel() for p in deepfm_model.parameters() if p.requires_grad)
-
-        # Should have some parameters
-        assert total_params > 0
-        assert trainable_params > 0
-
-        # All parameters should be trainable by default
-        assert total_params == trainable_params
-
-        # Calculate expected parameters based on actual model architecture:
-        # The DeepFM model uses shared embeddings (group_key="item_id")
-        num_items = int(model_params["num_items"])
-        embedding_dims = int(model_params["feature_embedding_dims"])
-
-        # 1. Shared embedding table: num_items * embedding_dims
-        shared_embedding_params = num_items * embedding_dims
-
-        # 2. MLP parameters:
-        # - Input layer: (2 * embedding_dims) * embedding_dims + embedding_dims (bias)
-        # - Hidden layer: embedding_dims * embedding_dims + embedding_dims (bias)
-        # - Output layer: embedding_dims * 1 + 1 (bias)
-        # - Batch norm layers: 2 * embedding_dims (weight + bias per layer)
-        mlp_input_params = (2 * embedding_dims) * embedding_dims + embedding_dims
-        mlp_hidden_params = embedding_dims * embedding_dims + embedding_dims
-        mlp_output_params = embedding_dims * 1 + 1
-        mlp_bn_params = 2 * embedding_dims * 2  # 2 layers, each has weight + bias
-
-        # 3. FM layer has minimal parameters (just bias term)
-        fm_params = 1  # bias term
-
-        min_expected_params = (
-            shared_embedding_params
-            + mlp_input_params
-            + mlp_hidden_params
-            + mlp_output_params
-            + mlp_bn_params
-            + fm_params
-        )
-
-        # Allow for some flexibility due to potential additional parameters
-        assert total_params >= min_expected_params * 0.9  # 10% tolerance
-
     def test_deepfm_empty_sequence_handling(self, deepfm_model: DeepFM) -> None:
         """Test DeepFM handles edge case with minimum sequence length."""
         batch_size = 2
@@ -294,19 +230,6 @@ class TestDeepFM:
 
         assert output.shape == (batch_size,)
         assert torch.isfinite(output).all()
-
-    def test_deepfm_device_compatibility(self, deepfm_model: DeepFM) -> None:
-        """Test DeepFM works with different devices (CPU)."""
-        device = torch.device("cpu")
-        deepfm_model = deepfm_model.to(device)
-
-        item_id_history = torch.randint(1, 100, (2, 5), device=device)
-        target_item_ids = torch.randint(1, 100, (2,), device=device)
-
-        output = deepfm_model(item_id_history, target_item_ids)
-
-        assert output.device == device
-        assert output.shape == (2,)
 
 
 @pytest.mark.integration

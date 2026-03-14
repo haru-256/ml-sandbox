@@ -1,66 +1,18 @@
-from typing import Any, override
+from typing import Any, Literal, override
 
 import torch
 import torch.nn as nn
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.models.base import BaseModule
+from ml_sandbox_libs.models.modules import ActivationType, MaskedMeanPooling, NormalizeType
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ExperimentMonitor
+from ml_sandbox_libs.training import EmbeddingLossFn, ExperimentMonitor
 from ml_sandbox_libs.utils.metrics import RetrievalMetrics, create_retrieval_inputs
-from ml_sandbox_libs.utils.similarity import calc_cosine_similarity
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torchinfo import ModelStatistics, summary
 
-from loss import CCL
-
-from .base import BaseModule
-from .modules.base import AveragePoolingIgnoringPadding
 from .two_tower import ItemTower, UserTower
-
-
-class UserBehaviorAggregator(nn.Module):
-    def __init__(
-        self, method: str, use_null_history_embedding: bool, padding_idx: int, embedding_dim: int
-    ) -> None:
-        """User behavior aggregator module.
-
-        Args:
-            method: Aggregation method. Options are 'mean'.
-            use_null_history_embedding: Whether to use a null history embedding for empty histories.
-            padding_idx: Index used for padding in the behavior ID tensor.
-            embedding_dim: Dimension of the behavior embeddings.
-        """
-        super().__init__()
-        if method not in ["mean"]:
-            raise ValueError(f"Invalid aggregation method: {method}")
-        self.method = method
-        self.use_null_history_embedding = use_null_history_embedding
-        self.padding_idx = padding_idx
-        self.embedding_dim = embedding_dim
-
-        if self.method == "mean":
-            self.pooling = AveragePoolingIgnoringPadding(
-                padding_idx=self.padding_idx,
-                use_null_history_embedding=self.use_null_history_embedding,
-                embedding_dim=self.embedding_dim,
-            )
-
-    def forward(self, ids: torch.Tensor, embeddings: torch.Tensor) -> torch.Tensor:
-        """Forward pass for user behavior aggregation.
-
-        Args:
-            ids: Tensor of shape (B, H) representing user behavior IDs (item IDs).
-            embeddings: Tensor of shape (B, H, D) representing user behavior embeddings.
-
-        Returns:
-            Tensor of shape (B, D) representing aggregated user behavior embeddings.
-        """
-        if self.method == "mean":
-            aggregated = self.pooling(ids, embeddings)  # (B, D)
-        else:
-            raise ValueError(f"Unsupported aggregation method: {self.method}")
-
-        return aggregated
 
 
 class SimpleX(nn.Module):
@@ -74,10 +26,10 @@ class SimpleX(nn.Module):
         hidden_dims: list[int],
         user_id_weight: float,
         item_pad_idx: int,
-        normalization: str | None,
-        activation: str | None,
+        normalize: NormalizeType | None,
+        activation: ActivationType | None,
         dropout: float = 0.0,
-        user_history_pooling: str = "mean",
+        user_history_pooling: Literal["mean"] = "mean",
     ) -> None:
         """SimpleX model for recommendation.
         Reference: https://arxiv.org/abs/2109.12613
@@ -92,8 +44,8 @@ class SimpleX(nn.Module):
             user_id_weight: Weight for the user ID embedding in the final user representation.
                 Should be between 0.0 and 1.0.
             item_pad_idx: Index used for padding in the item ID embedding table.
-            normalization: Normalization method to use in the towers. Options are 'batch', 'layer', or None.
-            activation: Activation function to use in the towers. Options are 'relu', 'gelu', etc.
+            normalize: Optional normalization type for the user and item towers.
+            activation: Optional activation type for the user and item towers.
             dropout: Dropout rate to use in the towers. Default is 0.0.
             user_history_pooling: Pooling method for user history. Default is 'mean'.
         """
@@ -108,30 +60,25 @@ class SimpleX(nn.Module):
         self.user_history_pooling = user_history_pooling
         self.item_pad_idx = item_pad_idx
 
-        # User Id Tower
+        if user_history_pooling != "mean":
+            raise ValueError(f"Invalid aggregation method: {user_history_pooling}")
+
         self.user_id_tower = UserTower(
             num_users=num_users,
             out_dim=out_dim,
             user_id_dim=user_id_dim,
             hidden_dims=hidden_dims,
-            normalization=normalization,
+            normalize=normalize,
             activation=activation,
             dropout=dropout,
         )
-        # User History Aggregator
-        self.user_history_aggregator = UserBehaviorAggregator(
-            method=user_history_pooling,
-            use_null_history_embedding=True,
-            padding_idx=item_pad_idx,
-            embedding_dim=out_dim,
-        )
-        # Item Tower
+        self.user_history_pooling_layer = MaskedMeanPooling(embedding_dims=out_dim)
         self.item_tower = ItemTower(
             num_items=num_items,
             out_dim=out_dim,
             item_id_dim=item_id_dim,
             hidden_dims=hidden_dims,
-            normalization=normalization,
+            normalize=normalize,
             activation=activation,
             dropout=dropout,
             padding_idx=item_pad_idx,
@@ -201,9 +148,10 @@ class SimpleX(nn.Module):
             -1,
         )  # (B, H, D)
 
-        user_history_emb = self.user_history_aggregator(
-            ids=item_id_history, embeddings=user_history_item_id_emb
-        )  # (B, D)
+        user_history_emb = self.user_history_pooling_layer(
+            user_history_item_id_emb,
+            item_id_history != self.item_pad_idx,
+        )
 
         # compute user embedding, fusion of user id embedding and history embedding
         user_emb = (
@@ -232,14 +180,13 @@ class SimpleXModule(BaseModule):
         pad_idx: int,
         hidden_dims: list[int],
         user_id_weight: float,
-        margin: float,
-        negative_weight: float | None,
         eval_top_k: int,
         optimizer: Optimizer,
-        normalization: str | None,
-        activation: str | None,
+        loss_fn: EmbeddingLossFn,
+        normalize: NormalizeType | None,
+        activation: ActivationType | None,
         dropout: float = 0.0,
-        user_history_pooling: str = "mean",
+        user_history_pooling: Literal["mean"] = "mean",
     ) -> None:
         """PyTorch Lightning Module for SimpleX model.
 
@@ -252,17 +199,16 @@ class SimpleXModule(BaseModule):
             pad_idx: Index used for padding in the item ID embedding table.
             hidden_dims: List of hidden layer dimensions for the towers.
             user_id_weight: Weight for the user ID embedding in the final user representation.
-            margin: Margin parameter for CCL loss.
-            negative_weight: Weight for negative samples in CCL loss.
             eval_top_k: Top-K value for retrieval metrics (HitRate, NDCG).
             optimizer: Optimizer strategy object.
-            normalization: Normalization method to use in the towers.
-            activation: Activation function to use in the towers.
+            loss_fn: Embedding-based loss function instance.
+            normalize: Optional normalization type for the towers.
+            activation: Optional activation type for the towers.
             dropout: Dropout rate to use in the towers.
             user_history_pooling: Pooling method for user history.
         """
         super().__init__()
-        self.save_hyperparameters(ignore=["optimizer"])
+        self.save_hyperparameters(ignore=["optimizer", "loss_fn"])
         self.num_users = num_users
         self.num_items = num_items
         self.model = SimpleX(
@@ -273,34 +219,16 @@ class SimpleXModule(BaseModule):
             item_id_dim=item_id_dim,
             hidden_dims=hidden_dims,
             user_id_weight=user_id_weight,
-            normalization=normalization,
+            normalize=normalize,
             activation=activation,
             dropout=dropout,
             user_history_pooling=user_history_pooling,
             item_pad_idx=pad_idx,
         )
-        self.loss_fn = CCL(margin=margin, negative_weight=negative_weight)
+        self.loss_fn = loss_fn
         self.retrieval_metrics = RetrievalMetrics(top_k=eval_top_k)
         self.optimizer = optimizer
         self.monitor = ExperimentMonitor(self)
-
-    @staticmethod
-    def calc_similarity(
-        user_emb: torch.Tensor, pos_item_emb: torch.Tensor, neg_item_emb: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Calculate cosine similarity between user and item embeddings.
-
-        Args:
-            user_emb: User embeddings. Shape: (B, D).
-            pos_item_emb: Positive item embeddings. Shape: (B, D).
-            neg_item_emb: Negative item embeddings. Shape: (B, N, D), where N is the number of negative samples.
-
-        Returns:
-            A tuple containing:
-                - pos_cos_sim: Cosine similarity for positive items. Shape: (B,).
-                - neg_cos_sim: Cosine similarity for negative items. Shape: (B, N).
-        """
-        return calc_cosine_similarity(user_emb, pos_item_emb, neg_item_emb)
 
     def forward(
         self,
@@ -354,11 +282,10 @@ class SimpleXModule(BaseModule):
         user_emb, pos_item_emb, neg_item_emb = self(
             user=user, item_history=item_history, pos_item=pos_item, neg_item=neg_item
         )
-        # (B, 1), (B, N)
-        pos_cos_sim, neg_cos_sim = calc_cosine_similarity(user_emb, pos_item_emb, neg_item_emb)
-        pos_cos_sim = pos_cos_sim.unsqueeze(1)
+        pos_cos_sim = self.loss_fn.calc_distances(user_emb, pos_item_emb)
+        neg_cos_sim = self.loss_fn.calc_distances(user_emb, neg_item_emb)
 
-        loss: torch.Tensor = self.loss_fn(pos_cos_sim, neg_cos_sim)
+        loss: torch.Tensor = self.loss_fn(user_emb, pos_item_emb, neg_item_emb)
 
         self.monitor.logging_step(
             {
@@ -397,22 +324,19 @@ class SimpleXModule(BaseModule):
         user_emb, pos_item_emb, neg_item_emb = self(
             user=user, item_history=item_history, pos_item=pos_item, neg_item=neg_item
         )
-        # (B, 1), (B, N)
-        pos_cos_sim, neg_cos_sim = calc_cosine_similarity(user_emb, pos_item_emb, neg_item_emb)
-        pos_cos_sim = pos_cos_sim.unsqueeze(1)
+        pos_cos_sim = self.loss_fn.calc_distances(user_emb, pos_item_emb)
+        neg_cos_sim = self.loss_fn.calc_distances(user_emb, neg_item_emb)
 
-        loss: torch.Tensor = self.loss_fn(pos_cos_sim, neg_cos_sim)
+        loss: torch.Tensor = self.loss_fn(user_emb, pos_item_emb, neg_item_emb)
 
         # calc ranking metrics
-        scores, target, _ = create_retrieval_inputs(pos_cos_sim, neg_cos_sim)
+        scores, target, _ = create_retrieval_inputs(pos_cos_sim.unsqueeze(1), neg_cos_sim)
         self.retrieval_metrics.update(scores, target)
 
         self.monitor.logging_step(
             {
                 "loss": loss.item(),
-                "hit_rate": self.retrieval_metrics.hit_rate,
-                "ndcg": self.retrieval_metrics.ndcg,
-                "mrr": self.retrieval_metrics.mrr,
+                **self.retrieval_metrics.metric_dict(),
             },
             stage="val",
             batch_idx=batch_idx,
@@ -443,22 +367,21 @@ class SimpleXModule(BaseModule):
     @override
     def summary(
         self,
-        batch_size: int,
-        neg_sample_size: int,
+        batch_size: int = 2,
         depth: int = 4,
         verbose: int = 0,
     ) -> ModelStatistics:
         """Generates and returns a summary of the SimpleX model using torchinfo.
 
         Args:
-            batch_size: The batch size to use for dummy input.
-            neg_sample_size: The number of negative samples per user for dummy input.
+            batch_size: The batch size to use for dummy input. Defaults to 2.
             depth: The maximum depth of nested modules to show. Defaults to 4.
             verbose: Verbosity level for torchinfo.summary. Defaults to 0.
 
         Returns:
             A ModelStatistics object containing the model summary information.
         """
+        neg_sample_size = 3
         user_ids = torch.randint(0, self.num_users, (batch_size,), dtype=torch.long)
         item_id_history = torch.randint(
             0,

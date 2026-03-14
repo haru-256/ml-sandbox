@@ -3,7 +3,7 @@ name: "DeepFM"
 feature_embedding_dims: 32 # 1 fieldあたりのembedding次元数
 
 # Deep Layer部分
-deep_activation: relu # Deep Layerの活性化関数
-deep_normalize: batch # Deep Layerの正規化手法
+deep_activation: silu # Deep Layerの活性化関数
+deep_normalize: layer # Deep Layerの正規化手法
 deep_dropout: 0.5
 deep_hidden_features_list: [128, 64] # Deep Layerの隠れ層のユニット数

@@ -1,11 +1,9 @@
 from typing import Literal
 
 import torch
+from ml_sandbox_libs.models.modules import FeatureEmbeddingDict
+from ml_sandbox_libs.models.types import FeatureSpec
 from torch import nn
-
-from my_types import FeatureSpec
-
-from .feature_embedding_dict import FeatureEmbeddingDict
 
 
 class FirstOrderInteraction(nn.Module):

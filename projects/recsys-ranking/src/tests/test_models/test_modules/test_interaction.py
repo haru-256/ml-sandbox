@@ -2,13 +2,13 @@
 
 import pytest
 import torch
+from ml_sandbox_libs.models.types import FeatureSpec, FeatureType
 
 from models.modules.interaction import (
     FactorizationMachine,
     FirstOrderInteraction,
     SecondOrderInteraction,
 )
-from my_types import FeatureSpec, FeatureType
 
 
 class TestFirstOrderInteraction:

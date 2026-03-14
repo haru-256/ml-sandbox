@@ -5,8 +5,11 @@ from typing import Any, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.models.base import BaseModule
+from ml_sandbox_libs.models.modules import MLP, DINAttention, FeatureEmbeddingDict
+from ml_sandbox_libs.models.types import ActivationType, FeatureSpec, FeatureType, NormalizeType
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ExperimentMonitor
+from ml_sandbox_libs.training import ExperimentMonitor, ScoreLossFn
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -17,32 +20,24 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
-from loss import LossFn
-from my_types import ActivationType, FeatureSpec, FeatureType, NormalizeType
-
-from .base import BaseModule
-from .modules.feature_embedding_dict import FeatureEmbeddingDict
-from .modules.mlp import MLP
-from .modules.target_attention import DINAttention
-
 
 class DIN(nn.Module):
     """Deep Interest Network (DIN) for click-through rate prediction.
 
-    DIN uses target-aware attention to adaptively learn user interest representations
-    from historical behaviors. The key innovation is attention-based pooling that
-    considers both the target item and user's interaction history.
+    DIN uses target-aware attention to derive a user-interest representation from
+    item and category histories, then feeds the attended representation to a final
+    prediction MLP.
 
     Architecture:
-    1. Embedding layer: Maps categorical features (items, categories) to dense embeddings
-    2. Attention layer: Computes target-aware attention weights for history sequences
-    3. DNN layer: Final prediction MLP that processes concatenated embeddings
+        1. Separate embeddings encode item and category histories plus the target.
+        2. DIN attention computes target-aware weights over historical behaviors.
+        3. Weighted history representations are concatenated with target-side features.
+        4. A final DNN produces the ranking logit.
 
     Key characteristics:
-    - Target-aware attention mechanism for adaptive user interest modeling
-    - Handles both item and category features with separate vocabularies
-    - Designed specifically for recommendation and CTR prediction tasks
-    - Support for different normalization strategies and dropout regularization
+        - Target-aware adaptive user-interest modeling
+        - Joint handling of item and category feature sequences
+        - Configurable normalization and dropout for attention and DNN blocks
 
     Reference: Zhou et al. (2018) "Deep Interest Network for Click-Through Rate Prediction",
                https://arxiv.org/abs/1706.06978
@@ -62,6 +57,7 @@ class DIN(nn.Module):
         din_activation: ActivationType | None = None,
         din_normalize: NormalizeType | None = None,
         din_dropout: float = 0.0,
+        din_use_softmax: bool = False,
         dnn_activation: ActivationType | None = None,
         dnn_normalize: NormalizeType | None = None,
         dnn_dropout: float = 0.0,
@@ -78,6 +74,7 @@ class DIN(nn.Module):
             din_activation: Activation function type for DIN attention layers
             din_normalize: Normalization type for DIN attention layers
             din_dropout: Dropout probability for the DIN attention components
+            din_use_softmax: Whether to normalize DIN attention weights with softmax
             dnn_hidden_dims: List of hidden layer sizes for final prediction MLP
             dnn_activation: Activation function type for final prediction MLP layers
             dnn_normalize: Normalization type for MLP layers (batch norm, layer norm, or None)
@@ -87,23 +84,6 @@ class DIN(nn.Module):
 
         Raises:
             ValueError: If item_pad_idx and category_pad_idx are not equal (implementation constraint)
-
-        Example:
-            >>> model = DIN(
-            ...     num_items=10000,
-            ...     num_categories=500,
-            ...     feature_embedding_dims=64,
-            ...     din_hidden_dims=[32, 16],
-            ...     din_activation=ActivationType.RELU,
-            ...     din_normalize=NormalizeType.BATCH,
-            ...     din_dropout=0.1,
-            ...     dnn_hidden_dims=[128, 64],
-            ...     dnn_activation=ActivationType.RELU,
-            ...     dnn_normalize=NormalizeType.BATCH,
-            ...     dnn_dropout=0.1,
-            ...     item_pad_idx=0,
-            ...     category_pad_idx=0
-            ... )
         """
         super().__init__()
 
@@ -141,33 +121,22 @@ class DIN(nn.Module):
                 group_key="category_id",
             ),
         }
-        self.target_fields = [("target_item_id", "target_category_id")]
-        self.sequence_fields = [("item_id_history", "category_id_history")]
+        self.target_fields = ("target_item_id", "target_category_id")
+        self.sequence_fields = ("item_id_history", "category_id_history")
 
-        for field_tuple in self.target_fields + self.sequence_fields:
-            if isinstance(field_tuple, str):
-                field_tuple = (field_tuple,)
+        for field_tuple in (self.target_fields, self.sequence_fields):
             for field_name in field_tuple:
                 if field_name not in self.feature_map:
                     raise ValueError(f"Field '{field_name}' not found in feature_map")
 
-        assert len(self.target_fields) == len(self.sequence_fields)
-
         self.embedding_layer = FeatureEmbeddingDict(self.feature_map)
-        self.attention_layers = nn.ModuleList(
-            [
-                DINAttention(
-                    input_dims=feature_embedding_dims * len(target_field)
-                    if isinstance(target_field, tuple)
-                    else feature_embedding_dims,
-                    hidden_dims=din_hidden_dims,
-                    hidden_activation=din_activation,
-                    hidden_normalize=din_normalize,
-                    hidden_dropout=din_dropout,
-                    use_softmax=False,
-                )
-                for target_field in self.target_fields
-            ]
+        self.attention_layer = DINAttention(
+            input_dims=feature_embedding_dims * len(self.target_fields),
+            hidden_dims=din_hidden_dims,
+            hidden_activation=din_activation,
+            hidden_normalize=din_normalize,
+            hidden_dropout=din_dropout,
+            use_softmax=din_use_softmax,
         )
         self.dnn_layer = MLP(
             in_features=self.embedding_layer.output_dims,
@@ -215,34 +184,27 @@ class DIN(nn.Module):
         feature_dict["target_item_id"] = target_item_ids
         feature_dict["target_category_id"] = target_category_ids
 
-        # DIN attention pooling for each (target, history) field pair
+        # DIN attention pooling for the target/history field pair
         feature_emb_dict: OrderedDict[str, torch.Tensor] = self.embedding_layer(feature_dict)
-        for i, (target_field, sequence_field) in enumerate(
-            zip(self.target_fields, self.sequence_fields, strict=True)
+
+        # (B, len(target_field)*D)
+        target_emb = _get_embedding(self.target_fields, feature_emb_dict)
+        # (B, H, len(sequence_field)*D)
+        sequence_emb = _get_embedding(self.sequence_fields, feature_emb_dict)
+        rep_sequence_field = self.sequence_fields[0]
+        padding_mask = (
+            feature_dict[rep_sequence_field] != self.feature_map[rep_sequence_field].padding_idx
+        )
+        # (B, len(target_field)*D)
+        pooling_emb = self.attention_layer(target_emb, sequence_emb, padding_mask=padding_mask)
+        # update pooled embedding
+        # NOTE: split and assign to each field in sequence_fields. Attentionはitem-idとcategory-idの両方を考慮してweightを計算しpoolingするが、embeddingはそれぞれ別々に扱う
+        for field, field_emb in zip(
+            self.sequence_fields,
+            pooling_emb.split(self.feature_map[rep_sequence_field].embedding_dims, dim=-1),
+            strict=True,
         ):
-            # (B, len(target_field)*D)
-            target_emb = _get_embedding(target_field, feature_emb_dict)
-            # (B, H, len(sequence_field)*D)
-            sequence_emb = _get_embedding(sequence_field, feature_emb_dict)
-            if not isinstance(sequence_field, str):
-                rep_sequence_field = sequence_field[0]
-            else:
-                rep_sequence_field = sequence_field
-            padding_mask = (
-                feature_dict[rep_sequence_field] != self.feature_map[rep_sequence_field].padding_idx
-            )
-            # (B, len(target_field)*D)
-            pooling_emb = self.attention_layers[i](
-                target_emb, sequence_emb, padding_mask=padding_mask
-            )
-            # update pooled embedding
-            # NOTE: split and assign to each field in sequence_field. Attentionはitem-idとcategory-idの両方を考慮してweightを計算しpoolingするが、embeddingはそれぞれ別々に扱う
-            for field, field_emb in zip(
-                sequence_field,
-                pooling_emb.split(self.feature_map[rep_sequence_field].embedding_dims, dim=-1),
-                strict=True,
-            ):
-                feature_emb_dict[field] = field_emb
+            feature_emb_dict[field] = field_emb
         # (B, D * num_features)
         embs = torch.cat(list(feature_emb_dict.values()), dim=-1)
 
@@ -296,11 +258,12 @@ class DINModule(BaseModule):
         category_pad_idx: int,
         eval_top_k: int,
         optimizer: Optimizer,
-        loss_fn: LossFn,
+        loss_fn: ScoreLossFn,
         # optional configs with sensible defaults
         din_activation: ActivationType | None = None,
         din_normalize: NormalizeType | None = None,
         din_dropout: float = 0.0,
+        din_use_softmax: bool = False,
         dnn_activation: ActivationType | None = None,
         dnn_normalize: NormalizeType | None = None,
         dnn_dropout: float = 0.0,
@@ -322,6 +285,7 @@ class DINModule(BaseModule):
             din_activation: Optional activation for DIN attention MLP; default None.
             din_normalize: Optional normalization for DIN attention MLP; default None.
             din_dropout: Dropout probability for DIN attention MLP; default 0.0.
+            din_use_softmax: Whether to normalize DIN attention weights with softmax.
             dnn_activation: Optional activation for prediction MLP; default None.
             dnn_normalize: Optional normalization for prediction MLP; default None.
             dnn_dropout: Dropout probability for prediction MLP; default 0.0.
@@ -342,6 +306,7 @@ class DINModule(BaseModule):
             din_activation=din_activation,
             din_normalize=din_normalize,
             din_dropout=din_dropout,
+            din_use_softmax=din_use_softmax,
             dnn_activation=dnn_activation,
             dnn_normalize=dnn_normalize,
             dnn_dropout=dnn_dropout,
@@ -359,7 +324,7 @@ class DINModule(BaseModule):
         category_history: torch.Tensor,
         target_item_ids: torch.Tensor,
         target_category_ids: torch.Tensor,
-    ) -> torch.Tensor:  # type: ignore[override]
+    ) -> torch.Tensor:
         """Forward pass through the DIN model.
 
         Args:
@@ -416,7 +381,7 @@ class DINModule(BaseModule):
         return pos_logits, neg_logits
 
     @override
-    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]
+    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Execute a single training step.
 
         Performs forward pass on positive and negative samples, computes binary cross-entropy
@@ -433,14 +398,14 @@ class DINModule(BaseModule):
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
-        accuracy: torch.Tensor = self.accuracy(logits, labels)
+        self.accuracy(logits, labels)
 
         self.monitor.logging_step(
             {
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
                 "neg_logits": neg_logits.mean().item(),
-                "accuracy": accuracy.item(),
+                "accuracy": self.accuracy,
             },
             stage="train",
             batch_idx=batch_idx,
@@ -449,7 +414,7 @@ class DINModule(BaseModule):
         return loss
 
     @override
-    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]
+    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Execute a single validation step.
 
         Performs forward pass on validation data, computes classification loss and accuracy,
@@ -471,7 +436,7 @@ class DINModule(BaseModule):
         _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
         logits, labels = create_classification_inputs(_pos_logits, _neg_logits)
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
-        accuracy: torch.Tensor = self.accuracy(logits, labels)
+        self.accuracy(logits, labels)
 
         # calc ranking metrics
         scores, target, _ = create_retrieval_inputs(pos_logits, neg_logits)
@@ -482,10 +447,8 @@ class DINModule(BaseModule):
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
                 "neg_logits": neg_logits.mean().item(),
-                "accuracy": accuracy.item(),
-                "hit_rate": self.retrieval_metrics.hit_rate,
-                "ndcg": self.retrieval_metrics.ndcg,
-                "mrr": self.retrieval_metrics.mrr,
+                "accuracy": self.accuracy,
+                **self.retrieval_metrics.metric_dict(),
             },
             stage="val",
             batch_idx=batch_idx,
@@ -523,7 +486,7 @@ class DINModule(BaseModule):
 
     def summary(
         self,
-        batch_size: int,
+        batch_size: int = 2,
         depth: int = 5,
         verbose: int = 0,
     ) -> ModelStatistics:
@@ -533,7 +496,7 @@ class DINModule(BaseModule):
         information, parameter counts, and computational requirements using torchinfo.
 
         Args:
-            batch_size: Batch size to use for the summary computation
+            batch_size: Batch size to use for the summary computation. Defaults to 2.
             depth: Maximum depth of nested modules to display (default: 4)
             verbose: Verbosity level for the summary output (default: 0)
 

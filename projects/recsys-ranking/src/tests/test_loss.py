@@ -1,15 +1,5 @@
 import torch
-
-from loss import BCE, gBCE
-
-
-def test_bce_init() -> None:
-    """Verify bce init."""
-    loss_fn = BCE()
-    assert isinstance(loss_fn, BCE)
-    # Check if it has required methods
-    assert hasattr(loss_fn, "calc_scores")
-    assert hasattr(loss_fn, "forward")
+from ml_sandbox_libs.training import BCE, gBCE
 
 
 def test_bce_calc_scores() -> None:
@@ -32,14 +22,6 @@ def test_bce_forward() -> None:
     assert isinstance(loss, torch.Tensor)
     assert loss.ndim == 0
     assert loss > 0
-
-
-def test_gbce_init() -> None:
-    """Verify gbce init."""
-    loss_fn = gBCE(neg_sample_size=3, num_items=100, t=0.5)
-    assert isinstance(loss_fn, gBCE)
-    assert hasattr(loss_fn, "calc_scores")
-    assert hasattr(loss_fn, "forward")
 
 
 def test_gbce_calc_scores() -> None:

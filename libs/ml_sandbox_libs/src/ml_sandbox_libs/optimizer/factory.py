@@ -2,8 +2,8 @@
 
 from omegaconf import DictConfig
 
-from ml_sandbox_libs.my_types import LRSchedulerParams, OptimizerParams
 from ml_sandbox_libs.optimizer.adam_w_cosine import AdamWCosine
+from ml_sandbox_libs.optimizer.types import LRSchedulerParams, OptimizerParams
 
 
 def create_optimizer(cfg: DictConfig) -> AdamWCosine:

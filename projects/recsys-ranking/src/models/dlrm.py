@@ -4,8 +4,11 @@ from typing import Any, Literal, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.models.base import BaseModule
+from ml_sandbox_libs.models.modules import MLP, BehaviorEncoder, FeatureEmbeddingDict
+from ml_sandbox_libs.models.types import ActivationType, FeatureSpec, FeatureType, NormalizeType
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ExperimentMonitor
+from ml_sandbox_libs.training import ExperimentMonitor, ScoreLossFn
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -16,52 +19,27 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
-from loss import LossFn
-from my_types import ActivationType, FeatureSpec, FeatureType, NormalizeType
-
-from .base import BaseModule
-from .modules.behavior_encoder import BehaviorEncoder
-from .modules.feature_embedding_dict import FeatureEmbeddingDict
 from .modules.interaction import SecondOrderInteraction
-from .modules.mlp import MLP
 
 
 class DLRM(nn.Module):
     """Deep Learning Recommendation Model (DLRM) for recommendation systems.
 
-    DLRM is a neural network model specifically designed for personalized recommendation
-    tasks. The model processes sparse categorical features and dense numerical features
-    differently, combining them through feature interactions to make predictions.
+    DLRM separates feature encoding from feature interaction: embeddings are
+    constructed first, pairwise interactions are computed next, and a top MLP
+    produces the final prediction. In this project, the current implementation
+    focuses on sparse recommendation features.
 
     Architecture:
-    1. Embedding layer: Maps sparse categorical features to dense embeddings
-    2. MLP layer: Processes dense features (if any) into embeddings
-    3. Interaction layer: Computes pairwise interactions between feature embeddings
-    4. Top MLP: Final prediction layer that processes interaction outputs
+        1. Feature embeddings encode sparse recommendation inputs.
+        2. Optional dense-side processing is represented through the bottom MLP path.
+        3. Second-order interaction layers compute pairwise feature interactions.
+        4. A top MLP maps the combined interaction features to the final logit.
 
     Key characteristics:
-    - Separates sparse and dense feature processing
-    - Uses inner product for feature interactions
-    - Designed for recommendation and ranking tasks
-    - Supports both dense and sparse features (currently only sparse features are used)
-
-    Example:
-        >>> model = DLRM(
-        ...     num_items=10000,
-        ...     feature_embedding_dims=64,
-        ...     dense_hidden_features_list=[128, 64],
-        ...     dense_activation=ActivationType.RELU,
-        ...     dense_normalize=NormalizeType.BATCH,
-        ...     dense_dropout=0.1,
-        ...     top_hidden_features_list=[256, 128, 1],
-        ...     top_activation=ActivationType.RELU,
-        ...     top_normalize=NormalizeType.BATCH,
-        ...     top_dropout=0.1,
-        ...     item_pad_idx=0
-        ... )
-        >>> item_history = torch.randint(1, 10000, (32, 10))
-        >>> target_items = torch.randint(1, 10000, (32,))
-        >>> logits = model(item_history, target_items)  # Shape: (32,)
+        - Clear separation between feature encoding and interaction modeling
+        - Pairwise interaction modeling tailored to recommendation features
+        - Sparse-feature-first configuration for the current project setup
 
     Reference:
         Naumov et al. "Deep Learning Recommendation Model for Personalization and Recommendation Systems"
@@ -284,7 +262,7 @@ class DLRMModule(BaseModule):
         item_pad_idx: int,
         eval_top_k: int,
         optimizer: Optimizer,
-        loss_fn: LossFn,
+        loss_fn: ScoreLossFn,
         behavior_encoder_type: Literal["mean", "din_attention"] = "mean",
         behavior_din_hidden_dims: list[int] | None = None,
         behavior_din_activation: ActivationType | None = ActivationType.DICE,
@@ -359,7 +337,7 @@ class DLRMModule(BaseModule):
         self.monitor = ExperimentMonitor(self)
 
     @override
-    def forward(self, item_history: torch.Tensor, target_item_ids: torch.Tensor) -> torch.Tensor:  # type: ignore[override]
+    def forward(self, item_history: torch.Tensor, target_item_ids: torch.Tensor) -> torch.Tensor:
         """Forward pass through the DLRM model.
 
         Computes prediction logits for given item history and target items.
@@ -378,7 +356,7 @@ class DLRMModule(BaseModule):
         return self.model(item_id_history=item_history, target_item_ids=target_item_ids)
 
     @override
-    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]
+    def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Execute a single training step.
 
         Performs forward pass on positive and negative samples, computes binary cross-entropy
@@ -426,7 +404,7 @@ class DLRMModule(BaseModule):
         return loss
 
     @override
-    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:  # type: ignore[override]
+    def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         """Execute a single validation step.
 
         Performs forward pass on validation data, computes classification loss and accuracy,
@@ -463,7 +441,7 @@ class DLRMModule(BaseModule):
         _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
         logits, labels = create_classification_inputs(_pos_logits, _neg_logits)
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
-        accuracy: torch.Tensor = self.accuracy(logits, labels)
+        self.accuracy(logits, labels)
 
         # calc ranking metrics
         scores, target, _ = create_retrieval_inputs(pos_logits, neg_logits)
@@ -474,10 +452,8 @@ class DLRMModule(BaseModule):
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
                 "neg_logits": neg_logits.mean().item(),
-                "accuracy": accuracy.item(),
-                "hit_rate": self.retrieval_metrics.hit_rate,
-                "ndcg": self.retrieval_metrics.ndcg,
-                "mrr": self.retrieval_metrics.mrr,
+                "accuracy": self.accuracy,
+                **self.retrieval_metrics.metric_dict(),
             },
             stage="val",
             batch_idx=batch_idx,
@@ -515,7 +491,7 @@ class DLRMModule(BaseModule):
 
     def summary(
         self,
-        batch_size: int,
+        batch_size: int = 2,
         depth: int = 4,
         verbose: int = 0,
     ) -> ModelStatistics:
@@ -525,7 +501,7 @@ class DLRMModule(BaseModule):
         information, parameter counts, and computational requirements using torchinfo.
 
         Args:
-            batch_size: Batch size to use for the summary computation
+            batch_size: Batch size to use for the summary computation. Defaults to 2.
             depth: Maximum depth of nested modules to display (default: 4)
             verbose: Verbosity level for the summary output (default: 0)
 

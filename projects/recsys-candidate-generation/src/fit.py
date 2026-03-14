@@ -80,7 +80,6 @@ def main(cfg: DictConfig) -> None:
     logger.info(
         module.summary(
             batch_size=cfg.data.batch_size,
-            neg_sample_size=3,
         )
     )
 

@@ -16,19 +16,23 @@ from typing import Any, cast
 
 import torch
 import torch.nn as nn
-
-from my_types import ActivationType, NormalizeType
-
-from .base.linear_block import build_activation, build_normalization
+from ml_sandbox_libs.models.modules.base import build_activation, build_normalization
+from ml_sandbox_libs.models.types import ActivationType, NormalizeType
 
 
-def build_hidden_activation_kwargs(
-    _activation: ActivationType | None, hidden_dims: list[int]
-) -> list[dict[str, Any]]:
-    # Simple placeholder if not present in linear_block or unnecessary for now due to simple activations
-    # Ideally should be imported if complex config needed.
-    # For now, returning empty dicts as most activations don't need kwargs or user can pass manually.
-    return [{} for _ in hidden_dims]
+def _build_cross_activation(
+    activation: ActivationType | None,
+    rank: int,
+) -> nn.Module | None:
+    """Build the cross-net activation layer.
+
+    Dice only needs ``num_features``, which is always the low-rank hidden size here,
+    so callers should not have to thread activation kwargs through configs.
+    """
+    if activation is None:
+        return None
+    activation_kwargs = {"num_features": rank} if activation is ActivationType.DICE else None
+    return build_activation(activation, activation_kwargs)
 
 
 class CrossNetV2(nn.Module):
@@ -57,7 +61,6 @@ class CrossNetV2(nn.Module):
         rank: int,
         normalize: NormalizeType | None = None,
         activation: ActivationType | None = ActivationType.TANH,
-        activation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialize CrossNetV2 with specified layers and rank.
 
@@ -83,7 +86,6 @@ class CrossNetV2(nn.Module):
                     rank=rank,
                     normalize=normalize,
                     activation=activation,
-                    activation_kwargs=activation_kwargs,
                 )
                 for _ in range(num_layers)
             ]
@@ -126,7 +128,6 @@ class _CrossLayerV2(nn.Module):
         rank: int,
         normalize: NormalizeType | None = None,
         activation: ActivationType | None = ActivationType.TANH,
-        activation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialize single cross layer.
 
@@ -145,11 +146,7 @@ class _CrossLayerV2(nn.Module):
         # Bias is applied after U
         self.bias = nn.Parameter(torch.zeros(in_features))  # (D,)
 
-        self.activation = (
-            build_activation(cast(Any, activation), **(activation_kwargs or {}))
-            if activation is not None
-            else None
-        )
+        self.activation = _build_cross_activation(activation=activation, rank=rank)
         self.normalize = build_normalization(normalize, rank) if normalize is not None else None
 
     def forward(self, x0: torch.Tensor, x_l: torch.Tensor) -> torch.Tensor:
@@ -209,7 +206,6 @@ class CrossNetV2MoE(nn.Module):
         num_experts: int,
         normalize: NormalizeType | None = None,
         activation: ActivationType | None = ActivationType.TANH,
-        activation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialize CrossNetV2MoE with specified layers, rank, and experts.
 
@@ -233,10 +229,6 @@ class CrossNetV2MoE(nn.Module):
 
         self.num_layers = num_layers
 
-        # Assuming build_hidden_activation_kwargs logic or simple passing
-        # Since logic isn't fully visible from snippet, duplicating logic or using simple pass
-        hidden_activation_kwargs = activation_kwargs
-
         self.cross_layers = nn.ModuleList(
             [
                 _CrossLayerV2MoE(
@@ -245,7 +237,6 @@ class CrossNetV2MoE(nn.Module):
                     num_experts=num_experts,
                     normalize=normalize,
                     activation=activation,
-                    activation_kwargs=hidden_activation_kwargs,
                 )
                 for _ in range(num_layers)
             ]
@@ -294,7 +285,6 @@ class _CrossLayerV2MoE(nn.Module):
         num_experts: int,
         normalize: NormalizeType | None,
         activation: ActivationType | None,
-        activation_kwargs: dict[str, Any] | None = None,
     ) -> None:
         """Initialize single MoE cross layer.
 
@@ -303,7 +293,6 @@ class _CrossLayerV2MoE(nn.Module):
             rank: Rank for low-rank decomposition.
             num_experts: Number of experts in this layer.
             activation: Activation function to use in experts (default: "tanh").
-            activation_kwargs: Additional keyword arguments for the activation function.
         """
         super().__init__()
         self.in_features = in_features
@@ -324,11 +313,7 @@ class _CrossLayerV2MoE(nn.Module):
         self.U = nn.Parameter(nn.init.xavier_normal_(torch.empty(num_experts, in_features, rank)))
         self.bias = nn.Parameter(nn.init.zeros_(torch.empty(num_experts, in_features)))
 
-        self.activation = (
-            build_activation(cast(Any, activation), **(activation_kwargs or {}))
-            if activation is not None
-            else None
-        )
+        self.activation = _build_cross_activation(activation=activation, rank=rank)
 
         # Batch Norm handling
         # User snippet:

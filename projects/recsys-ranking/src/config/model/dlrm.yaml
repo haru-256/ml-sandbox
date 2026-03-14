@@ -12,12 +12,12 @@ behavior_din_use_softmax: false
 
 # DLRMのdense feature をエンコードするMLP
 dense_hidden_features_list: [128, 64] # Dense Feature MLPの隠れ層のユニット数
-dense_activation: relu # Dense Feature MLPの活性化関数
-dense_normalize: batch # Dense Feature MLPの正規化手法
+dense_activation: silu # Dense Feature MLPの活性化関数
+dense_normalize: layer # Dense Feature MLPの正規化手法
 dense_dropout: 0.5
 
 # DLRMのtop MLP(dense featureとsparse feature)
 top_hidden_features_list: [128, 64] # top MLPのDNNの隠れ層のユニット数
-top_activation: relu # top MLPの活性化関数
-top_normalize: batch # top MLPの正規化手法
+top_activation: silu # top MLPの活性化関数
+top_normalize: layer # top MLPの正規化手法
 top_dropout: 0.5

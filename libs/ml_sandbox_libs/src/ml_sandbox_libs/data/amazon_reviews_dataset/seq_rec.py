@@ -296,6 +296,7 @@ class AmazonReviewsSeqRecBatch(AmazonReviewsSeqRecItem):
         category_history: category history, shape: (B, max_seq_len)
         pos_item_index: positive item index, shape: (B,)
         pos_category_index: positive category index, shape: (B,)
+        pos_average_rating: positive average rating, shape: (B,)
         neg_item_indexes: negative item indexes, shape: (B, neg_sample_size)
         neg_category_indexes: negative category indexes, shape: (B,  neg_sample_size)
         neg_average_ratings: negative average ratings, shape: (B, neg_sample_size)
@@ -457,6 +458,60 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
         self.sampling_val_test = sampling_val_test
         self.eval_negative_sample_size = eval_negative_sample_size
         self.filter_no_history = filter_no_history
+
+    @property
+    def special_item_index(self) -> type[SpecialItemIndex]:
+        """Return the enum defining reserved item indices.
+
+        Returns:
+            The enum used by this datamodule for special item indices.
+        """
+        return SpecialItemIndex
+
+    @property
+    def special_category_index(self) -> type[SpecialCategoryIndex]:
+        """Return the enum defining reserved category indices.
+
+        Returns:
+            The enum used by this datamodule for special category indices.
+        """
+        return SpecialCategoryIndex
+
+    @property
+    def item_pad_idx(self) -> int:
+        """Return the padding index used for item features.
+
+        Returns:
+            The padding index used for item features.
+        """
+        return int(self.special_item_index.PAD)
+
+    @property
+    def item_unk_idx(self) -> int:
+        """Return the unknown-item index used for item features.
+
+        Returns:
+            The unknown-item index used for item features.
+        """
+        return int(self.special_item_index.UNK)
+
+    @property
+    def category_pad_idx(self) -> int:
+        """Return the padding index used for category features.
+
+        Returns:
+            The padding index used for category features.
+        """
+        return int(self.special_category_index.PAD)
+
+    @property
+    def category_unk_idx(self) -> int:
+        """Return the unknown-category index used for category features.
+
+        Returns:
+            The unknown-category index used for category features.
+        """
+        return int(self.special_category_index.UNK)
 
     def prepare_data(self) -> None:
         train_path = self.save_dir / "train.parquet"
