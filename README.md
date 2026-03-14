@@ -8,8 +8,6 @@
 この README は、リポジトリで扱っている問題設定や実装方針を俯瞰できる概要資料として書いています。  
 どのような問題設定を扱っているか、どのような実装をしているか、どのような設計で整理しているかが伝わることを目的にしています。
 
----
-
 ## このリポジトリで伝えたいこと
 
 このリポジトリでは、主に次のようなテーマを扱っています。
@@ -34,8 +32,6 @@
 
 このリポジトリは、単にモデルを個別実装するだけでなく、問題設定ごとの project 分離、共通ライブラリ化、クラウド実行基盤の整備まで含めて設計しています。
 
----
-
 ## リポジトリ構成
 
 ```text
@@ -51,8 +47,6 @@
 │   └── sentiment_analysis
 └── infra/                     # Terraform などのインフラ定義
 ```
-
----
 
 ## 推薦システム全体アーキテクチャ
 
@@ -90,8 +84,6 @@ flowchart LR
   - 多様性、在庫、ビジネスルール、露出制御などを反映する
 
 このリポジトリでは、特に Candidate Generation と Ranking を別 project として切り出し、問題設定と設計判断を分離しています。
-
----
 
 ## 自作の推薦システムアーキテクチャ図
 
@@ -177,8 +169,6 @@ flowchart LR
 
 まで意識していることを示すために入れています。
 
----
-
 ## モノレポ全体の構成
 
 ```mermaid
@@ -222,8 +212,6 @@ flowchart LR
 - `projects/recsys-candidate-generation` と `projects/recsys-ranking` はそれらを利用して学習・実験を実施
 - `apps/vertex-job-runner` は各 project の実行を補助
 - Candidate Generation の出力が Ranking の入力になる
-
----
 
 ## projects
 
@@ -285,8 +273,6 @@ flowchart LR
 | SimpleX | SimpleX: A Simple and Strong Baseline for Collaborative Filtering | <https://arxiv.org/abs/2109.12613> |
 
 詳細は [`projects/recsys-candidate-generation/README.md`](projects/recsys-candidate-generation/README.md) を参照してください。
-
----
 
 ## Recsys Ranking
 
@@ -398,8 +384,6 @@ Ranking では、candidate generation よりも豊かな特徴量相互作用を
 
 詳細は [`libs/ml_sandbox_libs/README.md`](libs/ml_sandbox_libs/README.md) を参照してください。
 
----
-
 ## 実験実行レイヤ
 
 ### vertex-job-runner
@@ -444,8 +428,6 @@ flowchart TD
 ```
 
 このフローは、`projects/*` にある training code と、`libs/*`, `apps/*` の役割分担を要約したものです。
-
----
 
 ## 技術スタック
 
@@ -515,8 +497,6 @@ flowchart TD
 - [`projects/sentiment_analysis/README.md`](projects/sentiment_analysis/README.md)
 - [`libs/ml_sandbox_libs/README.md`](libs/ml_sandbox_libs/README.md)
 - [`apps/vertex-job-runner/README.md`](apps/vertex-job-runner/README.md)
-
----
 
 ## まとめ
 
