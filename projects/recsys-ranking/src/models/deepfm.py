@@ -238,14 +238,14 @@ class DeepFMModule(BaseModule):
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
-        accuracy: torch.Tensor = self.accuracy(logits, labels)
+        self.accuracy(logits, labels)
 
         self.monitor.logging_step(
             {
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
                 "neg_logits": neg_logits.mean().item(),
-                "accuracy": accuracy.item(),
+                "accuracy": self.accuracy,
             },
             stage="train",
             batch_idx=batch_idx,
@@ -277,7 +277,7 @@ class DeepFMModule(BaseModule):
         _pos_logits, _neg_logits = pos_logits[:, 0:1], neg_logits[:, 0:1]
         logits, labels = create_classification_inputs(_pos_logits, _neg_logits)
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
-        accuracy: torch.Tensor = self.accuracy(logits, labels)
+        self.accuracy(logits, labels)
 
         # calc ranking metrics
         scores, target, _ = create_retrieval_inputs(pos_logits, neg_logits)
@@ -288,7 +288,7 @@ class DeepFMModule(BaseModule):
                 "loss": loss.item(),
                 "pos_logits": pos_logits.mean().item(),
                 "neg_logits": neg_logits.mean().item(),
-                "accuracy": accuracy.item(),
+                "accuracy": self.accuracy,
                 **self.retrieval_metrics.metric_dict(),
             },
             stage="val",
