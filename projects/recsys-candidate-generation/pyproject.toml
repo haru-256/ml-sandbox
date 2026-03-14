@@ -1,4 +1,9 @@
 [project]
+name = "recsys-candidate-generation"
+version = "0.1.0"
+description = "Recommendation system candidate generation module for ML Sandbox project."
+readme = "README.md"
+requires-python = ">=3.12"
 dependencies = [
   "lightning~=2.5.1",
   "torchmetrics~=1.7.1",
@@ -12,15 +17,10 @@ dependencies = [
   "ml-sandbox-libs",
   "vertex-job-runner",
 ]
-name = "recsys-candidate-generation"
-version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = ">=3.12"
 
 [project.optional-dependencies]
-cpu = ["torch==2.8.0", "torchvision==0.23.0"]
-gpu = ["torch==2.8.0", "torchvision==0.23.0"]
+cpu = ["torch==2.10.0", "torchvision==0.25.0"]
+gpu = ["torch==2.10.0", "torchvision==0.25.0"]
 
 [dependency-groups]
 dev = ["notebook~=7.3.2", "ipywidgets>=8.1.5", "tqdm~=4.67.1"]

@@ -1,4 +1,9 @@
 [project]
+name = "recsys-ranking"
+version = "0.1.0"
+description = "Recommendation system ranking module for ML Sandbox project."
+readme = "README.md"
+requires-python = "~=3.12.0"
 dependencies = [
   "lightning~=2.5.4",
   "litmodels~=0.1.8",
@@ -13,15 +18,10 @@ dependencies = [
   "ml-sandbox-libs",
   "vertex-job-runner",
 ]
-name = "recsys-ranking"
-version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
-requires-python = "~=3.12.0"
 
 [project.optional-dependencies]
-cpu = ["torch==2.8.0", "torchvision==0.23.0"]
-gpu = ["torch==2.8.0", "torchvision==0.23.0"]
+cpu = ["torch==2.10.0", "torchvision==0.25.0"]
+gpu = ["torch==2.10.0", "torchvision==0.25.0"]
 
 [dependency-groups]
 dev = ["notebook~=7.3.2", "ipywidgets>=8.1.5", "tqdm~=4.67.1"]
@@ -33,7 +33,6 @@ conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
 
 [tool.uv.sources]
 ml-sandbox-libs = { path = "../../libs/ml_sandbox_libs", editable = true }
-job-runner = { path = "../../apps/job_runner", editable = true }
 vertex-job-runner = { path = "../../apps/vertex-job-runner", editable = true }
 torch = [
   { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'Darwin'" },
