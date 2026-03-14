@@ -1,96 +1,203 @@
 # Vertex AI Custom Training Job Runner
 
-Google Cloud Vertex AI 上で機械学習のトレーニングジョブを実行するためのコマンドラインユーティリティです。
-`pyproject.toml`、環境変数、CLI引数を通じて設定を管理し、カスタムコンテナトレーニングジョブの投入プロセスを簡素化します。
+`vertex-job-runner` は、Google Cloud Vertex AI の Custom Training Job を投入するための CLI パッケージです。  
+`pyproject.toml` の `[tool.vrun]`、環境変数、CLI 引数を組み合わせて設定を管理し、実験ジョブの起動を再現しやすくします。
 
-## 特徴
+## できること
 
-- **設定管理**: `pyproject.toml`、環境変数（`VRUN_` プレフィックス）、またはCLIフラグでジョブ設定を一元管理できます。
-- **Dry Run モード**: ジョブを投入する前に、設定内容を確認することができます。
-- **リッチな出力**: 設定確認用の見やすいフォーマットで出力されます。
+- Vertex AI Custom Training Job の実行
+- `pyproject.toml` をベースにした設定管理
+- `VRUN_` プレフィックス付き環境変数による上書き
+- CLI オプションによる一時的な設定上書き
+- `--dry-run` による投入前の設定確認
 
-## 設定
+## パッケージ構成
 
-設定は以下の優先順位（高い順）で読み込まれます：
+```text
+apps/vertex-job-runner/
+├── Makefile
+├── README.md
+├── pyproject.toml
+├── samples/
+├── src/
+│   └── vertex_job_runner/
+│       ├── cli.py
+│       ├── job.py
+│       └── settings.py
+├── tests/
+└── uv.lock
+```
+
+## 前提
+
+- Python 3.12
+- `uv`
+- Google Cloud Project
+- Vertex AI Custom Training Job を実行するための認証と権限
+- ジョブ実行に利用するコンテナイメージ
+- 出力先となる GCS バケット
+
+## インストール
+
+パッケージルートで依存関係をセットアップします。
+
+```sh
+make install
+```
+
+または `uv` を直接使う場合は次の通りです。
+
+```sh
+uv sync
+```
+
+## 設定の読み込み順
+
+設定は次の優先順位で適用されます。
 
 1. CLI 引数
 2. 環境変数
 3. `pyproject.toml`
 
-### 1. pyproject.toml
+つまり、普段使う既定値は `pyproject.toml` に置き、実行ごとの差分だけを環境変数や CLI で上書きする運用ができます。
 
-`pyproject.toml` に `[tool.vrun]` セクションを追加してください：
+## `pyproject.toml` 設定
+
+`pyproject.toml` に `[tool.vrun]` セクションを定義します。
 
 ```toml
 [tool.vrun]
-# 必須設定
 project = "your-gcp-project-id"
 location = "us-central1"
 image_uri = "gcr.io/your-project/your-image:latest"
 gcs_uri = "gs://your-bucket/experiments/"
 service_account = "service-account@your-project.iam.gserviceaccount.com"
 experiment_name = "my-experiment"
-command = "python -m my_module.train"
+command = ["uv", "run", "main.py"]
 
-# デフォルトのハードウェア設定（CLIで上書き可能）
-machine_type = "n1-standard-4"
-accelerator_type = "NVIDIA_TESLA_T4"
+machine_type = "g2-standard-4"
+accelerator_type = "NVIDIA_L4"
 accelerator_count = 1
-
-# トレーニングスクリプトへのデフォルト引数
-args = ["epochs=10", "batch_size=32"]
+args = ["trainer.max_epochs=10", "data.num_workers=4"]
 ```
 
-### 2. 環境変数
+### 主な設定項目
 
-変数の前に `VRUN_` を付けてください。例：
+- `project`: GCP project ID
+- `location`: Vertex AI のリージョン
+- `image_uri`: 実行するコンテナイメージ
+- `gcs_uri`: staging や成果物出力に利用する GCS URI
+- `service_account`: ジョブ実行に利用するサービスアカウント
+- `experiment_name`: Vertex AI 上のジョブ名プレフィックス
+- `command`: コンテナ内で実行するコマンド
+- `machine_type`: 実行マシンタイプ
+- `accelerator_type`: GPU 種別
+- `accelerator_count`: GPU 数
+- `args`: トレーニングジョブへ渡す追加引数
+
+## 環境変数での上書き
+
+環境変数は `VRUN_` プレフィックス付きで指定します。
 
 ```sh
 export VRUN_PROJECT="my-project"
+export VRUN_LOCATION="us-central1"
 export VRUN_MACHINE_TYPE="n1-highmem-8"
+export VRUN_ACCELERATOR_COUNT="2"
 ```
 
-## 使い方
+たとえば CI やローカル検証で project や machine type だけを差し替えたいときに便利です。
 
-`uv` を使用してツールを実行するか、インストールして使用できます。
+## CLI の使い方
 
-### 基本的な使い方
+エントリーポイントは `vrun` です。
 
-設定ファイルのデフォルト値を使用してジョブを投入します：
+### 基本実行
+
+`pyproject.toml` の設定を使ってジョブを実行します。
 
 ```sh
 uv run vrun run
 ```
 
-### 設定の上書き
+### オプションを上書きして実行
 
-特定の項目をCLIフラグで上書きします：
+一部のハードウェア設定や引数だけを変更して実行できます。
 
 ```sh
 uv run vrun run \
   --machine-type n1-highmem-8 \
+  --accelerator-type NVIDIA_TESLA_T4 \
   --accelerator-count 2 \
-  --args "epochs=50 learning_rate=0.001"
+  --args "trainer.max_epochs=20 data.num_workers=8"
 ```
 
-### Dry Run (確認モード)
+### Dry Run
 
-ジョブを投入せずに設定内容を確認します：
+実際にはジョブを投入せず、読み込まれた設定内容だけを確認します。
 
 ```sh
 uv run vrun run --dry-run
 ```
 
-## 開発
+設定ファイル・環境変数・CLI 引数のマージ結果を確認したいときは、まず `--dry-run` を使うのが安全です。
 
-### セットアップ
+## ML Sandbox での想定ユースケース
+
+このパッケージは、`projects/recsys-ranking` や `projects/recsys-candidate-generation` などの学習ジョブを Vertex AI 上で再現性を持って実行するための共通 CLI として使うことを想定しています。
+
+たとえば各 project 側の `pyproject.toml` に `[tool.vrun]` を定義しておくと、project ごとに既定のイメージやジョブ引数を持たせつつ、共通の CLI で投入できます。
+
+## 開発ワークフロー
+
+このリポジトリでは Python 関連の実行は `uv` または `Makefile` を通して行います。
+
+パッケージルートで次を実行してください。
+
+### 依存関係のセットアップ
+
+```sh
+make install
+```
+
+### Lint
+
+```sh
+make lint
+```
+
+### Test
+
+```sh
+make test
+```
+
+README ベースで個別に確認したい場合は次でも実行できます。
 
 ```sh
 uv sync
-```
-
-### テストの実行
-
-```sh
 uv run pytest
 ```
+
+## テスト
+
+CLI と設定読み込みの変更を行った場合は、少なくとも次を確認します。
+
+```sh
+make lint
+make test
+```
+
+## 注意事項
+
+- Vertex AI や GCS を利用するため、Google Cloud 側の認証設定が必要です。
+- `service_account`、`project`、`gcs_uri` は実際の環境に合わせて設定してください。
+- 本番用途では `image_uri` に固定タグ付きイメージを使うと再現性を保ちやすくなります。
+- 機密情報を `pyproject.toml` に直接書かないようにし、必要に応じて環境変数や Secret Manager を利用してください。
+
+## 関連ディレクトリ
+
+- `apps/vertex-job-runner`: Vertex AI ジョブ投入用 CLI
+- `libs/ml_sandbox_libs`: 複数 project で共有する共通ライブラリ
+- `projects/recsys-ranking`: ランキング学習 project
+- `projects/recsys-candidate-generation`: 候補生成学習 project

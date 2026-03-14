@@ -1,148 +1,200 @@
-# RecSys ランキング
+# RecSys Ranking
 
-## 概要
+推薦システムにおける **Ranking** 段階の実験コードを管理する project です。  
+Candidate Generation で絞り込まれた候補アイテムに対して、ユーザーの興味や文脈に基づく精緻なスコアリングを行い、最終的な表示順位を決定します。
 
-このリポジトリには、推薦システムのランキング段階の実験コードが含まれています。
+## Overview
 
-ランキングは、以下の2段階の多段推薦アーキテクチャの第2段階です。
+多段推薦アーキテクチャでは、一般に次の流れで推薦を行います。
 
-1. 候補生成：推薦候補を生成します。
-2. ランキング：生成された候補をランク付けします。
+1. **Candidate Generation**: 大量のアイテム集合から、ユーザーに関連しそうな候補を高速に抽出する
+2. **Ranking**: 抽出された候補をより表現力の高いモデルで並び替える
+3. **Re-ranking**: 多様性やビジネスルールなどを考慮して最終調整する
 
-## はじめに
+この project は上記のうち **Step 2: Ranking** に対応しています。
 
-### 前提条件
+## Project Scope
 
-- Python 3.12+
-- uv
+`projects/recsys-ranking` では、主に以下を扱います。
 
-### インストール
+- Amazon Reviews 2023 を用いたランキング実験
+- Hydra ベースの学習設定管理
+- PyTorch / Lightning による学習ループ
+- 共通 DataModule / optimizer / utility を `ml_sandbox_libs` から利用した構成
+- Deep learning ベースの推薦モデル比較
 
-1. リポジトリをクローンします。
+shared 化できる型や utility は `libs/ml_sandbox_libs` に寄せ、ranking 固有の model composition や training flow はこの project 配下で管理します。
 
-    ```sh
-    git clone https://github.com/haru-256/ml-sandbox.git
-    cd ml-sandbox/projects/recsys-ranking
-    ```
+## Dataset
 
-2. 仮想環境を作成し、依存関係をインストールします。
+実験では主に **Amazon Reviews 2023** を使用します。
 
-    ```sh
-    make install
-    ```
+- Source: <https://amazon-reviews-2023.github.io/>
+- Paper: [Bridging Language and Items for Retrieval and Recommendation](https://arxiv.org/abs/2403.03952)
 
-    これにより、CUDAサポート付きのPyTorchを含む、必要なすべての依存関係がインストールされます（利用可能な場合）。
+ランキング学習では、Candidate Generation で得られた候補をより精密に判別するために、ユーザー履歴とターゲットアイテムの関係をモデリングします。  
+本 project では、`ml_sandbox_libs` が提供する Amazon Reviews 向け前処理・DataModule を活用しています。
 
-## 使い方
+## Directory Structure
 
-トレーニングスクリプトを実行するには、次のコマンドを使用します。
+```text
+recsys-ranking/
+├── Makefile              # package 単位の開発コマンド
+├── pyproject.toml        # 依存関係・tool 設定
+├── README.md             # このファイル
+├── uv.lock               # lock file
+├── examples/             # 実行例・補助資料
+├── results/              # 実験結果、ログ、アーティファクト保存先
+└── src/
+    ├── fit.py            # 学習エントリポイント
+    ├── config/           # Hydra 設定
+    ├── data/             # DataModule 生成処理
+    ├── loss/             # loss factory
+    ├── models/           # ranking model 群
+    ├── utils/            # project 固有 utility
+    └── tests/            # test code
+```
+
+## Implemented Models
+
+現時点で README と実装から確認できる主なモデルは以下です。
+
+- `DeepFM`
+- `DLRM`
+- `DIN`
+- `DCNv2`
+
+README 上では今後の候補として以下も言及できます。
+
+- `DCN`
+- `FinalNet`
+
+ただし、日常的に参照すべき正確な実装状況は `src/models` を基準に確認してください。
+
+### DeepFM
+
+Factorization Machine による低次の特徴量相互作用と、MLP による高次の非線形相互作用を組み合わせるモデルです。
+
+- 履歴アイテムとターゲットアイテムを shared embedding で表現
+- FM branch で低次相互作用を学習
+- Deep branch で高次の相互作用を学習
+- 両者を統合して ranking logit を出力
+
+Reference: <https://arxiv.org/abs/1703.04247>
+
+### DLRM
+
+Dense / sparse feature を分けて扱い、特徴量相互作用層で結合する recommendation model です。
+
+- sparse categorical feature の embedding
+- dense numerical feature の MLP 変換
+- interaction layer による feature combination
+- top MLP による最終予測
+
+Reference: <https://arxiv.org/abs/1906.00091>
+
+### DIN
+
+**Deep Interest Network** は、ターゲットアイテムに条件づけた attention によって、ユーザー履歴から関心表現を動的に抽出します。
+
+- 履歴とターゲットの embedding を個別に表現
+- target-aware attention で履歴の重要度を推定
+- 重み付き集約表現を使ってクリック確率を予測
+
+Reference: <https://arxiv.org/abs/1706.06978>
+
+### DCNv2
+
+**Deep & Cross Network V2** の parallel variant を採用し、cross network と deep network を併用して明示的・暗黙的な特徴量相互作用を同時に学習します。
+
+- cross network による明示的 feature interaction
+- MLP による高次の非線形表現
+- behavior encoder と組み合わせた履歴集約
+- ranking 向けの最終 logit 出力
+
+Reference: <https://arxiv.org/abs/2008.13535>
+
+## Training Workflow
+
+この repository では Python 実行を `uv` ベースで統一しています。  
+作業時は必ず package root である `projects/recsys-ranking` に移動してからコマンドを実行します。
+
+### Setup
+
+```sh
+make install
+```
+
+### Format
+
+```sh
+make fmt
+```
+
+### Lint
+
+```sh
+make lint
+```
+
+### Test
+
+```sh
+make test
+```
+
+変更時は少なくとも `make lint` と `make test` を通す想定です。
+
+## Training
+
+基本の学習実行は次の通りです。
 
 ```sh
 make train
 ```
 
-または、`fit.py`スクリプトをHydraで直接実行して設定を上書きすることもできます。
+Hydra の override を使って個別設定を変更することもできます。
 
 ```sh
 uv run python src/fit.py model=DeepFM data.batch_size=32
 ```
 
-`model=DeepFM`、`model=DLRM`、または`model=DIN`を指定してモデルを変更できます。
+モデル切り替え例:
 
-## Makefile コマンド
+- `model=DeepFM`
+- `model=DLRM`
+- `model=DIN`
+- `model=DCNv2`
 
-- `make install`: 依存関係をインストールします。
-- `make lint`: リンターを実行します。
-- `make fmt`: コードをフォーマットします。
-- `make test`: テストを実行します。
-- `make lock`: 依存関係をロックします。
-- `make help`: 利用可能なすべてのコマンドを表示します。
+使用可能な設定名は `src/config` と `src/models/factory` の対応に従います。
 
-## データセット
+## Dependencies
 
-使用するデータセットは、[Amazon Review 2023](https://recsys-challenge.org/)のデータセットです。これは、McAuley Labによって2023年に収集された大規模なデータセットで、以前のAmazonレビューデータセットの大幅なアップデート版です。
+この package は主に以下の依存を利用します。
 
-### 主な特徴
+- `lightning`
+- `torchmetrics`
+- `numpy`
+- `polars`
+- `hydra-core`
+- `wandb`
+- `timm`
+- `ml-sandbox-libs`
+- `vertex-job-runner`
 
-- **広大なサイズ**: 33の異なるカテゴリにわたる4,800万の製品に関する5億7,154万件のレビューが含まれています。
-- **最新のデータ**: レビューは1996年5月から2023年9月までの期間をカバーしています。
-- **豊富なデータポイント**: データセットには豊富な特徴が含まれています。
-    - **ユーザーレビュー**: 評価（1.0から5.0）、レビューのタイトルと本文、役立つ投票、ユーザーが投稿した画像などが含まれます。
-    - **アイテムメタデータ**: 製品に関する詳細情報（説明、価格、ブランド、生画像、動画、ストア名、階層化されたカテゴリなど）が提供されます。
-    - **インタラクションリンク**: ユーザーとアイテムのインタラクションや「一緒に購入された」データも含まれています。
+また、`cpu` / `gpu` の optional dependency を通じて PyTorch と torchvision を切り替える構成です。
 
-### 2023年版の新機能
+## Relationship with Shared Libraries
 
-以前のバージョンと比較して、2023年のデータセットにはいくつかの改善点があります。
+共通化されたコンポーネントは主に `libs/ml_sandbox_libs` と `apps/vertex-job-runner` から参照します。
 
-- **より大きく、より新しい**: 大幅に規模が拡大し、より最近のインタラクションが含まれています。
-- **より豊富なメタデータ**: アイテムのメタデータがより詳細になりました。
-- **詳細なタイムスタンプ**: インタラクションのタイムスタンプが秒単位またはそれ以下のレベルで提供されます。
-- **クリーンなデータ**: アイテムのメタデータがよりクリーンに処理されています。
-- **標準的な分割**: 推薦システムのベンチマークを容易にするための標準的なデータ分割が提供されます。
+- `ml_sandbox_libs`: DataModule、共通 model module、optimizer、training utility
+- `vertex-job-runner`: Vertex AI 上での job 実行補助
 
-このデータセットは、感情分析、推薦システムの構築、その他の自然言語処理アプリケーションなど、さまざまなタスクにとって貴重なリソースです。
+特に、型定義・optimizer・monitoring などの shared module は project 内に重複実装せず、共通 library から import する前提です。
 
-目標は、ユーザーが前の期間にレビューしたアイテムに基づいて、次の期間中にレビューする可能性が高いアイテムを推薦することです。
+## Notes
 
-関連情報：
-
-- HP: <https://amazon-reviews-2023.github.io/>
-- 論文: [Bridging Language and Items for Retrieval and Recommendation](https://arxiv.org/abs/2403.03952)
-
-## ディレクトリ構成
-
-```sh
-recsys-ranking/
-├── Makefile                # ビルド、テストなどのコマンドを定義します。
-├── pyproject.toml          # Pythonプロジェクトの設定（依存関係など）
-├── README.md               # このファイル
-├── uv.lock                 # uvロックファイル
-├── results/                # 実験結果（ログ、アーティファクトなど）
-│   ├── artifact/           # モデルのアーティファクトなど
-│   └── dataset/            # データセット関連（キャッシュなど）
-└── src/                    # ソースコード
-    ├── fit.py              # トレーニングスクリプト
-    ├── config/             # 設定ファイル（Hydraなど）
-    ├── const/              # 定数定義
-    ├── loss/               # 損失関数
-    ├── models/             # モデル定義
-    ├── utils/              # ユーティリティ
-    └── tests/              # テストコード
-```
-
-> **Note**: 型定義・optimizer・ExperimentMonitor は `ml_sandbox_libs` に移管済みです。
-> model 用の型は `ml_sandbox_libs.models.types`、optimizer 用の型は
-> `ml_sandbox_libs.optimizer.types` から直接 import します。
-
-## モデル
-
-具体的には、以下のモデルが実装される予定です。
-
-- [x] DeepFM: Deep Factorization Machine
-- [x] DLRM: Deep Learning Recommendation Model
-- [x] DIN: Deep Interest Network
-- [ ] DCN: <https://arxiv.org/abs/1708.05123>
-- [x] DCN-V2: <https://arxiv.org/abs/2008.13535>
-- [ ] FinalNet: <https://www.ruizhang.info/publications/SIGIR%202023%20Short_FINAL.pdf>
-
-### DeepFM
-
-- **ファイルパス:** `src/models/deepfm.py`
-- Factorization Machines（低次の特徴量相互作用用）とディープニューラルネットワーク（高次の特徴量相互作用用）の長所を組み合わせたモデル。
-- 共有埋め込みを介してアイテム履歴とターゲットアイテムを処理し、FMとディープコンポーネントからの予測を組み合わせて最終的な出力を生成します。
-- 参照: [DeepFM: A Factorization-Machine based Neural Network for CTR Prediction](https://arxiv.org/abs/1703.04247)
-
-### DLRM
-
-- **ファイルパス:** `src/models/dlrm.py`
-- パーソナライズされた推薦タスク用に設計されたニューラルネットワークモデル。スパースなカテゴリ特徴量と密な数値特徴量を別々に処理し、特徴量相互作用を介してそれらを組み合わせて予測を行います。
-- アーキテクチャは、スパース特徴量用の埋め込み層、密な特徴量用のMLP、相互作用層（内積）、および最終予測用のトップMLPで構成されます。
-- 参照: [Deep Learning Recommendation Model for Personalization and Recommendation Systems](https://arxiv.org/abs/1906.00091)
-
-### DIN
-
-- **ファイルパス:** `src/models/din.py`
-- Deep Interest Network（DIN）は、ターゲットを意識したアテンションメカニズムを使用して、ユーザーの過去の行動からユーザーの興味表現を適応的に学習します。
-- 重要な革新は、ユーザーの興味の表現を生成するために、ターゲットアイテムとユーザーのインタラクション履歴の両方を考慮したアテンションベースのプーリングです。
-- 参照: [Deep Interest Network for Click-Through Rate Prediction](https://arxiv.org/abs/1706.06978)
+- 実装の正確な現状は README よりも `src/` 配下のコードを優先してください。
+- ranking 固有の business logic はこの project に残し、他 project でも再利用する utility のみ `libs/ml_sandbox_libs` に寄せます。
+- public な使い方や import path を変更した場合は、関連 README も合わせて更新してください。

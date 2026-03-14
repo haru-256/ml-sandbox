@@ -1,156 +1,195 @@
 # RecSys Candidate Generation
 
+推薦システムにおける **Candidate Generation（候補生成 / Retrieval）** の実験コードを管理する project です。  
+大規模な item 群から、各 user に対して関連性の高い候補を高速に絞り込み、後段の Ranking モデルへ渡すことを目的にしています。
+
 ## Overview
 
-このリポジトリには、推薦システムの重要な段階である **Candidate Generation (候補生成)** の実験コードが含まれています。
+大規模推薦では、すべての item をそのまま精密に順位付けすることは現実的ではありません。  
+そのため、一般に次のような multi-stage architecture を採用します。
 
-### Problem Setting: Candidate Generation / Retrieval
+1. **Candidate Generation / Retrieval**  
+   大量の item から、user に関連しそうな候補を高速に抽出する段階
+2. **Ranking**  
+   抽出した候補に対して、より複雑なモデルで精密にスコアリングする段階
+3. **Re-ranking**  
+   多様性や business rule を考慮して最終リストを調整する段階
 
-大規模な推薦システムでは、計算コストの制約から、全てのアイテムをすべてのユーザーに対してランキングすることは困難です。そのため、一般的に **Multi-Stage Architecture** が採用されます。
+この project は、上記のうち **Step 1: Candidate Generation** を扱います。
 
-1. **Candidate Generation (Retrieval)**: 数百万〜数億のアイテム群から、ユーザーに関連性の高い数百〜数千の候補アイテムを高速に選抜する段階。
-2. **Ranking**: 選抜された候補アイテムに対して、より複雑なモデルを用いて正確なスコアリングと順位付けを行う段階。
-3. **Re-ranking**: 多様性やビジネスルールなどを考慮して最終的なリストを作成する段階。
+## Scope
 
-```mermaid
-graph TD
-    Items["All Items<br>(Millions)"] --> Retrieval["Candidate Generation / Retrieval<br>(Fast Selection)"]
-    Retrieval -->|"Hundreds/Thousands"| Ranking["Ranking<br>(Precise Scoring)"]
-    Ranking -->|"Dozens"| ReRanking["Re-ranking<br>(Rules & Diversity)"]
-    ReRanking --> Final["Final Recommendations"]
+この project では主に次のような candidate generation 手法を対象にします。
 
-    style Retrieval fill:#f96,stroke:#333,stroke-width:2px,color:black
+- **Sequential Recommendation**
+  - user の時系列行動履歴から次に興味を持つ item を予測
+  - 例: `SASRec`, `gSASRec`
+- **Collaborative Filtering / Retrieval**
+  - user-item の相互作用から user / item 表現を学習し、類似度ベースで候補を取得
+  - 例: `TwoTower`, `SimpleX`
+
+共通化できる data preprocessing、型、optimizer、学習 utility は `libs/ml_sandbox_libs` に寄せ、  
+project 固有の model composition や training flow はこの directory 配下に置きます。
+
+## Dataset
+
+実験では主に **Amazon Reviews 2023** の recommendation dataset を利用します。
+
+- Source: <https://amazon-reviews-2023.github.io/>
+- Paper: [Bridging Language and Items for Retrieval and Recommendation](https://arxiv.org/abs/2403.03952)
+- Main category: `Video_Games`
+
+`ml_sandbox_libs` 側の dataset utility を利用して、主に次の前処理を行います。
+
+- user / item の index 化
+- 低頻度 ID の `UNK` 化
+- user 履歴の時系列シーケンス化
+- `max_seq_len` に応じた truncate / padding
+- 学習・評価用の negative sampling
+- item metadata の統合
+
+この project の datamodule は `ml_sandbox_libs.data.amazon_reviews_dataset.AmazonReviewsSeqRecDataModule` を利用します。
+
+## Implemented Models
+
+現時点で主に次の model を扱います。
+
+- [x] `TwoTower`
+- [x] `SASRec`
+- [x] `gSASRec`
+- [x] `SimpleX`
+
+`src/models/factory.py` では設定に応じて以下の model module を生成します。
+
+- `TwoTower`
+- `SASRec`
+- `gSASRec`
+- `SimpleX`
+
+## Project Structure
+
+```md
+recsys-candidate-generation/
+├── Dockerfile
+├── Makefile
+├── README.md
+├── compose.yaml
+├── pyproject.toml
+├── uv.lock
+├── results/
+│   ├── artifact/
+│   ├── dataset/
+│   └── logs/
+└── src/
+    ├── config/          # Hydra configuration
+    ├── data/            # datamodule factory
+    ├── loss/            # loss factory
+    ├── models/          # model implementations and factory
+    └── fit.py           # training entrypoint
 ```
 
-本リポジトリは、このうち **Step 1: Candidate Generation** に焦点を当てています。
-目標は、膨大なアイテムコーパス $I$ から、ユーザー $u$ が次に関心を持つ可能性が高いアイテム部分集合 $C_u \subset I$ ($|C_u| \ll |I|$) を効率的に検索することです。
+## Dependencies
 
-#### Methods
+この package は次の内部 package に依存します。
 
-Candidate Generationのアプローチとして、本リポジトリでは主に以下の2つを扱います。
+- `ml-sandbox-libs`
+- `vertex-job-runner`
 
-- **Sequential Recommendation**:
-    - ユーザーの過去の行動履歴（シーケンス）を入力とし、文脈を考慮して次のアイテムを予測します。
-    - 代表例: SASRec, gSASRec
-- **General / Collaborative Filtering**:
-    - ユーザーIDやアイテムID、その他特徴量を用いてユーザーとアイテムの類似性を学習します。
-    - 代表例: TwoTower, SimpleX
+`pyproject.toml` の `tool.uv.sources` で monorepo 内の local package を参照しています。
 
-#### Training Objective
+また、PyTorch は optional dependency として `cpu` / `gpu` extra を使い分けます。
 
-多くのモデルでは、**Negative Sampling** を用いた学習が行われます。
-正例（ユーザーが実際にインタラクションしたアイテム）と、ランダムまたは重要度に基づいてサンプリングされた負例（インタラクションしていないアイテム）を区別するようにモデルを訓練します。
+## Setup
 
-## データセット
-
-実験には **[Amazon Reviews 2023](https://amazon-reviews-2023.github.io/)** (McAuley Lab) の **Video Games** カテゴリを使用しています。
-
-- **Source**: [Amazon Reviews 2023](https://amazon-reviews-2023.github.io/)
-- **Category**: Video Games
-
-### Features
-
-データセットには以下のリッチな特徴が含まれています。
-
-- **User Reviews**: 評価 (Rating), テキスト, 投票数など
-- **Item Metadata**: 商品説明, 価格, 画像, カテゴリなど
-- **Links**: User-Item グラフ, Co-purchase グラフなど
-
-### Preprocessing & Configuration
-
-本実験では、**"0core_timestamp_w_his"** 設定を採用しています。これは、ユーザーの行動履歴を時系列順に並べたシーケンスとして扱う設定です。
-
-主な前処理パイプライン (`libs/ml_sandbox_libs` に実装):
-
-1. **Filtering**:
-   - 出現頻度の低いユーザーやアイテムを `UNK` (Unknown) トークンとして扱います。
-   - インタラクション履歴が空のユーザーを除外します。
-2. **Sequentialization**:
-   - 各ユーザーについて、レビューを行ったアイテムをタイムスタンプ順にソートし、シーケンス（履歴）を作成します。
-   - `max_seq_len` に合わせて、古い履歴の切り捨て (Truncate) またはパディング (Pad) を行います。
-3. **Negative Sampling**:
-   - 学習および評価時に、正例アイテムに対してランダムに負例アイテムをサンプリングします。
-4. **Metadata Integration**:
-   - アイテムのカテゴリ情報や平均評価などをメタデータとして統合し、モデルの入力として利用可能にします。
-
-- **Paper**: [Bridging Language and Items for Retrieval and Recommendation](https://arxiv.org/abs/2403.03952)
-
-## ディレクトリ構成
+package root で作業してください。
 
 ```sh
-recsys-candidate-generation/
-├── compose.vertexai.yaml   # Vertex AI 用の Docker Compose 設定
-├── Dockerfile.vertexai     # Vertex AI 用の Dockerfile
-├── Makefile                # ビルドやテストなどのコマンド定義
-├── pyproject.toml          # Python プロジェクト設定 (依存関係など)
-├── README.md               # このファイル
-├── uv.lock                 # uv ロックファイル
-├── results/                # 実験結果 (ログ、アーティファクトなど)
-│   ├── artifact/           # モデルのアーティファクトなど
-│   ├── dataset/            # データセット関連 (キャッシュなど)
-│   └── logs/               # トレーニングログ
-└── src/                    # ソースコード
-    ├── fit.py              # トレーニングスクリプト
-    ├── config/             # 設定ファイル (Hydra など)
-    ├── const/              # 定数定義
-    ├── loss/               # 損失関数
-    ├── models/             # モデル定義
-    └── tests/              # テストコード
+make install
 ```
 
-> **Note**: optimizer・LRSchedulerParams・OptimizerParams・ExperimentMonitor は
-> `ml_sandbox_libs` に移管済みです。各モジュールは `ml_sandbox_libs.*` から直接 import しています。
+この project は `uv` を前提に依存解決と実行を行います。  
+直接 `python` や `pytest` を使わず、`make` または `uv run ...` を利用します。
 
-## モデル
+## Training
 
-具体的には以下のモデルを実装する予定です。
+標準の training は以下で実行します。
 
-- [x] TwoTower: Two-Tower Model
-    - ユーザーとアイテムを独立したタワー（ニューラルネットワーク）でエンベディングし、その類似度（例：内積）を計算して推薦を行うモデル。
-- [ ] MF: Matrix Factorization
-- [ ] Collaborative Filtering
-- [ ] NCF: Neural Collaborative Filtering
-- [ ] NeuMF: Neural Matrix Factorization
-- [ ] NGCF: Neural Graph Collaborative Filtering
-- [ ] LightGCN
-- [ ] GRU4Rec: Gated Recurrent Unit for Sequential Recommendation
-- [x] SASRec: Self-Attentive Sequential Recommendation
-    - TransformerのSelf-Attention機構を利用して、ユーザーの行動履歴のシーケンシャルなパターンを捉え、次のアイテムを予測するモデル。
-- [ ] BERT4Rec: BERT for Sequential Recommendation
-- [x] gSASRec
-- [x] SimpleX: A Simple and Strong Baseline for Collaborative Filtering
-    - ユーザーの行動履歴の平均プーリングとCosine Contrastive Loss (CCL) を組み合わせたシンプルかつ強力なモデル。
+```sh
+make train
+```
 
-### TwoTower
+Hydra override を使って model や data 設定を切り替えることもできます。
 
-- **ファイルパス:** `src/models/two_tower.py`
-- ユーザーとアイテムをそれぞれ独立した「タワー」と呼ばれるニューラルネットワークでエンベディングするモデル。
-- ユーザータワーはユーザーIDを入力とし、アイテムタワーはアイテムIDを入力とします。
-- 各タワーはIDを埋め込み、複数の線形層（LinearBlock）を通して最終的なユーザー/アイテム表現ベクトルを出力します。
-- 訓練時には、ユーザーベクトルと正例アイテムベクトルとの類似度（内積）が高く、負例アイテムベクトルとの類似度が低くなるように学習します (BCEWithLogitsLossを使用)。
-- 評価時には、ユーザーベクトルと候補アイテムベクトルの類似度を計算し、ランキング上位のアイテムを推薦します。
+```sh
+uv run python src/fit.py model=SASRec data.batch_size=64
+```
 
-### SASRec
+例えば以下のような override が利用できます。
 
-- **ファイルパス:** `src/models/sasrec.py`
-- 論文: [SASRec: Self-Attentive Sequential Recommendation](https://arxiv.org/abs/1808.09781)
-- TransformerのSelf-Attention機構を利用したシーケンシャル推薦モデル。
-- ユーザーの過去のアイテムインタラクション履歴（シーケンス）を入力とします。
-- アイテムIDを埋め込み、位置エンコーディングを加えた後、複数のTransformerエンコーダーブロック（自己注意機構 + FeedForward層）で処理します。
-- 自己注意機構により、シーケンス内のアイテム間の依存関係を捉えます。
-- 最後のTransformerブロックの出力（特にシーケンスの最後のアイテムに対応する表現）を用いて、次にユーザーがインタラクションするアイテムを予測します。
-- 訓練時には、予測アイテム（正例）と負例アイテムに対するスコアを計算し、正例のスコアが高くなるように学習します (BCEWithLogitsLossを使用)。
+```sh
+uv run python src/fit.py model=TwoTower
+uv run python src/fit.py model=SASRec
+uv run python src/fit.py model=gSASRec
+uv run python src/fit.py model=SimpleX
+```
 
-### gSASRec
+## Configuration
 
-- **ファイルパス:** `src/models/gsasrec.py`
-- SASRecの拡張版で、gBCEロスを導入して負例サンプリングに起因する過信を抑制し、より効果的な学習を行います。
-- 論文: [gSASRec: Reducing Overconfidence in Sequential Recommendation Trained with Negative Sampling](https://arxiv.org/abs/2308.07192)
+training entrypoint は `src/fit.py` です。  
+Hydra を使って `src/config/` 配下の設定を読み込みます。
 
-### SimpleX
+主な flow は以下です。
 
-- **ファイルパス:** `src/models/simple_x.py`
-- 論文: [SimpleX: A Simple and Strong Baseline for Collaborative Filtering](https://arxiv.org/abs/2109.12613)
-- 非常にシンプルなアーキテクチャ（ユーザー履歴の平均プーリングなど）でありながら、最先端のモデルに匹敵する性能を持つモデル。
-- **Cosine Contrastive Loss (CCL)** を採用しており、負例のサンプリング重みやマージンを調整することで学習を安定化・高速化しています。
-- ユーザー表現は、ユーザーIDの埋め込みと、ユーザーがインタラクションしたアイテムの埋め込みの集約（平均など）を組み合わせて表現されます。
+1. logger の初期化
+2. datamodule の生成
+3. optimizer の生成
+4. model module の生成
+5. Lightning trainer の生成
+6. `trainer.fit(...)` の実行
+
+GPU 実行時には matmul precision の設定も行います。
+
+## Vertex AI
+
+この package は `vertex-job-runner` に依存しており、Vertex AI custom training job との連携を前提にしています。  
+`pyproject.toml` の `[tool.vrun]` に job 実行用の設定を定義できます。
+
+例:
+
+```toml
+[tool.vrun]
+project = "haru256-ml-sandbox"
+location = "us-central1"
+image_uri = "gcr.io/deeplearning-platform-release/base-cpu:latest"
+gcs_uri = "gs://haru256-vertex-ai-sandbox/vertex-job-runner/"
+experiment_name = "vertex-job-runner-experiment"
+machine_type = "g2-standard-4"
+accelerator_type = "NVIDIA_L4"
+accelerator_count = 1
+```
+
+実際の job 実行時は `apps/vertex-job-runner` 側の README も参照してください。
+
+## Development Workflow
+
+標準 workflow は次の通りです。
+
+```sh
+make install
+make fmt
+make lint
+make test
+```
+
+変更時は少なくとも次を確認してください。
+
+- `make lint`
+- `make test`
+
+shared library である `libs/ml_sandbox_libs` に影響する変更を伴う場合は、downstream への影響も確認します。
+
+## Notes
+
+- optimizer、training utility、shared data component は `ml_sandbox_libs` を利用します
+- project 固有の business logic や model composition はこの project に残します
+- public な使い方や import path を変えた場合は関連 README も合わせて更新します

@@ -1,104 +1,151 @@
-# Full-Scratch Transfomer(IMDB Classification)
+# Sentiment Analysis
 
-## Description
+IMDB の映画レビューを使って、Transformer Encoder をフルスクラッチ実装で学習・評価するための project です。  
+テキスト分類の基本要素である前処理、語彙構築、データセット実装、Transformer Encoder、本体の分類ヘッドまでを一通り含んでいます。
 
-This repository contains code for training and evaluating a Transformer model for sentiment classification using the [IMDB Dataset](https://huggingface.co/datasets/stanfordnlp/imdb). The dataset consists of 25,000 movie reviews labeled as either positive or negative. The Transformer Encoder model is used for sequence classification, with a summary of its architecture provided. The model achieves high accuracy, ranging from 0.85 to 0.86, even with arbitrary hyperparameter selection. The repository also includes a visualization of the accuracy results. The performance of the model is comparable to DistlliBERT. For more details, refer to the [Kaggle notebook](https://www.kaggle.com/code/omarallam22/movie-sentiment-analysis#Modeling).
+## 概要
 
-## Dataset
+この project では、映画レビュー文を入力として、レビューの感情を **positive / negative** の 2 値分類で予測します。
 
-Transfomer is trained by [IMDB Dataset](https://huggingface.co/datasets/stanfordnlp/imdb).
+- データセット: [IMDb Dataset](https://huggingface.co/datasets/stanfordnlp/imdb)
+- タスク: binary sentiment classification
+- 実装方針:
+  - PyTorch / Lightning ベース
+  - Transformer Encoder を自前実装
+  - `uv` と `Makefile` を使った開発フロー
 
-> Large Movie Review Dataset. This is a dataset for binary sentiment classification containing substantially more data than previous benchmark datasets. We provide a set of 25,000 highly polar movie reviews for training, and 25,000 for testing. There is additional unlabeled data for use as well.
+## データセット
 
-This dataset label is binary 0/1,  0: negative and 1: positive.
-Because this dataset is not imbalance, random model accuracy has 50%.
+学習には `datasets` ライブラリ経由で取得する IMDb データセットを利用します。
 
-## Usage
+- train: 25,000 件
+- test: 25,000 件
+- unsupervised: 50,000 件
+- ラベル:
+  - `0`: negative
+  - `1`: positive
 
-To train the model, follow these steps:
+ランダム予測のベースライン精度はおよそ 50% です。
 
-1. Clone the repository:
+参照:
 
-```sh
-git clone https://github.com/haru-256/ml-sandbox.git
+- <https://huggingface.co/datasets/stanfordnlp/imdb>
+
+## 実装内容
+
+この project には主に以下が含まれます。
+
+- `data/`
+  - IMDb データセットの取得
+  - テキストの tokenization / normalization
+  - 語彙構築
+  - fixed length の系列への変換
+  - Lightning DataModule
+- `models/`
+  - Transformer Encoder
+  - Self-Attention
+  - Embedding
+  - Feed Forward Network
+  - Sequence classification head
+- `tests/`
+  - モジュールごとのテスト
+
+## ディレクトリ構成
+
+```text
+sentiment_analysis/
+├── Makefile                 # 開発用コマンド
+├── README.md                # このファイル
+├── pyproject.toml           # Python package 設定
+├── train.py                 # 学習エントリポイント
+├── uv.lock                  # lock file
+├── data/                    # データ取得・前処理・DataModule
+│   └── dataset.py
+├── img/                     # README 用画像など
+├── models/                  # モデル実装
+│   ├── classifier.py
+│   └── modules/
+│       ├── decoder.py
+│       ├── encoder.py
+│       └── base/
+├── notebook/                # 実験・確認用 notebook
+├── tests/                   # テスト
+└── utils/                   # 補助ユーティリティ
 ```
 
-2. Navigate to the Transformer directory:
+## セットアップ
+
+package root で作業してください。
 
 ```sh
-cd ml-sandbox/transfomer
+cd projects/sentiment_analysis
+make install
 ```
 
-3. Install the required dependencies:
+`make install` により、`uv` を通して依存関係をセットアップします。
+
+## 学習
+
+基本的な学習実行は以下です。
 
 ```sh
-uv sync
-```
-
-4. Run the training command:
-
-```sh
+cd projects/sentiment_analysis
 make train
 ```
 
-This command will initiate the training process and start training the Transformer model using the IMDB Dataset. The training progress and accuracy will be displayed in the console.
+環境によっては、`Makefile` の定義に従って `uv run ...` ベースで学習が実行されます。
 
-Note: Make sure you have [uv](https://github.com/astral-sh/uv) and Make installed on your system before running the above commands.
+## テスト
 
-## Model
+テストは package root で実行します。
 
-We use Transfomer Encoder. Model Summary is the following.
-
-```txt
-=========================================================================================================
-Layer (type:depth-idx)                                  Output Shape              Param #
-=========================================================================================================
-TransformerForSequenceClassification                    [128, 1]                  --
-├─TransformerEncoder: 1-1                               [128, 512, 128]           --
-│    └─Embeddings: 2-1                                  [128, 512, 128]           --
-│    │    └─Embedding: 3-1                              [128, 512, 128]           1,280,384
-│    │    └─Embedding: 3-2                              [1, 512, 128]             65,664
-│    │    └─LayerNorm: 3-3                              [128, 512, 128]           256
-│    │    └─Dropout: 3-4                                [128, 512, 128]           --
-│    └─ModuleList: 2-2                                  --                        --
-│    │    └─TransformerEncoderBlock: 3-5                [128, 512, 128]           --
-│    │    │    └─LayerNorm: 4-1                         [128, 512, 128]           256
-│    │    │    └─MultiHeadSelfAttention: 4-2            [128, 512, 128]           66,048
-│    │    │    └─LayerNorm: 4-3                         [128, 512, 128]           256
-│    │    │    └─PointwiseFeedForward: 4-4              [128, 512, 128]           131,712
-├─Classifier: 1-2                                       [128, 1]                  --
-│    └─Sequential: 2-3                                  [128, 1]                  --
-│    │    └─Dropout: 3-6                                [128, 128]                --
-│    │    └─Linear: 3-7                                 [128, 1]                  129
-=========================================================================================================
-Total params: 1,544,705
-Trainable params: 1,544,705
-Non-trainable params: 0
-Total mult-adds (Units.MEGABYTES): 189.38
-=========================================================================================================
-Input size (MB): 0.52
-Forward/backward pass size (MB): 872.94
-Params size (MB): 6.18
-Estimated Total Size (MB): 879.64
-=========================================================================================================
+```sh
+cd projects/sentiment_analysis
+make test
 ```
 
-### Results
+## Lint / Format
 
-Despite selecting hyperparameters somewhat arbitrarily, the accuracy was very high, ranging from 0.85 to 0.86. Although I stopped at 10 epochs, there were still signs of improvement.
+コード品質確認と整形も package root で行います。
 
-<img src=./img/fig.png />
+```sh
+cd projects/sentiment_analysis
+make lint
+make fmt
+```
 
-This accuracy is close to DistlliBERT.
+## モデル
 
-- <https://www.kaggle.com/code/omarallam22/movie-sentiment-analysis#Modeling>
+分類モデル本体は `models/classifier.py` にあり、主に以下の構成です。
 
-## References
+- `TransformerForSequenceClassification`
+  - Transformer Encoder を用いて入力系列をエンコード
+  - 最終表現を分類ヘッドに渡して 2 値分類を実施
+- `Classifier`
+  - dropout + linear を中心としたシンプルな分類ヘッド
 
-Here are some references that you may find helpful:
+また、`models/modules/` 以下に Self-Attention、Embedding、Encoder / Decoder block などの基礎モジュールがあります。  
+主用途は sentiment classification ですが、Transformer の構成要素を理解しやすいように分割されています。
 
-1. [IMDB Dataset](https://huggingface.co/datasets/stanfordnlp/imdb) - The dataset used for training the Transformer model for sentiment classification.
+## 前処理
 
-2. [Kaggle Notebook](https://www.kaggle.com/code/omarallam22/movie-sentiment-analysis#Modeling) - A Kaggle notebook that provides more details on the movie sentiment analysis using the Transformer model.
+`data/dataset.py` では主に以下を行います。
 
-3. [DistlliBERT](https://arxiv.org/abs/1910.01108) - A reference to the DistlliBERT model, which has comparable performance to the Transformer model in sentiment classification.
+- IMDb データセットの取得
+- spaCy を用いた text normalization / tokenization
+- vocabulary 構築
+- padding を含む固定長系列への変換
+- `IMDbDataset` / `IMDbDataModule` の提供
+
+このため、モデル学習だけでなく、テキスト分類パイプライン全体の実験用 project として扱えます。
+
+## 補足
+
+この project は他の推薦系 project と比べると独立性が高く、`libs/ml_sandbox_libs` への依存を前提としない構成です。  
+一方で、monorepo 内の他 package と同様に `uv` と `Makefile` ベースの開発フローに揃えると扱いやすくなります。
+
+## 参考
+
+- IMDb Dataset: <https://huggingface.co/datasets/stanfordnlp/imdb>
+- Transformer: [Attention Is All You Need](https://arxiv.org/abs/1706.03762)
+- 比較参考: [DistilBERT](https://arxiv.org/abs/1910.01108)
