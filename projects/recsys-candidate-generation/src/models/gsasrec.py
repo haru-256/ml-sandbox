@@ -83,7 +83,7 @@ class gSASRecModule(BaseModule):
             neg_item: negative item, shape (batch_size, neg_sample_size)
 
         Returns:
-            out: output tensor, shape (batch_size, seq_len, hidden_size)
+            user_emb: user embedding, shape (batch_size, hidden_size)
             pos_item_emb: positive item embedding, shape (batch_size, hidden_size)
             neg_item_emb: negative item embedding, shape (batch_size, neg_sample_size, hidden_size)
 
@@ -98,14 +98,10 @@ class gSASRecModule(BaseModule):
             batch.pos_item_index,
             batch.neg_item_indexes,
         )
-        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        out, pos_item_emb, neg_item_emb = self(
+        # shape (batch_size, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
+        user_emb, pos_item_emb, neg_item_emb = self(
             item_history=item_history, pos_item=pos_item, neg_item=neg_item
         )
-
-        # extract the last hidden state for user embedding, shape (batch_size, hidden_size)
-        user_emb = out[:, -1, :]
 
         # shape (B, 1), (B, neg_sample_size)
         pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
@@ -135,15 +131,11 @@ class gSASRecModule(BaseModule):
             batch.pos_item_index,
             batch.neg_item_indexes,
         )
-        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        out, pos_item_emb, neg_item_emb = self(
+        # shape (batch_size, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
+        user_emb, pos_item_emb, neg_item_emb = self(
             item_history=item_history, pos_item=pos_item, neg_item=neg_item
         )
         assert pos_item_emb.size(0) == batch.item_history.size(0)
-
-        # extract the last hidden state for user embedding, shape (batch_size, hidden_size)
-        user_emb = out[:, -1, :]
 
         # shape (batch_size, 1), (batch_size, neg_sample_size)
         pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)

@@ -103,24 +103,26 @@ class TestDIN:
             item_pad_idx=0,
             category_pad_idx=0,
         )
+        model.eval()
 
         item_id_history = torch.randint(0, num_items, (batch_size, seq_len))
         category_id_history = torch.randint(0, num_categories, (batch_size, seq_len))
         target_item_ids = torch.randint(0, num_items, (batch_size,))
         target_category_ids = torch.randint(0, num_categories, (batch_size,))
 
-        forward_out = model(
-            item_id_history=item_id_history,
-            category_id_history=category_id_history,
-            target_item_ids=target_item_ids,
-            target_category_ids=target_category_ids,
-        )
-        predict_out = model.predict_logits(
-            item_id_history=item_id_history,
-            category_id_history=category_id_history,
-            target_item_ids=target_item_ids,
-            target_category_ids=target_category_ids,
-        )
+        with torch.no_grad():
+            forward_out = model(
+                item_id_history=item_id_history,
+                category_id_history=category_id_history,
+                target_item_ids=target_item_ids,
+                target_category_ids=target_category_ids,
+            )
+            predict_out = model.predict_logits(
+                item_id_history=item_id_history,
+                category_id_history=category_id_history,
+                target_item_ids=target_item_ids,
+                target_category_ids=target_category_ids,
+            )
 
         assert torch.allclose(forward_out, predict_out)
 

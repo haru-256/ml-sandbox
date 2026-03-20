@@ -1,11 +1,10 @@
-from unittest.mock import Mock
-
 import pytest
 import torch
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.models.types import NormalizeType
 from ml_sandbox_libs.optimizer import AdamWCosine
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
+from pytest_mock import MockerFixture
 
 from models.din import DIN, DINModule
 
@@ -28,7 +27,7 @@ def optimizer() -> AdamWCosine:
 
 
 @pytest.fixture
-def module(optimizer: AdamWCosine) -> DINModule:
+def module(optimizer: AdamWCosine, mocker: MockerFixture) -> DINModule:
     return DINModule(
         num_items=100,
         num_categories=60,
@@ -42,7 +41,7 @@ def module(optimizer: AdamWCosine) -> DINModule:
         category_pad_idx=0,
         eval_top_k=5,
         optimizer=optimizer,
-        loss_fn=Mock(return_value=torch.tensor(0.5, requires_grad=True)),
+        loss_fn=mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True)),
     )
 
 
@@ -97,29 +96,39 @@ class TestDINModule:
         assert pos_logits.shape == (2, 1)
         assert neg_logits.shape == (2, 4)
 
-    def test_training_step(self, module: DINModule, sample_batch: AmazonReviewsSeqRecBatch) -> None:
+    def test_training_step(
+        self,
+        module: DINModule,
+        sample_batch: AmazonReviewsSeqRecBatch,
+        mocker: MockerFixture,
+    ) -> None:
         """Verify training step."""
-        module.monitor.logging_step = Mock()
+        logging_step = mocker.Mock()
+        module.monitor.logging_step = logging_step
         loss = module.training_step(sample_batch, batch_idx=0)
 
         assert isinstance(loss, torch.Tensor)
         assert loss.dim() == 0
         assert torch.isfinite(loss)
-        module.monitor.logging_step.assert_called_once()
-        logged = module.monitor.logging_step.call_args[0][0]
+        logging_step.assert_called_once()
+        logged = logging_step.call_args[0][0]
         assert {"loss", "pos_logits", "neg_logits", "accuracy"} <= logged.keys()
 
     def test_validation_step(
-        self, module: DINModule, sample_batch: AmazonReviewsSeqRecBatch
+        self,
+        module: DINModule,
+        sample_batch: AmazonReviewsSeqRecBatch,
+        mocker: MockerFixture,
     ) -> None:
         """Verify validation step."""
-        module.monitor.logging_step = Mock()
+        logging_step = mocker.Mock()
+        module.monitor.logging_step = logging_step
         loss = module.validation_step(sample_batch, batch_idx=0)
 
         assert isinstance(loss, torch.Tensor)
         assert loss.dim() == 0
         assert torch.isfinite(loss)
-        logged = module.monitor.logging_step.call_args[0][0]
+        logged = logging_step.call_args[0][0]
         assert {"loss", "hit_rate", "ndcg"} <= logged.keys()
 
     def test_summary_generation(self, module: DINModule) -> None:
@@ -128,7 +137,9 @@ class TestDINModule:
         assert summary_stats is not None
         assert hasattr(summary_stats, "total_params")
 
-    def test_different_normalize_options(self, optimizer: AdamWCosine) -> None:
+    def test_different_normalize_options(
+        self, optimizer: AdamWCosine, mocker: MockerFixture
+    ) -> None:
         """Verify different normalize options."""
         for normalize in (None, NormalizeType.BATCH, NormalizeType.LAYER):
             mod = DINModule(
@@ -144,7 +155,7 @@ class TestDINModule:
                 category_pad_idx=0,
                 eval_top_k=5,
                 optimizer=optimizer,
-                loss_fn=Mock(return_value=torch.tensor(0.5, requires_grad=True)),
+                loss_fn=mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True)),
             )
             out = mod.forward(
                 item_history=torch.randint(1, 50, (2, 5)),

@@ -73,8 +73,10 @@ class TestDCNv2CrossType:
     ) -> None:
         """Verify predict_logits is the canonical scoring path used by forward."""
         item_history, target_item_ids = sample_input
-        forward_out = model(item_history, target_item_ids)
-        predict_out = model.predict_logits(item_history, target_item_ids)
+        model.eval()
+        with torch.no_grad():
+            forward_out = model(item_history, target_item_ids)
+            predict_out = model.predict_logits(item_history, target_item_ids)
         assert torch.allclose(forward_out, predict_out)
 
     def test_gradient_flow(

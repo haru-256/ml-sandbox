@@ -240,24 +240,42 @@ class DeepFMModule(BaseModule):
             item_id_history=item_history, target_item_ids=target_item_ids
         )
 
+    def _predict_logits(
+        self,
+        item_history: torch.Tensor,
+        pos_item_ids: torch.Tensor,
+        neg_item_ids: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Predict positive and negative logits from tensors.
+
+        Args:
+            item_history: Item history tensor of shape (B, L).
+            pos_item_ids: Positive item IDs tensor of shape (B,).
+            neg_item_ids: Negative item IDs tensor of shape (B, N).
+
+        Returns:
+            Tuple of positive and negative logits with shapes (B, 1) and (B, N).
+        """
+        neg_sample_size = neg_item_ids.size(1)
+
+        pos_logits = self.forward(item_history=item_history, target_item_ids=pos_item_ids)
+        pos_logits = pos_logits.view(-1, 1)
+        neg_logits = self.forward(
+            item_history=torch.repeat_interleave(item_history, repeats=neg_sample_size, dim=0),
+            target_item_ids=torch.flatten(neg_item_ids, start_dim=0),
+        )
+        neg_logits = neg_logits.view(-1, neg_sample_size)
+
+        return pos_logits, neg_logits
+
     @override
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         # (B, L), (B,), (B, neg_sample_size)
-        (item_history, pos_item, neg_item) = (
-            batch.item_history,
-            batch.pos_item_index,
-            batch.neg_item_indexes,
+        pos_logits, neg_logits = self._predict_logits(
+            item_history=batch.item_history,
+            pos_item_ids=batch.pos_item_index,
+            neg_item_ids=batch.neg_item_indexes,
         )
-        neg_sample_size = neg_item.size(1)
-        # (B,)
-        pos_logits = self.forward(item_history=item_history, target_item_ids=pos_item)
-        pos_logits = pos_logits.view(-1, 1)  # (B, 1)
-        # (B * neg_sample_size,)
-        neg_logits = self.forward(
-            item_history=torch.repeat_interleave(item_history, repeats=neg_sample_size, dim=0),
-            target_item_ids=torch.flatten(neg_item, start_dim=0),
-        )
-        neg_logits = neg_logits.view(-1, neg_sample_size)  # (B, neg_sample_size)
 
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
@@ -279,21 +297,11 @@ class DeepFMModule(BaseModule):
     @override
     def validation_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
         # (B, L), (B,), (B, neg_sample_size)
-        (item_history, pos_item, neg_item) = (
-            batch.item_history,
-            batch.pos_item_index,
-            batch.neg_item_indexes,
+        pos_logits, neg_logits = self._predict_logits(
+            item_history=batch.item_history,
+            pos_item_ids=batch.pos_item_index,
+            neg_item_ids=batch.neg_item_indexes,
         )
-        neg_sample_size = neg_item.size(1)
-        # (B,)
-        pos_logits = self.forward(item_history=item_history, target_item_ids=pos_item)
-        pos_logits = pos_logits.view(-1, 1)  # (B, 1)
-        # (B * neg_sample_size,)
-        neg_logits = self.forward(
-            item_history=torch.repeat_interleave(item_history, repeats=neg_sample_size, dim=0),
-            target_item_ids=torch.flatten(neg_item, start_dim=0),
-        )
-        neg_logits = neg_logits.view(-1, neg_sample_size)  # (B, neg_sample_size)
 
         # calc loss, accuracy
         # for imbalanced, extract the first item logits, shape (batch_size, 1)

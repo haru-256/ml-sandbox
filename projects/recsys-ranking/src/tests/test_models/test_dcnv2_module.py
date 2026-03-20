@@ -1,12 +1,11 @@
 """Tests for DCNv2Module."""
 
-from unittest.mock import MagicMock
-
 import pytest
 import torch
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.optimizer import AdamWCosine
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
+from pytest_mock import MockerFixture
 
 from models.dcnv2 import DCNv2Module
 
@@ -15,7 +14,7 @@ class TestDCNv2ModuleBasic:
     """Basic test suite for DCNv2Module."""
 
     @pytest.fixture
-    def module(self) -> DCNv2Module:
+    def module(self, mocker: MockerFixture) -> DCNv2Module:
         """Create DCNv2Module for testing."""
         return DCNv2Module(
             num_items=100,
@@ -38,7 +37,7 @@ class TestDCNv2ModuleBasic:
                     cycle_limit=1,
                 ),
             ),
-            loss_fn=MagicMock(),
+            loss_fn=mocker.Mock(),
         )
 
     @pytest.fixture
@@ -82,11 +81,14 @@ class TestDCNv2ModuleBasic:
         assert neg_logits.shape == (4, 5)
 
     def test_dcnv2_module_training_step(
-        self, module: DCNv2Module, batch: AmazonReviewsSeqRecBatch
+        self,
+        module: DCNv2Module,
+        batch: AmazonReviewsSeqRecBatch,
+        mocker: MockerFixture,
     ) -> None:
         """Test training_step calls loss_fn correctly."""
         # Setup mock loss_fn to verify arguments
-        mock_loss_fn = MagicMock(return_value=torch.tensor(0.5, requires_grad=True))
+        mock_loss_fn = mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True))
         module.loss_fn = mock_loss_fn
 
         # Run training_step
@@ -101,11 +103,14 @@ class TestDCNv2ModuleBasic:
         assert neg_logits.shape == (4, 5)  # (B, neg_samples)
 
     def test_dcnv2_module_validation_step(
-        self, module: DCNv2Module, batch: AmazonReviewsSeqRecBatch
+        self,
+        module: DCNv2Module,
+        batch: AmazonReviewsSeqRecBatch,
+        mocker: MockerFixture,
     ) -> None:
         """Test validation_step calls loss_fn correctly."""
         # Setup mock loss_fn
-        mock_loss_fn = MagicMock(return_value=torch.tensor(0.5))
+        mock_loss_fn = mocker.Mock(return_value=torch.tensor(0.5))
         module.loss_fn = mock_loss_fn
 
         # Run validation_step
