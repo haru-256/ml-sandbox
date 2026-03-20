@@ -25,24 +25,27 @@ def summarize_pos_neg_scores(
         positive scores, negative scores, and the broadcasted margin `pos - neg`.
 
     Raises:
-        AssertionError: If scores are not 2D or do not share the same batch size.
+        AssertionError: If ``pos_scores`` is not shaped ``(B, 1)``, if scores
+            are not 2D, or if they do not share the same batch size.
     """
     assert pos_scores.ndim == 2, f"pos_scores should be 2D, got {pos_scores.shape}"
+    assert pos_scores.size(1) == 1, f"pos_scores should have shape (B, 1), got {pos_scores.shape}"
     assert neg_scores.ndim == 2, f"neg_scores should be 2D, got {neg_scores.shape}"
     assert pos_scores.size(0) == neg_scores.size(0), (
         f"pos_scores and neg_scores should share batch size, got {pos_scores.shape} and {neg_scores.shape}"
     )
 
-    pos_neg_diff = pos_scores - neg_scores
+    with torch.no_grad():
+        pos_neg_diff = pos_scores - neg_scores
 
-    return {
-        "pos_mean": pos_scores.mean().item(),
-        "neg_mean": neg_scores.mean().item(),
-        "pos_neg_diff_mean": pos_neg_diff.mean().item(),
-        "pos_std": pos_scores.std(unbiased=False).item(),
-        "neg_std": neg_scores.std(unbiased=False).item(),
-        "pos_neg_diff_std": pos_neg_diff.std(unbiased=False).item(),
-    }
+        return {
+            "pos_mean": pos_scores.mean().item(),
+            "neg_mean": neg_scores.mean().item(),
+            "pos_neg_diff_mean": pos_neg_diff.mean().item(),
+            "pos_std": pos_scores.std(unbiased=False).item(),
+            "neg_std": neg_scores.std(unbiased=False).item(),
+            "pos_neg_diff_std": pos_neg_diff.std(unbiased=False).item(),
+        }
 
 
 class ExperimentMonitor:

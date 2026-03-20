@@ -171,3 +171,11 @@ class TestSummarizePosNegScores:
         assert metrics["pos_neg_diff_std"] == pytest.approx(
             pos_neg_diff.std(unbiased=False).item()
         )
+
+    def test_rejects_positive_scores_with_multiple_columns(self) -> None:
+        """Reject positive score tensors that are not shaped as a single column."""
+        pos_scores = torch.tensor([[3.0, 4.0], [5.0, 6.0]])
+        neg_scores = torch.tensor([[1.0, 2.0], [4.0, 0.0]])
+
+        with pytest.raises(AssertionError, match=r"pos_scores should have shape \(B, 1\)"):
+            summarize_pos_neg_scores(pos_scores, neg_scores)
