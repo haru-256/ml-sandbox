@@ -29,9 +29,9 @@ install: ## Setup the project
 		uv sync --all-groups --extra=cpu; \
 	fi
 
-.PHONY: clean
-clean: ## Remove caches
-	rm -rf .mypy_cache .pytest_cache
+.PHONY: clean-cache
+clean-cache: ## Remove cache files
+	rm -rf .mypy_cache .pytest_cache .pytest_cache .ruff_cache
 	fd -H --type directory __pycache__ . -x rm -rf
 
 .PHONY: help

@@ -1,18 +1,18 @@
 # RecSys Candidate Generation
 
-推薦システムにおける **Candidate Generation（候補生成 / Retrieval）** の実験コードを管理する project です。  
+推薦システムにおける **Candidate Generation（候補生成 / Retrieval）** の実験コードを管理する project です。
 大規模な item 群から、各 user に対して関連性の高い候補を高速に絞り込み、後段の Ranking モデルへ渡すことを目的にしています。
 
 ## Overview
 
-大規模推薦では、すべての item をそのまま精密に順位付けすることは現実的ではありません。  
+大規模推薦では、すべての item をそのまま精密に順位付けすることは現実的ではありません。
 そのため、一般に次のような multi-stage architecture を採用します。
 
-1. **Candidate Generation / Retrieval**  
+1. **Candidate Generation / Retrieval**
    大量の item から、user に関連しそうな候補を高速に抽出する段階
-2. **Ranking**  
+2. **Ranking**
    抽出した候補に対して、より複雑なモデルで精密にスコアリングする段階
-3. **Re-ranking**  
+3. **Re-ranking**
    多様性や business rule を考慮して最終リストを調整する段階
 
 この project は、上記のうち **Step 1: Candidate Generation** を扱います。
@@ -22,13 +22,13 @@
 この project では主に次のような candidate generation 手法を対象にします。
 
 - **Sequential Recommendation**
-  - user の時系列行動履歴から次に興味を持つ item を予測
-  - 例: `SASRec`, `gSASRec`
+    - user の時系列行動履歴から次に興味を持つ item を予測
+    - 例: `SASRec`, `gSASRec`
 - **Collaborative Filtering / Retrieval**
-  - user-item の相互作用から user / item 表現を学習し、類似度ベースで候補を取得
-  - 例: `TwoTower`, `SimpleX`
+    - user-item の相互作用から user / item 表現を学習し、類似度ベースで候補を取得
+    - 例: `TwoTower`, `SimpleX`
 
-共通化できる data preprocessing、型、optimizer、学習 utility は `libs/ml_sandbox_libs` に寄せ、  
+共通化できる data preprocessing、型、optimizer、学習 utility は `libs/ml_sandbox_libs` に寄せ、
 project 固有の model composition や training flow はこの directory 配下に置きます。
 
 ## Dataset
@@ -107,7 +107,7 @@ package root で作業してください。
 make install
 ```
 
-この project は `uv` を前提に依存解決と実行を行います。  
+この project は `uv` を前提に依存解決と実行を行います。
 直接 `python` や `pytest` を使わず、`make` または `uv run ...` を利用します。
 
 ## Training
@@ -135,7 +135,7 @@ uv run python src/fit.py model=SimpleX
 
 ## Configuration
 
-training entrypoint は `src/fit.py` です。  
+training entrypoint は `src/fit.py` です。
 Hydra を使って `src/config/` 配下の設定を読み込みます。
 
 主な flow は以下です。
@@ -151,7 +151,7 @@ GPU 実行時には matmul precision の設定も行います。
 
 ## Vertex AI
 
-この package は `vertex-job-runner` に依存しており、Vertex AI custom training job との連携を前提にしています。  
+この package は `vertex-job-runner` に依存しており、Vertex AI custom training job との連携を前提にしています。
 `pyproject.toml` の `[tool.vrun]` に job 実行用の設定を定義できます。
 
 例:

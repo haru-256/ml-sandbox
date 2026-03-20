@@ -94,25 +94,60 @@ class TestDeepFMModuleBasic:
         assert neg_logits.shape == (4, 5)
 
     def test_deepfm_module_training_step(
-        self, module: DeepFMModule, sample_batch: AmazonReviewsSeqRecBatch
+        self,
+        module: DeepFMModule,
+        sample_batch: AmazonReviewsSeqRecBatch,
+        mocker: MockerFixture,
     ) -> None:
-        """Verify deepfm module training step."""
-        module.train()
+        """Verify deepfm module training step logs stable public metrics."""
+        logging_step = mocker.Mock()
+        module.monitor.logging_step = logging_step
         loss = module.training_step(sample_batch, batch_idx=0)
         assert isinstance(loss, torch.Tensor)
         assert loss.dim() == 0
         assert torch.isfinite(loss)
         assert loss.requires_grad
+        logging_step.assert_called_once()
+        logged = logging_step.call_args[0][0]
+        assert {
+            "loss",
+            "pos_mean",
+            "neg_mean",
+            "pos_neg_diff_mean",
+            "pos_std",
+            "neg_std",
+            "pos_neg_diff_std",
+            "accuracy",
+        } <= logged.keys()
 
     def test_deepfm_module_validation_step(
-        self, module: DeepFMModule, sample_batch: AmazonReviewsSeqRecBatch
+        self,
+        module: DeepFMModule,
+        sample_batch: AmazonReviewsSeqRecBatch,
+        mocker: MockerFixture,
     ) -> None:
-        """Verify deepfm module validation step."""
-        module.eval()
+        """Verify deepfm module validation step logs ranking metrics."""
+        logging_step = mocker.Mock()
+        module.monitor.logging_step = logging_step
         loss = module.validation_step(sample_batch, batch_idx=0)
         assert isinstance(loss, torch.Tensor)
         assert loss.dim() == 0
         assert torch.isfinite(loss)
+        logging_step.assert_called_once()
+        logged = logging_step.call_args[0][0]
+        assert {
+            "loss",
+            "pos_mean",
+            "neg_mean",
+            "pos_neg_diff_mean",
+            "pos_std",
+            "neg_std",
+            "pos_neg_diff_std",
+            "accuracy",
+            "hit_rate",
+            "mrr",
+            "ndcg",
+        } <= logged.keys()
 
     def test_deepfm_module_summary(self, module: DeepFMModule) -> None:
         """Verify deepfm module summary."""

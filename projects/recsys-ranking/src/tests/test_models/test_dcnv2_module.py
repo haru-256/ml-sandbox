@@ -86,21 +86,26 @@ class TestDCNv2ModuleBasic:
         batch: AmazonReviewsSeqRecBatch,
         mocker: MockerFixture,
     ) -> None:
-        """Test training_step calls loss_fn correctly."""
-        # Setup mock loss_fn to verify arguments
-        mock_loss_fn = mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True))
-        module.loss_fn = mock_loss_fn
-
-        # Run training_step
+        """Test training_step returns a finite loss and logs stable public metrics."""
+        logging_step = mocker.Mock()
+        module.monitor.logging_step = logging_step
         loss = module.training_step(batch, batch_idx=0)
 
         assert isinstance(loss, torch.Tensor)
-        # Verify loss_fn was called with (pos_logits, neg_logits)
-        mock_loss_fn.assert_called_once()
-        args, _ = mock_loss_fn.call_args
-        pos_logits, neg_logits = args
-        assert pos_logits.shape == (4, 1)  # (B, 1)
-        assert neg_logits.shape == (4, 5)  # (B, neg_samples)
+        assert loss.dim() == 0
+        assert torch.isfinite(loss)
+        logging_step.assert_called_once()
+        logged = logging_step.call_args[0][0]
+        assert {
+            "loss",
+            "pos_mean",
+            "neg_mean",
+            "pos_neg_diff_mean",
+            "pos_std",
+            "neg_std",
+            "pos_neg_diff_std",
+            "accuracy",
+        } <= logged.keys()
 
     def test_dcnv2_module_validation_step(
         self,
@@ -108,18 +113,26 @@ class TestDCNv2ModuleBasic:
         batch: AmazonReviewsSeqRecBatch,
         mocker: MockerFixture,
     ) -> None:
-        """Test validation_step calls loss_fn correctly."""
-        # Setup mock loss_fn
-        mock_loss_fn = mocker.Mock(return_value=torch.tensor(0.5))
-        module.loss_fn = mock_loss_fn
-
-        # Run validation_step
+        """Test validation_step returns a finite loss and logs ranking metrics."""
+        logging_step = mocker.Mock()
+        module.monitor.logging_step = logging_step
         loss = module.validation_step(batch, batch_idx=0)
 
         assert isinstance(loss, torch.Tensor)
-        # Verify loss_fn was called with (pos_logits, neg_logits)
-        mock_loss_fn.assert_called_once()
-        args, _ = mock_loss_fn.call_args
-        pos_logits, neg_logits = args
-        assert pos_logits.shape == (4, 1)
-        assert neg_logits.shape == (4, 5)
+        assert loss.dim() == 0
+        assert torch.isfinite(loss)
+        logging_step.assert_called_once()
+        logged = logging_step.call_args[0][0]
+        assert {
+            "loss",
+            "pos_mean",
+            "neg_mean",
+            "pos_neg_diff_mean",
+            "pos_std",
+            "neg_std",
+            "pos_neg_diff_std",
+            "accuracy",
+            "hit_rate",
+            "mrr",
+            "ndcg",
+        } <= logged.keys()
