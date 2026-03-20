@@ -1,7 +1,6 @@
 from typing import Any, Literal, override
 
 import torch
-import torch.nn as nn
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.models.base import BaseModule
@@ -12,10 +11,11 @@ from ml_sandbox_libs.utils.metrics import RetrievalMetrics, create_retrieval_inp
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torchinfo import ModelStatistics, summary
 
+from .base import CandidateGenerationModelBase
 from .two_tower import ItemTower, UserTower
 
 
-class SimpleX(nn.Module):
+class SimpleX(CandidateGenerationModelBase):
     def __init__(
         self,
         out_dim: int,
@@ -84,6 +84,85 @@ class SimpleX(nn.Module):
             padding_idx=item_pad_idx,
         )
 
+    @override
+    def encode_user(
+        self,
+        user_ids: torch.Tensor,
+        item_id_history: torch.Tensor,
+        user_features: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Encode users into embeddings.
+
+        User representation is a weighted sum of user ID embedding and aggregated history embedding.
+
+        Args:
+            user_ids: Tensor containing user IDs. Shape: (B,).
+            item_id_history: Tensor containing user item interaction history. Shape: (B, H).
+            user_features: Optional tensor containing user features. Shape: (B, F).
+                Currently not implemented.
+
+        Returns:
+            User embeddings. Shape: (B, out_dim).
+
+        Raises:
+            NotImplementedError: If user_features is provided.
+        """
+        if user_features is not None:
+            raise NotImplementedError("feature is not implemented yet")
+
+        batch_size = user_ids.size(0)
+        length_history = item_id_history.size(1)
+
+        user_id_emb = self.user_id_tower(user_ids, None)  # (B, D)
+
+        flat_history = item_id_history.reshape(-1)  # (B * H)
+        user_history_item_id_emb = self.item_tower(flat_history, None).reshape(
+            batch_size,
+            length_history,
+            -1,
+        )  # (B, H, D)
+
+        user_history_emb = self.user_history_pooling_layer(
+            user_history_item_id_emb,
+            item_id_history != self.item_pad_idx,
+        )
+
+        return self.user_id_weight * user_id_emb + (1 - self.user_id_weight) * user_history_emb
+
+    @override
+    def encode_item(
+        self,
+        item_ids: torch.Tensor,
+        item_features: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Encode items into embeddings.
+
+        Args:
+            item_ids: Tensor containing item IDs. Shape: (B,) or (B, N).
+            item_features: Optional tensor containing item features.
+                Currently not implemented.
+
+        Returns:
+            Item embeddings. Shape: (B, out_dim) for 1D input or (B, N, out_dim) for 2D input.
+
+        Raises:
+            NotImplementedError: If item_features is provided.
+            AssertionError: If item_ids is not 1D or 2D.
+        """
+        if item_features is not None:
+            raise NotImplementedError("feature is not implemented yet")
+        assert item_ids.ndim in (1, 2), f"item_ids should be 1D or 2D tensor, got {item_ids.shape}"
+
+        if item_ids.ndim == 1:
+            return self.item_tower(item_ids, None)
+
+        batch_size = item_ids.size(0)
+        num_items = item_ids.size(1)
+        flat_item_ids = item_ids.reshape(-1)
+        item_emb = self.item_tower(flat_item_ids, None)
+        return item_emb.reshape(batch_size, num_items, -1)
+
+    @override
     def forward(
         self,
         user_ids: torch.Tensor,
@@ -119,52 +198,25 @@ class SimpleX(nn.Module):
                 - neg_item_emb: Negative item embeddings. Shape: (B, N, out_dim).
 
         Raises:
-            NotImplementedError: If any feature tensor is provided.
             AssertionError: If pos_item_ids is not 1D or neg_item_ids is not 2D.
         """
         assert pos_item_ids.ndim == 1 and neg_item_ids.ndim == 2, (
             f"pos_item_ids should be 1D tensor, neg_item_ids should be 2D tensor, got {pos_item_ids.shape}, {neg_item_ids.shape}"
         )
-        batch_size = user_ids.size(0)
-        neg_num_items = neg_item_ids.size(1)
-        length_history = item_id_history.size(1)
 
-        if (
-            user_features is not None
-            or pos_item_features is not None
-            or neg_item_features is not None
-        ):
-            raise NotImplementedError("feature is not implemented yet")
-
-        # compute user id embedding
-        user_id_emb = self.user_id_tower(user_ids, None)  # (B, D)
-
-        # compute history embedding
-        # Flatten history to process through item_tower
-        flat_history = item_id_history.reshape(-1)  # (B * H)
-        user_history_item_id_emb = self.item_tower(flat_history, None).reshape(
-            batch_size,
-            length_history,
-            -1,
-        )  # (B, H, D)
-
-        user_history_emb = self.user_history_pooling_layer(
-            user_history_item_id_emb,
-            item_id_history != self.item_pad_idx,
+        user_emb = self.encode_user(
+            user_ids=user_ids,
+            item_id_history=item_id_history,
+            user_features=user_features,
         )
-
-        # compute user embedding, fusion of user id embedding and history embedding
-        user_emb = (
-            self.user_id_weight * user_id_emb + (1 - self.user_id_weight) * user_history_emb
-        )  # (B, D)
-
-        # compute item embeddings
-        pos_item_emb = self.item_tower(pos_item_ids, pos_item_features)  # (B, D)
-
-        # reshape neg_item_ids to 1D for tower processing
-        flat_neg_item_ids = neg_item_ids.reshape(-1)  # (B * N)
-        neg_item_emb = self.item_tower(flat_neg_item_ids, neg_item_features)  # (B * N, D)
-        neg_item_emb = neg_item_emb.reshape(batch_size, neg_num_items, -1)  # (B, N, D)
+        pos_item_emb = self.encode_item(
+            item_ids=pos_item_ids,
+            item_features=pos_item_features,
+        )
+        neg_item_emb = self.encode_item(
+            item_ids=neg_item_ids,
+            item_features=neg_item_features,
+        )
 
         return user_emb, pos_item_emb, neg_item_emb
 

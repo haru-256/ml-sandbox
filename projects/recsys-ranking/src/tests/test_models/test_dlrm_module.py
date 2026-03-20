@@ -72,6 +72,22 @@ class TestDLRMModule:
         assert output.shape == (batch_size,)
         assert output.dtype == torch.float32
 
+    def test_dlrm_module_predict_logits(self, dlrm_module: DLRMModule) -> None:
+        """Test tensor-based positive and negative logit prediction helper."""
+        batch_size = 4
+        item_history = torch.randint(1, 1000, (batch_size, 8), dtype=torch.long)
+        pos_item_ids = torch.randint(1, 1000, (batch_size,), dtype=torch.long)
+        neg_item_ids = torch.randint(1, 1000, (batch_size, 5), dtype=torch.long)
+
+        pos_logits, neg_logits = dlrm_module._predict_logits(
+            item_history=item_history,
+            pos_item_ids=pos_item_ids,
+            neg_item_ids=neg_item_ids,
+        )
+
+        assert pos_logits.shape == (4, 1)
+        assert neg_logits.shape == (4, 5)
+
     def test_dlrm_module_training_step(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module training step."""
         batch = MagicMock()

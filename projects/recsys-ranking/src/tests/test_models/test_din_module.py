@@ -81,6 +81,22 @@ class TestDINModule:
         assert output.shape == (batch_size,)
         assert torch.isfinite(output).all()
 
+    def test_predict_logits(
+        self, module: DINModule, sample_batch: AmazonReviewsSeqRecBatch
+    ) -> None:
+        """Verify tensor-based positive and negative logit prediction helper."""
+        pos_logits, neg_logits = module._predict_logits(
+            item_history=sample_batch.item_history,
+            category_history=sample_batch.category_history,
+            pos_item_ids=sample_batch.pos_item_index,
+            pos_category_ids=sample_batch.pos_category_index,
+            neg_item_ids=sample_batch.neg_item_indexes,
+            neg_category_ids=sample_batch.neg_category_indexes,
+        )
+
+        assert pos_logits.shape == (2, 1)
+        assert neg_logits.shape == (2, 4)
+
     def test_training_step(self, module: DINModule, sample_batch: AmazonReviewsSeqRecBatch) -> None:
         """Verify training step."""
         module.monitor.logging_step = Mock()

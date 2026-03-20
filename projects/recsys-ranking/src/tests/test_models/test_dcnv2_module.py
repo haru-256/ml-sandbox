@@ -68,6 +68,19 @@ class TestDCNv2ModuleBasic:
         logits = module(batch.item_history, batch.pos_item_index)
         assert logits.shape == (batch.item_history.size(0),)
 
+    def test_dcnv2_module_predict_logits(
+        self, module: DCNv2Module, batch: AmazonReviewsSeqRecBatch
+    ) -> None:
+        """Test tensor-based positive and negative logit prediction helper."""
+        pos_logits, neg_logits = module._predict_logits(
+            item_history=batch.item_history,
+            pos_item_ids=batch.pos_item_index,
+            neg_item_ids=batch.neg_item_indexes,
+        )
+
+        assert pos_logits.shape == (4, 1)
+        assert neg_logits.shape == (4, 5)
+
     def test_dcnv2_module_training_step(
         self, module: DCNv2Module, batch: AmazonReviewsSeqRecBatch
     ) -> None:

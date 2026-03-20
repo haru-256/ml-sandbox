@@ -15,14 +15,14 @@ from ml_sandbox_libs.utils.metrics import (
     create_retrieval_inputs,
 )
 from timm.scheduler.cosine_lr import CosineLRScheduler
-from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
+from .base import RankingModelBase
 from .modules.interaction import FactorizationMachine
 
 
-class DeepFM(nn.Module):
+class DeepFM(RankingModelBase):
     """DeepFM model for recommendation systems.
 
     DeepFM combines a factorization-machine branch for low-order feature
@@ -107,12 +107,13 @@ class DeepFM(nn.Module):
             out_activation=None,
         )
 
-    def forward(
+    @override
+    def predict_logits(
         self,
         item_id_history: torch.Tensor,
         target_item_ids: torch.Tensor,
     ) -> torch.Tensor:
-        """Forward pass for DeepFM model.
+        """Predict raw logits for target items.
 
         Args:
             item_id_history: Item history tensor of shape (batch_size, seq_len)
@@ -147,6 +148,26 @@ class DeepFM(nn.Module):
         logits = fm_out + deep_out  # (B,)
 
         return logits
+
+    @override
+    def forward(
+        self,
+        item_id_history: torch.Tensor,
+        target_item_ids: torch.Tensor,
+    ) -> torch.Tensor:
+        """Run the default forward pass via the logit prediction path.
+
+        Args:
+            item_id_history: Item history tensor of shape (batch_size, seq_len)
+            target_item_ids: Target item IDs tensor of shape (batch_size,)
+
+        Returns:
+            torch.Tensor: Prediction logits of shape (batch_size,)
+        """
+        return self.predict_logits(
+            item_id_history=item_id_history,
+            target_item_ids=target_item_ids,
+        )
 
 
 class DeepFMModule(BaseModule):
@@ -215,7 +236,9 @@ class DeepFMModule(BaseModule):
         Returns:
             torch.Tensor: Prediction logits of shape (batch_size,)
         """
-        return self.model(item_id_history=item_history, target_item_ids=target_item_ids)
+        return self.model.predict_logits(
+            item_id_history=item_history, target_item_ids=target_item_ids
+        )
 
     @override
     def training_step(self, batch: AmazonReviewsSeqRecBatch, batch_idx: int) -> torch.Tensor:
