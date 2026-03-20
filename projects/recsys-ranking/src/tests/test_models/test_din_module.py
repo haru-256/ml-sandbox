@@ -112,7 +112,16 @@ class TestDINModule:
         assert torch.isfinite(loss)
         logging_step.assert_called_once()
         logged = logging_step.call_args[0][0]
-        assert {"loss", "pos_logits", "neg_logits", "accuracy"} <= logged.keys()
+        assert {
+            "loss",
+            "pos_mean",
+            "neg_mean",
+            "pos_neg_diff_mean",
+            "pos_std",
+            "neg_std",
+            "pos_neg_diff_std",
+            "accuracy",
+        } <= logged.keys()
 
     def test_validation_step(
         self,
@@ -129,7 +138,17 @@ class TestDINModule:
         assert loss.dim() == 0
         assert torch.isfinite(loss)
         logged = logging_step.call_args[0][0]
-        assert {"loss", "hit_rate", "ndcg"} <= logged.keys()
+        assert {
+            "loss",
+            "pos_mean",
+            "neg_mean",
+            "pos_neg_diff_mean",
+            "pos_std",
+            "neg_std",
+            "pos_neg_diff_std",
+            "hit_rate",
+            "ndcg",
+        } <= logged.keys()
 
     def test_summary_generation(self, module: DINModule) -> None:
         """Verify summary generation."""

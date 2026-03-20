@@ -3,10 +3,11 @@ from typing import Any, Literal, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.loss import EmbeddingLossFn
 from ml_sandbox_libs.models.base import BaseModule
 from ml_sandbox_libs.models.modules import ActivationType, MaskedMeanPooling, NormalizeType
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import EmbeddingLossFn, ExperimentMonitor
+from ml_sandbox_libs.training import ExperimentMonitor, summarize_pos_neg_scores
 from ml_sandbox_libs.utils.metrics import RetrievalMetrics, create_retrieval_inputs
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torchinfo import ModelStatistics, summary
@@ -342,8 +343,7 @@ class SimpleXModule(BaseModule):
         self.monitor.logging_step(
             {
                 "loss": loss.item(),
-                "pos_cos_sim": pos_cos_sim.mean().item(),
-                "neg_cos_sim": neg_cos_sim.mean().item(),
+                **summarize_pos_neg_scores(pos_cos_sim.unsqueeze(1), neg_cos_sim),
             },
             stage="train",
             batch_idx=batch_idx,
@@ -388,6 +388,7 @@ class SimpleXModule(BaseModule):
         self.monitor.logging_step(
             {
                 "loss": loss.item(),
+                **summarize_pos_neg_scores(pos_cos_sim.unsqueeze(1), neg_cos_sim),
                 **self.retrieval_metrics.metric_dict(),
             },
             stage="val",

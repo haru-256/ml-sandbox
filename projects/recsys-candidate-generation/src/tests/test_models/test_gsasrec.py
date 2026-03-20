@@ -83,3 +83,25 @@ def test_gsasrec_training_step_accepts_user_embedding_output(mocker: MockerFixtu
     assert isinstance(loss, torch.Tensor)
     assert loss.dim() == 0
     assert torch.isfinite(loss)
+
+
+def test_gsasrec_training_step_logs_pos_neg_statistics(mocker: MockerFixture) -> None:
+    """Training step logs mean/std monitoring stats for pos, neg, and margin logits."""
+    module = _create_module(mocker)
+    batch = _create_batch()
+    logging_step = mocker.Mock()
+    module.monitor.logging_step = logging_step
+
+    module.training_step(batch, batch_idx=0)
+
+    logged = logging_step.call_args[0][0]
+    assert {
+        "loss",
+        "pos_mean",
+        "neg_mean",
+        "pos_neg_diff_mean",
+        "pos_std",
+        "neg_std",
+        "pos_neg_diff_std",
+        "accuracy",
+    } <= logged.keys()

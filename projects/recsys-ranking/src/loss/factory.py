@@ -1,4 +1,4 @@
-from ml_sandbox_libs.training import BCE, ScoreLossFn, gBCE
+from ml_sandbox_libs.loss import BCE, ScoreLossFn, gBCE
 from omegaconf import DictConfig
 
 

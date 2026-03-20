@@ -1,8 +1,8 @@
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecDataModule
+from ml_sandbox_libs.loss import EmbeddingLossFn, ScoreLossFn
 from ml_sandbox_libs.models.base import BaseModule
 from ml_sandbox_libs.models.types import ActivationType, NormalizeType, enum_from_str
 from ml_sandbox_libs.optimizer import AdamWCosine
-from ml_sandbox_libs.training import EmbeddingLossFn, ScoreLossFn
 from omegaconf import DictConfig
 
 from loss import create_embedding_loss, create_score_loss

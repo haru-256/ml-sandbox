@@ -1,4 +1,4 @@
-from ml_sandbox_libs.training import CCL, EmbeddingLossFn, ScoreLossFn, gBCE
+from ml_sandbox_libs.loss import CCL, EmbeddingLossFn, ScoreLossFn, gBCE
 
 from .factory import create_embedding_loss, create_score_loss
 

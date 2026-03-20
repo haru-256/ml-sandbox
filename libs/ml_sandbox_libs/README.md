@@ -109,7 +109,6 @@ training 時の共通ロジックを提供します。
 主なコンポーネント例:
 
 - `ExperimentMonitor`
-- embedding / score loss に関する共通型
 
 役割:
 
@@ -117,7 +116,19 @@ training 時の共通ロジックを提供します。
 - 学習 loop 周辺の共通的な責務の集約
 - project 間での metric / monitor 実装の重複削減
 
-### 5. Utilities: `ml_sandbox_libs.utils`
+### 5. Loss: `ml_sandbox_libs.loss`
+
+loss 関連の protocol と実装を提供します。
+
+主なコンポーネント例:
+
+- `ScoreLossFn`
+- `EmbeddingLossFn`
+- `BCE`
+- `gBCE`
+- `CCL`
+
+### 6. Utilities: `ml_sandbox_libs.utils`
 
 汎用 utility 群です。
 

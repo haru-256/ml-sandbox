@@ -1,5 +1,5 @@
 import torch
-from ml_sandbox_libs.training import BCE, gBCE
+from ml_sandbox_libs.loss import BCE, gBCE
 
 
 def test_bce_calc_scores() -> None:
