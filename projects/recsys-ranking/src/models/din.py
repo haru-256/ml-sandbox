@@ -5,11 +5,12 @@ from typing import Any, override
 import torch
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.loss import ScoreLossFn
 from ml_sandbox_libs.models.base import BaseModule
 from ml_sandbox_libs.models.modules import MLP, DINAttention, FeatureEmbeddingDict
 from ml_sandbox_libs.models.types import ActivationType, FeatureSpec, FeatureType, NormalizeType
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ExperimentMonitor, ScoreLossFn
+from ml_sandbox_libs.training import ExperimentMonitor, summarize_pos_neg_scores
 from ml_sandbox_libs.utils.metrics import (
     RetrievalMetrics,
     create_classification_inputs,
@@ -450,8 +451,7 @@ class DINModule(BaseModule):
         self.monitor.logging_step(
             {
                 "loss": loss.item(),
-                "pos_logits": pos_logits.mean().item(),
-                "neg_logits": neg_logits.mean().item(),
+                **summarize_pos_neg_scores(pos_logits, neg_logits),
                 "accuracy": self.accuracy,
             },
             stage="train",
@@ -499,8 +499,7 @@ class DINModule(BaseModule):
         self.monitor.logging_step(
             {
                 "loss": loss.item(),
-                "pos_logits": pos_logits.mean().item(),
-                "neg_logits": neg_logits.mean().item(),
+                **summarize_pos_neg_scores(pos_logits, neg_logits),
                 "accuracy": self.accuracy,
                 **self.retrieval_metrics.metric_dict(),
             },

@@ -3,10 +3,46 @@
 from typing import Any, Literal
 
 import lightning as L
+import torch
 from loguru import logger
 
 from ml_sandbox_libs.utils.metrics import format_metrics_dict
 from ml_sandbox_libs.utils.utils import add_prefix_to_keys
+
+
+def summarize_pos_neg_scores(
+    pos_scores: torch.Tensor,
+    neg_scores: torch.Tensor,
+) -> dict[str, float]:
+    """Summarize positive, negative, and margin scores for monitoring.
+
+    Args:
+        pos_scores: Positive-sample scores with shape (B, 1).
+        neg_scores: Negative-sample scores with shape (B, N).
+
+    Returns:
+        Scalar monitoring metrics for the mean and standard deviation of
+        positive scores, negative scores, and the broadcasted margin `pos - neg`.
+
+    Raises:
+        AssertionError: If scores are not 2D or do not share the same batch size.
+    """
+    assert pos_scores.ndim == 2, f"pos_scores should be 2D, got {pos_scores.shape}"
+    assert neg_scores.ndim == 2, f"neg_scores should be 2D, got {neg_scores.shape}"
+    assert pos_scores.size(0) == neg_scores.size(0), (
+        f"pos_scores and neg_scores should share batch size, got {pos_scores.shape} and {neg_scores.shape}"
+    )
+
+    pos_neg_diff = pos_scores - neg_scores
+
+    return {
+        "pos_mean": pos_scores.mean().item(),
+        "neg_mean": neg_scores.mean().item(),
+        "pos_neg_diff_mean": pos_neg_diff.mean().item(),
+        "pos_std": pos_scores.std(unbiased=False).item(),
+        "neg_std": neg_scores.std(unbiased=False).item(),
+        "pos_neg_diff_std": pos_neg_diff.std(unbiased=False).item(),
+    }
 
 
 class ExperimentMonitor:

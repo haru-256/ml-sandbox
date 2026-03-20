@@ -4,8 +4,9 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+import torch
 
-from ml_sandbox_libs.training.monitor import ExperimentMonitor
+from ml_sandbox_libs.training.monitor import ExperimentMonitor, summarize_pos_neg_scores
 
 
 def _make_mock_module(trainer: Any = None) -> MagicMock:
@@ -151,3 +152,22 @@ class TestExperimentMonitorLoggingStep:
         monitor.logging_step({"loss": loss_val}, stage="train", batch_idx=0)
         logged_dict = module.log_dict.call_args[0][0]
         assert logged_dict["train_loss"] == pytest.approx(loss_val)
+
+
+class TestSummarizePosNegScores:
+    def test_returns_mean_and_std_for_pos_neg_and_diff(self) -> None:
+        """Summarize positive, negative, and margin scores for monitoring."""
+        pos_scores = torch.tensor([[3.0], [5.0]])
+        neg_scores = torch.tensor([[1.0, 2.0], [4.0, 0.0]])
+
+        metrics = summarize_pos_neg_scores(pos_scores, neg_scores)
+        pos_neg_diff = pos_scores - neg_scores
+
+        assert metrics["pos_mean"] == pytest.approx(pos_scores.mean().item())
+        assert metrics["neg_mean"] == pytest.approx(neg_scores.mean().item())
+        assert metrics["pos_neg_diff_mean"] == pytest.approx(pos_neg_diff.mean().item())
+        assert metrics["pos_std"] == pytest.approx(pos_scores.std(unbiased=False).item())
+        assert metrics["neg_std"] == pytest.approx(neg_scores.std(unbiased=False).item())
+        assert metrics["pos_neg_diff_std"] == pytest.approx(
+            pos_neg_diff.std(unbiased=False).item()
+        )

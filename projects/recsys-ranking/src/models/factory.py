@@ -1,10 +1,10 @@
 """Factory functions for creating model modules from configuration."""
 
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecDataModule
+from ml_sandbox_libs.loss import ScoreLossFn
 from ml_sandbox_libs.models.base import BaseModule
 from ml_sandbox_libs.models.types import ActivationType, NormalizeType, enum_from_str
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ScoreLossFn
 from omegaconf import DictConfig
 
 from .dcnv2 import DCNv2Module

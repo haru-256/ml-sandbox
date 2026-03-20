@@ -1,4 +1,4 @@
-"""Protocols for training loss functions."""
+"""Protocols for shared loss functions."""
 
 from typing import Protocol
 
