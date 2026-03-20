@@ -31,10 +31,11 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
+from .base import RankingModelBase
 from .modules.cross_net import CrossNetV2, CrossNetV2MoE
 
 
-class DCNv2(nn.Module):
+class DCNv2(RankingModelBase):
     """Deep & Cross Network V2 (Parallel) for recommendation systems.
 
     This variant applies a cross network and an MLP in parallel to the same
@@ -193,12 +194,13 @@ class DCNv2(nn.Module):
         # Output projection: concat(cross_out, deep_out) -> scalar
         self.output_layer = nn.Linear(self.cross_net.output_dims + deep_out_features, 1, bias=True)
 
-    def forward(
+    @override
+    def predict_logits(
         self,
         item_id_history: torch.Tensor,
         target_item_ids: torch.Tensor,
     ) -> torch.Tensor:
-        """Forward pass for DCNv2 model.
+        """Predict raw logits for target items.
 
         Processes inputs through the Parallel DCN V2 architecture:
         1. Embeds item history and target item
@@ -238,6 +240,26 @@ class DCNv2(nn.Module):
         logits = self.output_layer(out).squeeze(-1)  # (B,)
 
         return logits
+
+    @override
+    def forward(
+        self,
+        item_id_history: torch.Tensor,
+        target_item_ids: torch.Tensor,
+    ) -> torch.Tensor:
+        """Run the default forward pass via the logit prediction path.
+
+        Args:
+            item_id_history: Item history tensor of shape (batch_size, seq_len).
+            target_item_ids: Target item IDs tensor of shape (batch_size,).
+
+        Returns:
+            torch.Tensor: Prediction logits of shape (batch_size,).
+        """
+        return self.predict_logits(
+            item_id_history=item_id_history,
+            target_item_ids=target_item_ids,
+        )
 
 
 class DCNv2Module(BaseModule):
@@ -352,29 +374,34 @@ class DCNv2Module(BaseModule):
         Returns:
             torch.Tensor: Prediction logits of shape (batch_size,).
         """
-        return self.model(item_id_history=item_history, target_item_ids=target_item_ids)
+        return self.model.predict_logits(
+            item_id_history=item_history, target_item_ids=target_item_ids
+        )
 
-    def _calc_logits(self, batch: AmazonReviewsSeqRecBatch) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute logits for positive and negative samples.
+    def _predict_logits(
+        self,
+        item_history: torch.Tensor,
+        pos_item_ids: torch.Tensor,
+        neg_item_ids: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Predict positive and negative logits from tensors.
 
         Args:
-            batch: Input batch with item history, positive, and negative items.
+            item_history: Item history tensor of shape (B, L).
+            pos_item_ids: Positive item IDs tensor of shape (B,).
+            neg_item_ids: Negative item IDs tensor of shape (B, N).
 
         Returns:
             Tuple of (pos_logits, neg_logits) with shapes (B, 1) and (B, neg_size).
         """
-        item_history = batch.item_history  # (B, L)
-        pos_item = batch.pos_item_index  # (B,)
-        neg_item = batch.neg_item_indexes  # (B, neg_size)
+        neg_sample_size = neg_item_ids.size(1)
 
-        neg_sample_size = neg_item.size(1)
-
-        pos_logits = self.forward(item_history=item_history, target_item_ids=pos_item)
+        pos_logits = self.forward(item_history=item_history, target_item_ids=pos_item_ids)
         pos_logits = pos_logits.view(-1, 1)  # (B, 1)
 
         neg_logits = self.forward(
             item_history=torch.repeat_interleave(item_history, repeats=neg_sample_size, dim=0),
-            target_item_ids=torch.flatten(neg_item, start_dim=0),
+            target_item_ids=torch.flatten(neg_item_ids, start_dim=0),
         )
         neg_logits = neg_logits.view(-1, neg_sample_size)  # (B, neg_size)
 
@@ -394,7 +421,11 @@ class DCNv2Module(BaseModule):
         Returns:
             torch.Tensor: Computed loss value for backpropagation.
         """
-        pos_logits, neg_logits = self._calc_logits(batch)
+        pos_logits, neg_logits = self._predict_logits(
+            item_history=batch.item_history,
+            pos_item_ids=batch.pos_item_index,
+            neg_item_ids=batch.neg_item_indexes,
+        )
 
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
         logits, labels = create_classification_inputs(pos_logits, neg_logits)
@@ -425,7 +456,11 @@ class DCNv2Module(BaseModule):
         Returns:
             torch.Tensor: Computed validation loss.
         """
-        pos_logits, neg_logits = self._calc_logits(batch)
+        pos_logits, neg_logits = self._predict_logits(
+            item_history=batch.item_history,
+            pos_item_ids=batch.pos_item_index,
+            neg_item_ids=batch.neg_item_indexes,
+        )
 
         loss: torch.Tensor = self.loss_fn(pos_logits, neg_logits)
 

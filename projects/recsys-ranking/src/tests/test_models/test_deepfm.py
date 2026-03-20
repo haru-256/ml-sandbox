@@ -118,6 +118,21 @@ class TestDeepFM:
         assert torch.isfinite(output).all()
         assert not torch.isnan(output).any()
 
+    def test_predict_logits_matches_forward(
+        self,
+        deepfm_model: DeepFM,
+        sample_input: tuple[torch.Tensor, torch.Tensor],
+    ) -> None:
+        """Test predict_logits is the canonical scoring path used by forward."""
+        item_id_history, target_item_ids = sample_input
+
+        deepfm_model.eval()
+        with torch.no_grad():
+            forward_out = deepfm_model(item_id_history, target_item_ids)
+            predict_out = deepfm_model.predict_logits(item_id_history, target_item_ids)
+
+        assert torch.allclose(forward_out, predict_out)
+
     def test_deepfm_different_batch_sizes(self, deepfm_model: DeepFM) -> None:
         """Test DeepFM with different batch sizes."""
         seq_len = 8

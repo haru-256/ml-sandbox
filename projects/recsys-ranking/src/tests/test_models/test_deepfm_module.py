@@ -1,12 +1,11 @@
 """Tests for DeepFMModule."""
 
-from unittest.mock import MagicMock
-
 import pytest
 import torch
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.optimizer import AdamWCosine
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
+from pytest_mock import MockerFixture
 
 from models.deepfm import DeepFMModule
 
@@ -29,7 +28,7 @@ def optimizer() -> AdamWCosine:
 
 
 @pytest.fixture
-def module(optimizer: AdamWCosine) -> DeepFMModule:
+def module(optimizer: AdamWCosine, mocker: MockerFixture) -> DeepFMModule:
     return DeepFMModule(
         num_items=100,
         feature_embedding_dims=32,
@@ -39,7 +38,7 @@ def module(optimizer: AdamWCosine) -> DeepFMModule:
         item_pad_idx=0,
         eval_top_k=5,
         optimizer=optimizer,
-        loss_fn=MagicMock(return_value=torch.tensor(0.5, requires_grad=True)),
+        loss_fn=mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True)),
     )
 
 
@@ -80,6 +79,19 @@ class TestDeepFMModuleBasic:
         assert output.shape == (batch_size,)
         assert output.dtype == torch.float32
         assert torch.isfinite(output).all()
+
+    def test_deepfm_module_predict_logits(
+        self, module: DeepFMModule, sample_batch: AmazonReviewsSeqRecBatch
+    ) -> None:
+        """Verify tensor-based positive and negative logit prediction helper."""
+        pos_logits, neg_logits = module._predict_logits(
+            item_history=sample_batch.item_history,
+            pos_item_ids=sample_batch.pos_item_index,
+            neg_item_ids=sample_batch.neg_item_indexes,
+        )
+
+        assert pos_logits.shape == (4, 1)
+        assert neg_logits.shape == (4, 5)
 
     def test_deepfm_module_training_step(
         self, module: DeepFMModule, sample_batch: AmazonReviewsSeqRecBatch

@@ -142,6 +142,19 @@ class TestDLRM:
         assert not torch.isnan(output).any()
         assert not torch.isinf(output).any()
 
+    def test_predict_logits_matches_forward(
+        self, dlrm_model: DLRM, sample_input: tuple[torch.Tensor, torch.Tensor]
+    ) -> None:
+        """Test predict_logits is the canonical scoring path used by forward."""
+        item_history, target_item_ids = sample_input
+
+        dlrm_model.eval()
+        with torch.no_grad():
+            forward_out = dlrm_model(item_history, target_item_ids)
+            predict_out = dlrm_model.predict_logits(item_history, target_item_ids)
+
+        assert torch.allclose(forward_out, predict_out)
+
     def test_dlrm_different_batch_sizes(
         self,
         dlrm_model: DLRM,

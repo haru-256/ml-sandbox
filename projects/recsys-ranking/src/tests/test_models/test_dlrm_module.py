@@ -1,12 +1,12 @@
 """Tests for DLRM module (Lightning wrapper)."""
 
 from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 import torch
 from ml_sandbox_libs.optimizer import AdamWCosine
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
+from pytest_mock import MockerFixture
 
 from models.dlrm import DLRM, DLRMModule
 
@@ -32,7 +32,7 @@ class TestDLRMModule:
         )
 
     @pytest.fixture
-    def module_params(self, optimizer: AdamWCosine) -> dict[str, Any]:
+    def module_params(self, optimizer: AdamWCosine, mocker: MockerFixture) -> dict[str, Any]:
         """Create module parameters for testing."""
         return {
             "num_items": 1000,
@@ -45,7 +45,7 @@ class TestDLRMModule:
             "item_pad_idx": 0,
             "eval_top_k": 10,
             "optimizer": optimizer,
-            "loss_fn": MagicMock(return_value=torch.tensor(0.5, requires_grad=True)),
+            "loss_fn": mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True)),
         }
 
     @pytest.fixture
@@ -72,14 +72,33 @@ class TestDLRMModule:
         assert output.shape == (batch_size,)
         assert output.dtype == torch.float32
 
-    def test_dlrm_module_training_step(self, dlrm_module: DLRMModule) -> None:
+    def test_dlrm_module_predict_logits(self, dlrm_module: DLRMModule) -> None:
+        """Test tensor-based positive and negative logit prediction helper."""
+        batch_size = 4
+        item_history = torch.randint(1, 1000, (batch_size, 8), dtype=torch.long)
+        pos_item_ids = torch.randint(1, 1000, (batch_size,), dtype=torch.long)
+        neg_item_ids = torch.randint(1, 1000, (batch_size, 5), dtype=torch.long)
+
+        pos_logits, neg_logits = dlrm_module._predict_logits(
+            item_history=item_history,
+            pos_item_ids=pos_item_ids,
+            neg_item_ids=neg_item_ids,
+        )
+
+        assert pos_logits.shape == (4, 1)
+        assert neg_logits.shape == (4, 5)
+
+    def test_dlrm_module_training_step(
+        self, dlrm_module: DLRMModule, mocker: MockerFixture
+    ) -> None:
         """Test DLRM module training step."""
-        batch = MagicMock()
+        batch = mocker.Mock()
         batch_size = 4
         batch.item_history = torch.randint(1, 1000, (batch_size, 8), dtype=torch.long)
         batch.pos_item_index = torch.randint(1, 1000, (batch_size,), dtype=torch.long)
         batch.neg_item_indexes = torch.randint(1, 1000, (batch_size, 5), dtype=torch.long)
-        dlrm_module.monitor.logging_step = MagicMock()
+        logging_step = mocker.Mock()
+        dlrm_module.monitor.logging_step = logging_step
 
         loss = dlrm_module.training_step(batch, batch_idx=0)
 
@@ -87,21 +106,24 @@ class TestDLRMModule:
         assert loss.requires_grad
         assert torch.isfinite(loss)
 
-    def test_dlrm_module_validation_step(self, dlrm_module: DLRMModule) -> None:
+    def test_dlrm_module_validation_step(
+        self, dlrm_module: DLRMModule, mocker: MockerFixture
+    ) -> None:
         """Test DLRM module validation step."""
-        batch = MagicMock()
+        batch = mocker.Mock()
         batch_size = 4
         batch.item_history = torch.randint(1, 1000, (batch_size, 8), dtype=torch.long)
         batch.pos_item_index = torch.randint(1, 1000, (batch_size,), dtype=torch.long)
         batch.neg_item_indexes = torch.randint(1, 1000, (batch_size, 15), dtype=torch.long)
-        dlrm_module.monitor.logging_step = MagicMock()
+        logging_step = mocker.Mock()
+        dlrm_module.monitor.logging_step = logging_step
 
         loss = dlrm_module.validation_step(batch, batch_idx=0)
 
         assert isinstance(loss, torch.Tensor)
         assert torch.isfinite(loss)
-        dlrm_module.monitor.logging_step.assert_called_once()
-        metrics_dict = dlrm_module.monitor.logging_step.call_args.args[0]
+        logging_step.assert_called_once()
+        metrics_dict = logging_step.call_args.args[0]
         assert metrics_dict["accuracy"] is dlrm_module.accuracy
         assert metrics_dict["hit_rate"] is dlrm_module.retrieval_metrics.hit_rate
         assert metrics_dict["mrr"] is dlrm_module.retrieval_metrics.mrr

@@ -40,6 +40,7 @@ description: "Use when: recsys-ranking や recsys-candidate-generation の model
 - 1つの test では 1つの責務を確認し、失敗時に原因を追いやすくする
 - 同じ振る舞いを複数箇所で重複確認しない
 - 入出力、主要なバリデーション、公開 API の振る舞いのように、変更時の影響が大きい箇所を優先して test する
+- mock が必要なときは `pytest-mock` の `mocker` fixture を使い、`unittest.mock` の直 import は増やさない
 
 ## 推奨確認コマンド
 

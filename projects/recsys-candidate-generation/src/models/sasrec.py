@@ -19,8 +19,10 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
+from .base import CandidateGenerationModelBase
 
-class SASRec(nn.Module):
+
+class SASRec(CandidateGenerationModelBase):
     def __init__(
         self,
         num_items: int,
@@ -65,6 +67,60 @@ class SASRec(nn.Module):
             ]
         )
 
+    def _encode_sequence(self, item_id_history: torch.Tensor) -> torch.Tensor:
+        """Encode user interaction history into sequence representations.
+
+        Args:
+            item_id_history: Item history, shape (batch_size, seq_len)
+
+        Returns:
+            Sequence representations, shape (batch_size, seq_len, out_dim)
+
+        """
+        attn_mask, padding_mask = create_attn_padding_mask(
+            item_id_history, pad_idx=self.pad_idx, is_causal=True, float16=self.float16
+        )
+
+        h = self.transformer_embeddings(item_id_history)
+        for block in self.transformer_encoder_blocks:
+            h = block(h, attn_mask=attn_mask, key_padding_mask=padding_mask)
+        return h
+
+    @override
+    def encode_user(self, item_id_history: torch.Tensor) -> torch.Tensor:
+        """Encode user interaction history into user embeddings.
+
+        Args:
+            item_id_history: Item history, shape (batch_size, seq_len)
+
+        Returns:
+            User embeddings, shape (batch_size, out_dim)
+
+        """
+        return self._encode_sequence(item_id_history)[:, -1, :]
+
+    @override
+    def encode_item(self, item_ids: torch.Tensor) -> torch.Tensor:
+        """Encode item IDs into item embeddings.
+
+        Args:
+            item_ids: Item IDs, shape (batch_size,) or (batch_size, neg_sample_size)
+
+        Returns:
+            Item embeddings, shape (batch_size, out_dim) for 1D input or
+            (batch_size, neg_sample_size, out_dim) for 2D input
+
+        Raises:
+            AssertionError: If item_ids is not 1D or 2D.
+        """
+        assert item_ids.ndim in (1, 2), f"item_ids should be 1D or 2D tensor, got {item_ids.shape}"
+
+        if item_ids.ndim == 1:
+            return self.transformer_embeddings.lookup_id_embedding(item_ids.unsqueeze(1)).squeeze(1)
+
+        return self.transformer_embeddings.lookup_id_embedding(item_ids)
+
+    @override
     def forward(
         self, item_id_history: torch.Tensor, pos_item_ids: torch.Tensor, neg_item_ids: torch.Tensor
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -76,7 +132,7 @@ class SASRec(nn.Module):
             neg_item: negative item, shape (batch_size, neg_sample_size)
 
         Returns:
-            out: output tensor, shape (batch_size, seq_len, out_dim)
+            user_emb: user embedding, shape (batch_size, out_dim)
             pos_item_emb: positive item embedding, shape (batch_size, out_dim)
             neg_item_emb: negative item embedding, shape (batch_size, neg_sample_size, out_dim)
 
@@ -84,25 +140,12 @@ class SASRec(nn.Module):
         assert pos_item_ids.ndim == 1 and neg_item_ids.ndim == 2, (
             f"pos_item_ids should be 1D tensor, neg_item_ids should be 2D tensor, got {pos_item_ids.shape}, {neg_item_ids.shape}"
         )
-        pos_item_ids = pos_item_ids.unsqueeze(1)  # (B, 1)
-        attn_mask, padding_mask = create_attn_padding_mask(
-            item_id_history, pad_idx=self.pad_idx, is_causal=True, float16=self.float16
-        )
 
-        # shape (batch_size, seq_len, out_dim)
-        h = self.transformer_embeddings(item_id_history)
-        for block in self.transformer_encoder_blocks:
-            # shape (batch_size, seq_len, out_dim)
-            h = block(h, attn_mask=attn_mask, key_padding_mask=padding_mask)
-        out = h
+        user_emb = self.encode_user(item_id_history)
+        pos_item_emb = self.encode_item(pos_item_ids)
+        neg_item_emb = self.encode_item(neg_item_ids)
 
-        # shape (batch_size, 1, out_dim)
-        pos_item_emb = self.transformer_embeddings.lookup_id_embedding(pos_item_ids)
-        pos_item_emb = pos_item_emb.squeeze(1)  # shape (batch_size, out_dim)
-        # shape (batch_size, neg_sample_size, out_dim)
-        neg_item_emb = self.transformer_embeddings.lookup_id_embedding(neg_item_ids)
-
-        return out, pos_item_emb, neg_item_emb
+        return user_emb, pos_item_emb, neg_item_emb
 
 
 class SASRecModule(BaseModule):
@@ -170,7 +213,7 @@ class SASRecModule(BaseModule):
             neg_item: negative item, shape (batch_size, neg_sample_size)
 
         Returns:
-            out: output tensor, shape (batch_size, seq_len, hidden_size)
+            user_emb: user embedding, shape (batch_size, hidden_size)
             pos_item_emb: positive item embedding, shape (batch_size, hidden_size)
             neg_item_emb: negative item embedding, shape (batch_size, neg_sample_size, hidden_size)
 
@@ -185,14 +228,10 @@ class SASRecModule(BaseModule):
             batch.pos_item_index,
             batch.neg_item_indexes,
         )
-        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        out, pos_item_emb, neg_item_emb = self(
+        # shape (batch_size, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
+        user_emb, pos_item_emb, neg_item_emb = self(
             item_history=item_history, pos_item=pos_item, neg_item=neg_item
         )
-
-        # extract the last hidden state for user embedding, shape (batch_size, hidden_size)
-        user_emb = out[:, -1, :]
 
         # shape (B, 1), (B, neg_sample_size)
         pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
@@ -222,15 +261,11 @@ class SASRecModule(BaseModule):
             batch.pos_item_index,
             batch.neg_item_indexes,
         )
-        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        # shape (batch_size, seq_len, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
-        out, pos_item_emb, neg_item_emb = self(
+        # shape (batch_size, hidden_size), (batch_size, hidden_size), (batch_size, neg_sample_size, hidden_size)
+        user_emb, pos_item_emb, neg_item_emb = self(
             item_history=item_history, pos_item=pos_item, neg_item=neg_item
         )
         assert pos_item_emb.size(0) == batch.item_history.size(0)
-
-        # extract the last hidden state for user embedding, shape (batch_size, hidden_size)
-        user_emb = out[:, -1, :]
 
         # shape (batch_size, 1), (batch_size, neg_sample_size)
         pos_logits, neg_logits = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)

@@ -18,6 +18,8 @@ from torch import nn
 from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
+from .base import CandidateGenerationModelBase
+
 
 class UserTower(nn.Module):
     def __init__(
@@ -157,7 +159,7 @@ class ItemTower(nn.Module):
         return self.encoder(emb)
 
 
-class TwoTower(nn.Module):
+class TwoTower(CandidateGenerationModelBase):
     def __init__(
         self,
         num_users: int,
@@ -209,6 +211,55 @@ class TwoTower(nn.Module):
             padding_idx=padding_idx,
         )
 
+    @override
+    def encode_user(
+        self,
+        user_ids: torch.Tensor,
+        user_features: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Encode users into embeddings.
+
+        Args:
+            user_ids: Tensor containing user IDs. Shape: (B,).
+            user_features: Optional tensor containing user features. Shape: (B, F).
+                Currently not implemented.
+
+        Returns:
+            User embeddings. Shape: (B, out_dim).
+        """
+        return self.user_tower(user_ids, user_features)
+
+    @override
+    def encode_item(
+        self,
+        item_ids: torch.Tensor,
+        item_features: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Encode items into embeddings.
+
+        Args:
+            item_ids: Tensor containing item IDs. Shape: (B,) or (B, N).
+            item_features: Optional tensor containing item features.
+                Currently not implemented.
+
+        Returns:
+            Item embeddings. Shape: (B, out_dim) for 1D input or (B, N, out_dim) for 2D input.
+
+        Raises:
+            AssertionError: If item_ids is not 1D or 2D.
+        """
+        assert item_ids.ndim in (1, 2), f"item_ids should be 1D or 2D tensor, got {item_ids.shape}"
+
+        if item_ids.ndim == 1:
+            return self.item_tower(item_ids, item_features)
+
+        batch_size = item_ids.size(0)
+        num_items = item_ids.size(1)
+        flat_item_ids = item_ids.reshape(batch_size * num_items)
+        item_emb = self.item_tower(flat_item_ids, item_features)
+        return item_emb.reshape(batch_size, num_items, -1)
+
+    @override
     def forward(
         self,
         user_ids: torch.Tensor,
@@ -241,32 +292,16 @@ class TwoTower(nn.Module):
                 - neg_item_emb: Negative item embeddings. Shape: (B, N, out_dim).
 
         Raises:
-            NotImplementedError: If any feature tensor is provided.
             AssertionError: If pos_item_ids is not 1D or neg_item_ids is not 2D.
 
         """
         assert pos_item_ids.ndim == 1 and neg_item_ids.ndim == 2, (
             f"pos_item_ids should be 1D tensor, neg_item_ids should be 2D tensor, got {pos_item_ids.shape}, {neg_item_ids.shape}"
         )
-        batch_size = user_ids.size(0)
-        neg_num_items = neg_item_ids.size(1)
 
-        # reshape to 1D tensor
-        neg_item_ids = neg_item_ids.reshape(batch_size * neg_num_items)  # (B * N)
-
-        if (
-            user_features is not None
-            or pos_item_features is not None
-            or neg_item_features is not None
-        ):
-            raise NotImplementedError("feature is not implemented yet")
-
-        user_emb = self.user_tower(user_ids, user_features)  # (B, D)
-        pos_item_emb = self.item_tower(pos_item_ids, pos_item_features)  # (B * 1, D)
-        neg_item_emb = self.item_tower(neg_item_ids, neg_item_features)  # (B * N, D)
-
-        # reshape to (B, N, D)
-        neg_item_emb = neg_item_emb.reshape(batch_size, neg_num_items, -1)
+        user_emb = self.encode_user(user_ids, user_features)
+        pos_item_emb = self.encode_item(pos_item_ids, pos_item_features)
+        neg_item_emb = self.encode_item(neg_item_ids, neg_item_features)
 
         return user_emb, pos_item_emb, neg_item_emb
 

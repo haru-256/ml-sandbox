@@ -21,6 +21,7 @@ description: "Use when: Python project の決まり事、docstring の書き方�
 - まず package root へ移動する
 - CI は package ごとに `make install`, `make lint`, `make test` を実行する
 - testは`pytest`を使い、`uv run pytest` で実行する
+- mock が必要な test では `pytest-mock` の `mocker` fixture を使い、`unittest.mock` を直接 import しない
 - Python の docstring は既存コードに合わせて Google style を使う
 - 関数・method の docstring には、処理内容、`Args`, `Returns`, `Raises` を明記する
 
@@ -51,6 +52,7 @@ description: "Use when: Python project の決まり事、docstring の書き方�
 - `mypy` error は `type: ignore` の追加ではなく、まず型の整合を直す
 - test failure は root cause を直す
 - unrelated failure はむやみに触らず、変更と関係する範囲を優先する
+- test 追加や修正で mock が必要なら、既存 code を含めて `pytest-mock` へ寄せる
 
 ## よくある補足
 
