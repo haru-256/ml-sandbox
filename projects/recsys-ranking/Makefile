@@ -31,7 +31,7 @@ install: ## Setup the project
 
 .PHONY: clean-cache
 clean-cache: ## Remove cache files
-	rm -rf .mypy_cache .pytest_cache .pytest_cache .ruff_cache
+	rm -rf .mypy_cache .pytest_cache .ruff_cache
 	fd -H --type directory __pycache__ . -x rm -rf
 
 .PHONY: help
