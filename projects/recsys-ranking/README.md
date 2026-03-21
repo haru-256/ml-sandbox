@@ -1,6 +1,6 @@
 # RecSys Ranking
 
-推薦システムにおける **Ranking** 段階の実験コードを管理する project です。  
+推薦システムにおける **Ranking** 段階の実験コードを管理する project です。
 Candidate Generation で絞り込まれた候補アイテムに対して、ユーザーの興味や文脈に基づく精緻なスコアリングを行い、最終的な表示順位を決定します。
 
 ## Overview
@@ -32,7 +32,7 @@ shared 化できる型や utility は `libs/ml_sandbox_libs` に寄せ、ranking
 - Source: <https://amazon-reviews-2023.github.io/>
 - Paper: [Bridging Language and Items for Retrieval and Recommendation](https://arxiv.org/abs/2403.03952)
 
-ランキング学習では、Candidate Generation で得られた候補をより精密に判別するために、ユーザー履歴とターゲットアイテムの関係をモデリングします。  
+ランキング学習では、Candidate Generation で得られた候補をより精密に判別するために、ユーザー履歴とターゲットアイテムの関係をモデリングします。
 本 project では、`ml_sandbox_libs` が提供する Amazon Reviews 向け前処理・DataModule を活用しています。
 
 ## Directory Structure
@@ -116,7 +116,7 @@ Reference: <https://arxiv.org/abs/2008.13535>
 
 ## Training Workflow
 
-この repository では Python 実行を `uv` ベースで統一しています。  
+この repository では Python 実行を `uv` ベースで統一しています。
 作業時は必ず package root である `projects/recsys-ranking` に移動してからコマンドを実行します。
 
 ### Setup

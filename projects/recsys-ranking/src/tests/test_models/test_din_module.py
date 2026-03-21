@@ -1,6 +1,7 @@
 import pytest
 import torch
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.loss import BCE
 from ml_sandbox_libs.models.types import NormalizeType
 from ml_sandbox_libs.optimizer import AdamWCosine
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
@@ -27,7 +28,7 @@ def optimizer() -> AdamWCosine:
 
 
 @pytest.fixture
-def module(optimizer: AdamWCosine, mocker: MockerFixture) -> DINModule:
+def module(optimizer: AdamWCosine) -> DINModule:
     return DINModule(
         num_items=100,
         num_categories=60,
@@ -41,7 +42,7 @@ def module(optimizer: AdamWCosine, mocker: MockerFixture) -> DINModule:
         category_pad_idx=0,
         eval_top_k=5,
         optimizer=optimizer,
-        loss_fn=mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True)),
+        loss_fn=BCE(),
     )
 
 
@@ -156,9 +157,7 @@ class TestDINModule:
         assert summary_stats is not None
         assert hasattr(summary_stats, "total_params")
 
-    def test_different_normalize_options(
-        self, optimizer: AdamWCosine, mocker: MockerFixture
-    ) -> None:
+    def test_different_normalize_options(self, optimizer: AdamWCosine) -> None:
         """Verify different normalize options."""
         for normalize in (None, NormalizeType.BATCH, NormalizeType.LAYER):
             mod = DINModule(
@@ -174,7 +173,7 @@ class TestDINModule:
                 category_pad_idx=0,
                 eval_top_k=5,
                 optimizer=optimizer,
-                loss_fn=mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True)),
+                loss_fn=BCE(),
             )
             out = mod.forward(
                 item_history=torch.randint(1, 50, (2, 5)),

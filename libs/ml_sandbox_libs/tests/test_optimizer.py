@@ -2,12 +2,12 @@
 
 from collections.abc import Iterator
 from typing import Any, cast
-from unittest.mock import MagicMock
 
 import pytest
 import torch
 import torch.nn as nn
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
+from pytest_mock import MockerFixture
 
 from ml_sandbox_libs.optimizer import AdamWCosine, Optimizer
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
@@ -71,7 +71,7 @@ class TestAdamWCosine:
         assert "interval" in sched_config
         assert "frequency" in sched_config
 
-    def test_lr_scheduler_step_by_epoch(self) -> None:
+    def test_lr_scheduler_step_by_epoch(self, mocker: MockerFixture) -> None:
         """lr_scheduler_step should use current_epoch when step_unit='epoch'."""
         opt = AdamWCosine(lr=1e-3, weight_decay=0.01, lr_scheduler_params=_make_lr_params("epoch"))
         model = _make_simple_model()
@@ -80,11 +80,11 @@ class TestAdamWCosine:
         scheduler = cast(Any, sched_config["scheduler"])
 
         # Mock the step call to verify it is called with epoch=current_epoch
-        scheduler.step = MagicMock()
+        scheduler.step = mocker.Mock()
         opt.lr_scheduler_step(scheduler, metric=None, current_epoch=3, global_step=100)
         scheduler.step.assert_called_once_with(epoch=3)
 
-    def test_lr_scheduler_step_by_step(self) -> None:
+    def test_lr_scheduler_step_by_step(self, mocker: MockerFixture) -> None:
         """lr_scheduler_step should use global_step when step_unit='step'."""
         opt = AdamWCosine(lr=1e-3, weight_decay=0.01, lr_scheduler_params=_make_lr_params("step"))
         model = _make_simple_model()
@@ -92,11 +92,11 @@ class TestAdamWCosine:
         sched_config = cast(dict[str, Any], result["lr_scheduler"])
         scheduler = cast(Any, sched_config["scheduler"])
 
-        scheduler.step = MagicMock()
+        scheduler.step = mocker.Mock()
         opt.lr_scheduler_step(scheduler, metric=None, current_epoch=3, global_step=100)
         scheduler.step.assert_called_once_with(epoch=100)
 
-    def test_lr_scheduler_step_with_metric(self) -> None:
+    def test_lr_scheduler_step_with_metric(self, mocker: MockerFixture) -> None:
         """lr_scheduler_step should pass metric to scheduler.step when provided."""
         opt = AdamWCosine(lr=1e-3, weight_decay=0.01, lr_scheduler_params=_make_lr_params())
         model = _make_simple_model()
@@ -104,11 +104,11 @@ class TestAdamWCosine:
         sched_config = cast(dict[str, Any], result["lr_scheduler"])
         scheduler = cast(Any, sched_config["scheduler"])
 
-        scheduler.step = MagicMock()
+        scheduler.step = mocker.Mock()
         opt.lr_scheduler_step(scheduler, metric=0.95, current_epoch=2, global_step=50)
         scheduler.step.assert_called_once_with(epoch=2, metric=0.95)
 
-    def test_lr_scheduler_step_invalid_unit(self) -> None:
+    def test_lr_scheduler_step_invalid_unit(self, mocker: MockerFixture) -> None:
         """lr_scheduler_step should raise ValueError for unknown step_unit."""
         bad_params = LRSchedulerParams(
             step_unit="unknown",
@@ -120,7 +120,7 @@ class TestAdamWCosine:
             cycle_limit=1,
         )
         opt = AdamWCosine(lr=1e-3, weight_decay=0.01, lr_scheduler_params=bad_params)
-        scheduler = MagicMock()
+        scheduler = mocker.Mock()
         with pytest.raises(ValueError, match="Invalid step unit"):
             opt.lr_scheduler_step(scheduler, metric=None, current_epoch=0, global_step=0)
 
@@ -139,7 +139,7 @@ class TestOptimizerProtocol:
 
         assert not isinstance(NotAnOptimizer(), Optimizer)
 
-    def test_class_satisfying_protocol(self) -> None:
+    def test_class_satisfying_protocol(self, mocker: MockerFixture) -> None:
         """A class implementing all required methods should satisfy Optimizer."""
 
         class MyOptimizer:
@@ -150,7 +150,7 @@ class TestOptimizerProtocol:
                 return {
                     "optimizer": opt,
                     "lr_scheduler": {
-                        "scheduler": MagicMock(),
+                        "scheduler": mocker.Mock(),
                         "interval": "epoch",
                         "frequency": 1,
                         "monitor": None,

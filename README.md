@@ -2,33 +2,33 @@
 
 [![Python CI](https://github.com/haru-256/ml-sandbox/actions/workflows/python-ci.yml/badge.svg)](https://github.com/haru-256/ml-sandbox/actions/workflows/python-ci.yml)
 
-機械学習モデルの実装・実験・再利用可能な基盤整備を進めている Python モノレポです。  
+機械学習モデルの実装・実験・再利用可能な基盤整備を進めている Python モノレポです。
 特に推薦システムを中心に、Candidate Generation、Ranking、共通ライブラリ化、実験実行基盤までを扱っています。
 
-この README は、リポジトリで扱っている問題設定や実装方針を俯瞰できる概要資料として書いています。  
+この README は、リポジトリで扱っている問題設定や実装方針を俯瞰できる概要資料として書いています。
 どのような問題設定を扱っているか、どのような実装をしているか、どのような設計で整理しているかが伝わることを目的にしています。
 
-## このリポジトリで伝えたいこと
+## このリポジトリについて
 
 このリポジトリでは、主に次のようなテーマを扱っています。
 
 - 推薦システム
-  - Multi-Stage Recommendation Architecture
-  - Candidate Generation / Retrieval
-  - Ranking
-  - Sequential Recommendation
-  - CTR / CVR を意識した特徴量相互作用モデリング
+    - Multi-Stage Recommendation Architecture
+    - Candidate Generation / Retrieval
+    - Ranking
+    - Sequential Recommendation
+    - CTR / CVR を意識した特徴量相互作用モデリング
 - 機械学習実験基盤
-  - Hydra を使った設定管理
-  - PyTorch / Lightning を使った学習ループ
-  - 共通ライブラリ化による再利用性向上
-  - Vertex AI へのジョブ投入
+    - Hydra を使った設定管理
+    - PyTorch / Lightning を使った学習ループ
+    - 共通ライブラリ化による再利用性向上
+    - Vertex AI へのジョブ投入
 - データ処理
-  - Amazon Reviews 2023 を使った推薦用前処理
-  - user / item / category index 構築
-  - sequence 化
-  - negative sampling
-  - metadata の統合
+    - Amazon Reviews 2023 を使った推薦用前処理
+    - user / item / category index 構築
+    - sequence 化
+    - negative sampling
+    - metadata の統合
 
 このリポジトリは、単にモデルを個別実装するだけでなく、問題設定ごとの project 分離、共通ライブラリ化、クラウド実行基盤の整備まで含めて設計しています。
 
@@ -75,19 +75,19 @@ flowchart LR
 大規模推薦では、全 item を精密に score することは計算量的に難しいため、通常は以下の責務分離が必要になります。
 
 - Candidate Generation
-  - 大規模 item 集合から、関連性の高そうな候補を高速に絞る
-  - 重要なのは recall を落としすぎないこと
+    - 大規模 item 集合から、関連性の高そうな候補を高速に絞る
+    - 重要なのは recall を落としすぎないこと
 - Ranking
-  - 候補集合に対して、より表現力の高いモデルで精密にスコアリングする
-  - 特徴量相互作用や target-aware modeling が重要
+    - 候補集合に対して、より表現力の高いモデルで精密にスコアリングする
+    - 特徴量相互作用や target-aware modeling が重要
 - Re-ranking
-  - 多様性、在庫、ビジネスルール、露出制御などを反映する
+    - 多様性、在庫、ビジネスルール、露出制御などを反映する
 
 このリポジトリでは、特に Candidate Generation と Ranking を別 project として切り出し、問題設定と設計判断を分離しています。
 
-## 自作の推薦システムアーキテクチャ図
+## 推薦システムアーキテクチャ図
 
-推薦システム全体像を、自分の実装関心に寄せて表現すると次のようになります。  
+推薦システム全体像を、自分の実装関心に寄せて表現すると次のようになります。
 この図では、大規模 item corpus からの候補生成、特徴量を使った ranking、business rule を反映する re-ranking、serving までを 1 本の流れとして整理しています。
 
 ```mermaid
@@ -145,29 +145,18 @@ flowchart LR
 ### 図の見方
 
 - Offline / Training Path
-  - Amazon Reviews 2023 を共通前処理し、Candidate Generation 用・Ranking 用の学習データを構築
-  - 学習済みモデルや artifact を管理し、online path に deploy
+    - Amazon Reviews 2023 を共通前処理し、Candidate Generation 用・Ranking 用の学習データを構築
+    - 学習済みモデルや artifact を管理し、online path に deploy
 - Candidate Generator
-  - 大規模 corpus から候補を高速に絞る層
-  - recall を重視し、user/item representation learning や sequence modeling が中心
+    - 大規模 corpus から候補を高速に絞る層
+    - recall を重視し、user/item representation learning や sequence modeling が中心
 - Ranker
-  - 候補集合に対して、特徴量相互作用を用いて score する層
-  - user history、target item、metadata、dense/sparse features を統合
+    - 候補集合に対して、特徴量相互作用を用いて score する層
+    - user history、target item、metadata、dense/sparse features を統合
 - Re-ranker
-  - ビジネスルール、多様性、フィルタリングなどを反映して最終リストを作る層
+    - ビジネスルール、多様性、フィルタリングなどを反映して最終リストを作る層
 - Serving
-  - online request に対して段階的に candidate を絞り、最終的な Top-N を返す層
-
-### この図を入れている理由
-
-この図は、このリポジトリが単なるモデル実装集ではなく、
-
-- retrieval と ranking の責務分離
-- offline training と online serving の接続
-- 共通前処理と feature 再利用
-- 実験コードと実運用寄り設計の橋渡し
-
-まで意識していることを示すために入れています。
+    - online request に対して段階的に candidate を絞り、最終的な Top-N を返す層
 
 ## モノレポ全体の構成
 
@@ -213,39 +202,37 @@ flowchart LR
 - `apps/vertex-job-runner` は各 project の実行を補助
 - Candidate Generation の出力が Ranking の入力になる
 
-## projects
+### Projects
 
-ここがこのリポジトリの中心です。  
+ここがこのリポジトリの中心です。
 特に推薦システム領域において、検索・候補生成・ランキングという構成に近い問題設定を扱っています。
 
----
-
-## Recsys Candidate Generation
+### Recsys Candidate Generation
 
 `projects/recsys-candidate-generation`
 
-推薦システムにおける Candidate Generation（候補生成 / Retrieval）を扱う project です。  
+推薦システムにおける Candidate Generation（候補生成 / Retrieval）を扱う project です。
 大規模な item 集合から、各 user に対して関連性の高い候補を高速に絞り込む段階を対象にしています。
 
-### 技術的な焦点
+#### 技術的な焦点
 
 - Sequential Recommendation
-  - user の時系列行動履歴から次に関心を持つ item を予測
+    - user の時系列行動履歴から次に関心を持つ item を予測
 - Collaborative Filtering / Retrieval
-  - user-item 相互作用から user / item representation を学習し、候補を取得
+    - user-item 相互作用から user / item representation を学習し、候補を取得
 - Negative Sampling
-  - 正例と負例の対比による efficient training
+    - 正例と負例の対比による efficient training
 - Representation Learning
-  - retrieval quality を高めるための embedding 学習
+    - retrieval quality を高めるための embedding 学習
 
-### 実装しているモデル
+#### 実装しているモデル
 
 - `TwoTower`
 - `SASRec`
 - `gSASRec`
 - `SimpleX`
 
-### Candidate Generation モデル比較
+#### Candidate Generation モデル比較
 
 | Model | Category | Main Input | Core Idea | Strength | Typical Use Case |
 |---|---|---|---|---|---|
@@ -254,7 +241,7 @@ flowchart LR
 | `gSASRec` | Sequential Recommendation | user interaction sequence | SASRec に gBCE 系の考え方を導入し、negative sampling 起因の過信を抑制 | hard negative に対する学習安定性を意識できる | robust sequential retrieval |
 | `SimpleX` | Collaborative Filtering | user history, item interactions | user history の単純集約と contrastive 的な学習を組み合わせる | 実装が比較的シンプルで強い baseline になりやすい | strong CF baseline |
 
-### この project の技術的な意味
+#### この project の技術的な意味
 
 この project では、単に推薦モデルを実装しただけではなく、以下の論点を扱っています。
 
@@ -263,7 +250,7 @@ flowchart LR
 - embedding 学習は ANN 検索や serving 設計と接続しやすい
 - negative sampling の設計は性能と学習安定性に強く影響する
 
-### 参考論文
+#### 参考論文
 
 | Topic / Model | Paper | Link |
 |---|---|---|
@@ -274,14 +261,14 @@ flowchart LR
 
 詳細は [`projects/recsys-candidate-generation/README.md`](projects/recsys-candidate-generation/README.md) を参照してください。
 
-## Recsys Ranking
+### Recsys Ranking
 
 `projects/recsys-ranking`
 
 推薦システムにおける Ranking 段階を扱う project です。  
 Candidate Generation で取得した候補 item に対して、より表現力の高いモデルで精密に順位付けする段階を対象にしています。
 
-### Ranking 段階のイメージ
+#### Ranking 段階のイメージ
 
 ```mermaid
 flowchart LR
@@ -302,7 +289,7 @@ Ranking では、candidate generation よりも豊かな特徴量相互作用を
 
 を統合して、クリックや購買に近い signal を学習しやすくなります。
 
-### 技術的な焦点
+#### 技術的な焦点
 
 - CTR / ranking 向け deep models
 - Feature Interaction Modeling
@@ -311,14 +298,14 @@ Ranking では、candidate generation よりも豊かな特徴量相互作用を
 - Cross Network と MLP の比較
 - Hydra を使った実験設定の切り替え
 
-### 実装しているモデル
+#### 実装しているモデル
 
 - `DeepFM`
 - `DLRM`
 - `DIN`
 - `DCNv2`
 
-### Ranking モデル比較
+#### Ranking モデル比較
 
 | Model | Category | Main Input | Core Idea | Strength | Typical Use Case |
 |---|---|---|---|---|---|
@@ -327,7 +314,7 @@ Ranking では、candidate generation よりも豊かな特徴量相互作用を
 | `DIN` | Interest modeling | user behavior sequence, target item | target-aware attention により、ターゲットごとに user interest を動的抽出 | 行動履歴の relevance を item ごとに変えられる | personalized CTR prediction |
 | `DCNv2` | Feature interaction | sparse / dense features, history representation | cross network と deep network を併用して explicit / implicit interaction を同時に学習 | cross feature を強く扱える、強力な ranking model | advanced feature interaction modeling |
 
-### この project の技術的な意味
+#### この project の技術的な意味
 
 この project では、単純な分類モデルではなく、推薦特有の
 
@@ -338,7 +325,7 @@ Ranking では、candidate generation よりも豊かな特徴量相互作用を
 
 といった、広告・EC・推薦において実務的に重要な論点を実装対象にしています。
 
-### 参考論文
+#### 参考論文
 
 | Topic / Model | Paper | Link |
 |---|---|---|
@@ -349,15 +336,13 @@ Ranking では、candidate generation よりも豊かな特徴量相互作用を
 
 詳細は [`projects/recsys-ranking/README.md`](projects/recsys-ranking/README.md) を参照してください。
 
----
-
 ## 共通ライブラリ
 
 ### ml_sandbox_libs
 
 `libs/ml_sandbox_libs`
 
-複数 project で再利用するための内部 library です。  
+複数 project で再利用するための内部 library です。
 このリポジトリの設計思想をよく表しているディレクトリのひとつです。
 
 ### 役割
@@ -390,7 +375,7 @@ Ranking では、candidate generation よりも豊かな特徴量相互作用を
 
 `apps/vertex-job-runner`
 
-Google Cloud Vertex AI の Custom Training Job を実行するための CLI です。  
+Google Cloud Vertex AI の Custom Training Job を実行するための CLI です。
 実験コードそのものではなく、実験をクラウド上で再現性高く実行するための基盤です。
 
 ### できること
@@ -400,19 +385,6 @@ Google Cloud Vertex AI の Custom Training Job を実行するための CLI で�
 - dry-run による job 設定の確認
 - project ごとの training entrypoint の共通実行
 
-### なぜ重要か
-
-このリポジトリは、モデル実装だけで終わらず、
-
-- 実験設定
-- 再現可能な job submission
-- local と cloud execution の橋渡し
-
-までを意識しています。
-
-詳細は [`apps/vertex-job-runner/README.md`](apps/vertex-job-runner/README.md) を参照してください。
-
----
 
 ## 実験フロー
 
@@ -465,8 +437,6 @@ flowchart TD
 
 - Google Cloud Vertex AI
 - Terraform
-
----
 
 ## 設計方針
 

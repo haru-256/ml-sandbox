@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 import torch
+from ml_sandbox_libs.loss import BCE
 from ml_sandbox_libs.optimizer import AdamWCosine
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 from pytest_mock import MockerFixture
@@ -32,7 +33,7 @@ class TestDLRMModule:
         )
 
     @pytest.fixture
-    def module_params(self, optimizer: AdamWCosine, mocker: MockerFixture) -> dict[str, Any]:
+    def module_params(self, optimizer: AdamWCosine) -> dict[str, Any]:
         """Create module parameters for testing."""
         return {
             "num_items": 1000,
@@ -45,7 +46,7 @@ class TestDLRMModule:
             "item_pad_idx": 0,
             "eval_top_k": 10,
             "optimizer": optimizer,
-            "loss_fn": mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True)),
+            "loss_fn": BCE(),
         }
 
     @pytest.fixture
@@ -91,7 +92,7 @@ class TestDLRMModule:
     def test_dlrm_module_training_step(
         self, dlrm_module: DLRMModule, mocker: MockerFixture
     ) -> None:
-        """Test DLRM module training step."""
+        """Test DLRM module training step logs stable public metrics."""
         batch = mocker.Mock()
         batch_size = 4
         batch.item_history = torch.randint(1, 1000, (batch_size, 8), dtype=torch.long)
@@ -103,13 +104,26 @@ class TestDLRMModule:
         loss = dlrm_module.training_step(batch, batch_idx=0)
 
         assert isinstance(loss, torch.Tensor)
+        assert loss.dim() == 0
         assert loss.requires_grad
         assert torch.isfinite(loss)
+        logging_step.assert_called_once()
+        metrics_dict = logging_step.call_args.args[0]
+        assert {
+            "loss",
+            "pos_mean",
+            "neg_mean",
+            "pos_neg_diff_mean",
+            "pos_std",
+            "neg_std",
+            "pos_neg_diff_std",
+            "accuracy",
+        } <= metrics_dict.keys()
 
     def test_dlrm_module_validation_step(
         self, dlrm_module: DLRMModule, mocker: MockerFixture
     ) -> None:
-        """Test DLRM module validation step."""
+        """Test DLRM module validation step logs ranking metrics."""
         batch = mocker.Mock()
         batch_size = 4
         batch.item_history = torch.randint(1, 1000, (batch_size, 8), dtype=torch.long)
@@ -121,13 +135,23 @@ class TestDLRMModule:
         loss = dlrm_module.validation_step(batch, batch_idx=0)
 
         assert isinstance(loss, torch.Tensor)
+        assert loss.dim() == 0
         assert torch.isfinite(loss)
         logging_step.assert_called_once()
         metrics_dict = logging_step.call_args.args[0]
-        assert metrics_dict["accuracy"] is dlrm_module.accuracy
-        assert metrics_dict["hit_rate"] is dlrm_module.retrieval_metrics.hit_rate
-        assert metrics_dict["mrr"] is dlrm_module.retrieval_metrics.mrr
-        assert metrics_dict["ndcg"] is dlrm_module.retrieval_metrics.ndcg
+        assert {
+            "loss",
+            "pos_mean",
+            "neg_mean",
+            "pos_neg_diff_mean",
+            "pos_std",
+            "neg_std",
+            "pos_neg_diff_std",
+            "accuracy",
+            "hit_rate",
+            "mrr",
+            "ndcg",
+        } <= metrics_dict.keys()
 
     def test_dlrm_module_summary(self, dlrm_module: DLRMModule) -> None:
         """Test DLRM module summary generation."""

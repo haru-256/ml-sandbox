@@ -15,9 +15,9 @@ fmt: ## Run formatter
 test: ## Run tests
 	uv run pytest . -v -s
 
-.PHONY: clean
-clean: ## Remove cache files
-	rm -rf .mypy_cache .pytest_cache
+.PHONY: clean-cache
+clean-cache: ## Remove cache files
+	rm -rf .mypy_cache .pytest_cache .ruff_cache
 	fd -H --type directory __pycache__ . -x rm -rf
 
 .PHONY: lock
