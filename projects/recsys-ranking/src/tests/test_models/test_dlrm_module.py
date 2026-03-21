@@ -4,6 +4,7 @@ from typing import Any
 
 import pytest
 import torch
+from ml_sandbox_libs.loss import BCE
 from ml_sandbox_libs.optimizer import AdamWCosine
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 from pytest_mock import MockerFixture
@@ -32,7 +33,7 @@ class TestDLRMModule:
         )
 
     @pytest.fixture
-    def module_params(self, optimizer: AdamWCosine, mocker: MockerFixture) -> dict[str, Any]:
+    def module_params(self, optimizer: AdamWCosine) -> dict[str, Any]:
         """Create module parameters for testing."""
         return {
             "num_items": 1000,
@@ -45,7 +46,7 @@ class TestDLRMModule:
             "item_pad_idx": 0,
             "eval_top_k": 10,
             "optimizer": optimizer,
-            "loss_fn": mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True)),
+            "loss_fn": BCE(),
         }
 
     @pytest.fixture

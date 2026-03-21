@@ -3,6 +3,7 @@
 import pytest
 import torch
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.loss import BCE
 from ml_sandbox_libs.optimizer import AdamWCosine
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 from pytest_mock import MockerFixture
@@ -28,7 +29,7 @@ def optimizer() -> AdamWCosine:
 
 
 @pytest.fixture
-def module(optimizer: AdamWCosine, mocker: MockerFixture) -> DeepFMModule:
+def module(optimizer: AdamWCosine) -> DeepFMModule:
     return DeepFMModule(
         num_items=100,
         feature_embedding_dims=32,
@@ -38,7 +39,7 @@ def module(optimizer: AdamWCosine, mocker: MockerFixture) -> DeepFMModule:
         item_pad_idx=0,
         eval_top_k=5,
         optimizer=optimizer,
-        loss_fn=mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True)),
+        loss_fn=BCE(),
     )
 
 

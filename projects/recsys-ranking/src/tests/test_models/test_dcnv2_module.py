@@ -3,6 +3,7 @@
 import pytest
 import torch
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
+from ml_sandbox_libs.loss import BCE
 from ml_sandbox_libs.optimizer import AdamWCosine
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 from pytest_mock import MockerFixture
@@ -14,7 +15,7 @@ class TestDCNv2ModuleBasic:
     """Basic test suite for DCNv2Module."""
 
     @pytest.fixture
-    def module(self, mocker: MockerFixture) -> DCNv2Module:
+    def module(self) -> DCNv2Module:
         """Create DCNv2Module for testing."""
         return DCNv2Module(
             num_items=100,
@@ -37,7 +38,7 @@ class TestDCNv2ModuleBasic:
                     cycle_limit=1,
                 ),
             ),
-            loss_fn=mocker.Mock(),
+            loss_fn=BCE(),
         )
 
     @pytest.fixture
