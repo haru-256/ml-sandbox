@@ -34,6 +34,7 @@ shared 化できる型や utility は `libs/ml_sandbox_libs` に寄せ、ranking
 
 ランキング学習では、Candidate Generation で得られた候補をより精密に判別するために、ユーザー履歴とターゲットアイテムの関係をモデリングします。
 本 project では、`ml_sandbox_libs` が提供する Amazon Reviews 向け前処理・DataModule を活用しています。
+DataModule の生成処理は project 内に重複実装せず、shared library 側の factory / DataModule を利用する前提です。
 
 ## Directory Structure
 
@@ -48,9 +49,11 @@ recsys-ranking/
 └── src/
     ├── fit.py            # 学習エントリポイント
     ├── config/           # Hydra 設定
-    ├── data/             # DataModule 生成処理
+    ├── const/            # project 固有定数
+    ├── data/             # namespace package（DataModule 実体は shared library を利用）
     ├── loss/             # loss factory
     ├── models/           # ranking model 群
+    ├── results/          # project 固有の結果処理
     ├── utils/            # project 固有 utility
     └── tests/            # test code
 ```
@@ -188,7 +191,7 @@ uv run python src/fit.py model=DeepFM data.batch_size=32
 
 共通化されたコンポーネントは主に `libs/ml_sandbox_libs` と `apps/vertex-job-runner` から参照します。
 
-- `ml_sandbox_libs`: DataModule、共通 model module、optimizer、training utility
+- `ml_sandbox_libs`: DataModule、shared datamodule factory、共通 model module、optimizer、training utility
 - `vertex-job-runner`: Vertex AI 上での job 実行補助
 
 特に、型定義・optimizer・monitoring などの shared module は project 内に重複実装せず、共通 library から import する前提です。

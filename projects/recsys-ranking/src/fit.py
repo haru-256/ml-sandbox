@@ -7,11 +7,12 @@ import torch
 from lightning.pytorch.callbacks import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
 from loguru import logger
+from ml_sandbox_libs.data.factory import create_seq_rec_datamodule
 from ml_sandbox_libs.optimizer import create_optimizer
 from ml_sandbox_libs.utils import setup_logger
 from omegaconf import DictConfig
 
-from data.factory import create_datamodule
+from const import EVAL_NEG_SAMPLE_SIZE
 from loss import create_loss
 from models.factory import create_model_module
 
@@ -69,7 +70,14 @@ def main(cfg: DictConfig) -> None:
     save_dir = pathlib.Path(cfg.save_dir)
 
     # Initialize data module
-    datamodule = create_datamodule(cfg, save_dir)
+    datamodule = create_seq_rec_datamodule(
+        save_dir=save_dir,
+        batch_size=cfg.data.batch_size,
+        max_seq_len=cfg.data.max_seq_len,
+        neg_sample_size=cfg.data.neg_sample_size,
+        num_workers=cfg.device.num_workers,
+        eval_negative_sample_size=EVAL_NEG_SAMPLE_SIZE,
+    )
 
     # Create optimizer
     optimizer = create_optimizer(cfg)

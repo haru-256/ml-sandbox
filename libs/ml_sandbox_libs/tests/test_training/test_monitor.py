@@ -168,9 +168,7 @@ class TestSummarizePosNegScores:
         assert metrics["pos_neg_diff_mean"] == pytest.approx(pos_neg_diff.mean().item())
         assert metrics["pos_std"] == pytest.approx(pos_scores.std(unbiased=False).item())
         assert metrics["neg_std"] == pytest.approx(neg_scores.std(unbiased=False).item())
-        assert metrics["pos_neg_diff_std"] == pytest.approx(
-            pos_neg_diff.std(unbiased=False).item()
-        )
+        assert metrics["pos_neg_diff_std"] == pytest.approx(pos_neg_diff.std(unbiased=False).item())
 
     def test_rejects_positive_scores_with_multiple_columns(self) -> None:
         """Reject positive score tensors that are not shaped as a single column."""
