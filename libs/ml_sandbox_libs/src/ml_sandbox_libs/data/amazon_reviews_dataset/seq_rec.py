@@ -596,8 +596,6 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
             }
         )
 
-        logger.info(self.summary())
-
     def setup(self, stage: str) -> None:
         if stage == "fit":
             self.train_dataset = AmazonReviewsSeqRecDataset(
@@ -613,6 +611,7 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
                 neg_sample_size=self.eval_negative_sample_size,
                 max_seq_len=self.max_seq_len,
             )
+            logger.info(self.summary())
         elif stage == "test":
             # NOTE: For ranking metrics, we need to sample more negative items.
             self.test_dataset = AmazonReviewsSeqRecDataset(
