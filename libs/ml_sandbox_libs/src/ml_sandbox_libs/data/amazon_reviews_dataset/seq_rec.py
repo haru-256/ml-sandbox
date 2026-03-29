@@ -596,6 +596,8 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
             }
         )
 
+        logger.info(self.summary())
+
     def setup(self, stage: str) -> None:
         if stage == "fit":
             self.train_dataset = AmazonReviewsSeqRecDataset(

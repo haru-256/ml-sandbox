@@ -2,8 +2,6 @@
 
 import pathlib
 
-from loguru import logger
-
 from .amazon_reviews_dataset import AmazonReviewsSeqRecDataModule
 
 
@@ -16,7 +14,7 @@ def create_seq_rec_datamodule(
     num_workers: int,
     eval_negative_sample_size: int,
 ) -> AmazonReviewsSeqRecDataModule:
-    """Create and initialize the sequential recommendation datamodule.
+    """Create the sequential recommendation datamodule.
 
     Args:
         save_dir: Base directory that stores preprocessed dataset artifacts.
@@ -27,7 +25,7 @@ def create_seq_rec_datamodule(
         eval_negative_sample_size: Number of negative samples used for validation and test.
 
     Returns:
-        AmazonReviewsSeqRecDataModule: Initialized datamodule ready for the fit stage.
+        AmazonReviewsSeqRecDataModule: Instantiated datamodule.
     """
     datamodule = AmazonReviewsSeqRecDataModule(
         save_dir=save_dir / "dataset",
@@ -37,9 +35,6 @@ def create_seq_rec_datamodule(
         num_workers=num_workers,
         eval_negative_sample_size=eval_negative_sample_size,
     )
-    datamodule.prepare_data()
-    datamodule.setup(stage="fit")
-    logger.info(datamodule.summary())
     return datamodule
 
 

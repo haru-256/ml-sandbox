@@ -48,7 +48,8 @@ project 固有の model composition や training flow はこの directory 配下
 - 学習・評価用の negative sampling
 - item metadata の統合
 
-この project の datamodule は `ml_sandbox_libs.data.amazon_reviews_dataset.AmazonReviewsSeqRecDataModule` を利用します。
+この project では、shared library 側の sequential recommendation 用 DataModule を利用します。
+project 内で個別の DataModule factory を重複実装せず、`ml_sandbox_libs` 側の共通実装を参照する前提です。
 
 ## Implemented Models
 
@@ -82,9 +83,12 @@ recsys-candidate-generation/
 │   └── logs/
 └── src/
     ├── config/          # Hydra configuration
-    ├── data/            # datamodule factory
+    ├── const/           # project-local constants
+    ├── data/            # shared datamodule import surface
     ├── loss/            # loss factory
     ├── models/          # model implementations and factory
+    ├── results/         # result helpers
+    ├── tests/           # test code
     └── fit.py           # training entrypoint
 ```
 
@@ -141,7 +145,7 @@ Hydra を使って `src/config/` 配下の設定を読み込みます。
 主な flow は以下です。
 
 1. logger の初期化
-2. datamodule の生成
+2. shared datamodule の生成
 3. optimizer の生成
 4. model module の生成
 5. Lightning trainer の生成
