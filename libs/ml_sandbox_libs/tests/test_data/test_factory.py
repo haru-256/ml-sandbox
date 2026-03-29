@@ -5,10 +5,10 @@ from pytest_mock import MockerFixture
 from ml_sandbox_libs.data.factory import create_seq_rec_datamodule
 
 
-def test_create_seq_rec_datamodule_initializes(
+def test_create_seq_rec_datamodule_initializes_with_dataset_subdirectory(
     mocker: MockerFixture, tmp_path: pathlib.Path
 ) -> None:
-    """Create the shared seq-rec datamodule with explicit constructor arguments."""
+    """Create the shared seq-rec datamodule under the base path's dataset subdirectory."""
     mock_datamodule = mocker.Mock()
     datamodule_cls = mocker.patch(
         "ml_sandbox_libs.data.factory.AmazonReviewsSeqRecDataModule",

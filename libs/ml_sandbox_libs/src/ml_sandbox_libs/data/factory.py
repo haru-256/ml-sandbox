@@ -17,7 +17,8 @@ def create_seq_rec_datamodule(
     """Create the sequential recommendation datamodule.
 
     Args:
-        save_dir: Base directory that stores preprocessed dataset artifacts.
+        save_dir: Base experiment directory. Dataset artifacts are stored under
+            ``save_dir / "dataset"``.
         batch_size: Batch size for dataloaders.
         max_seq_len: Maximum user-history sequence length.
         neg_sample_size: Number of negative samples used during training.
