@@ -18,7 +18,9 @@ from ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph import (
 )
 
 
-def _edge_pairs_with_attr(edge_index: torch.Tensor, edge_attr: torch.Tensor) -> list[tuple[int, int, int]]:
+def _edge_pairs_with_attr(
+    edge_index: torch.Tensor, edge_attr: torch.Tensor
+) -> list[tuple[int, int, float]]:
     return sorted(
         (src, dst, attr[0])
         for (src, dst), attr in zip(edge_index.t().tolist(), edge_attr.tolist(), strict=True)
@@ -226,26 +228,26 @@ def test_bipartite_graph_preprocess_dataset_raises_for_duplicate_user_item_pairs
     [
         (
             "train",
-            [(2, 2, 5), (3, 3, 3), (4, 4, 5)],
-            [(2, 2, 5), (3, 3, 3), (4, 4, 5)],
+            [(2, 2, 5.0), (3, 3, 3.0), (4, 4, 5.0)],
+            [(2, 2, 5.0), (3, 3, 3.0), (4, 4, 5.0)],
         ),
         (
             "valid",
-            [(2, 2, 5), (3, 3, 3), (4, 4, 5)],
-            [(2, 5, 4), (3, 6, 5), (4, 7, 3)],
+            [(2, 2, 5.0), (3, 3, 3.0), (4, 4, 5.0)],
+            [(2, 5, 4.0), (3, 6, 5.0), (4, 7, 3.0)],
         ),
         (
             "test",
-            [(2, 2, 5), (2, 5, 4), (3, 3, 3), (3, 6, 5), (4, 4, 5), (4, 7, 3)],
-            [(2, 8, 5), (3, 9, 4), (4, 10, 4)],
+            [(2, 2, 5.0), (2, 5, 4.0), (3, 3, 3.0), (3, 6, 5.0), (4, 4, 5.0), (4, 7, 3.0)],
+            [(2, 8, 5.0), (3, 9, 4.0), (4, 10, 4.5)],
         ),
     ],
 )
 def test_create_bipartite_graph_uses_expected_message_passing_and_label_edges(
     mocker: MockerFixture,
     split: str,
-    expected_message_passing_edges: list[tuple[int, int, int]],
-    expected_label_edges: list[tuple[int, int, int]],
+    expected_message_passing_edges: list[tuple[int, int, float]],
+    expected_label_edges: list[tuple[int, int, float]],
 ) -> None:
     (
         all_df,
@@ -266,6 +268,8 @@ def test_create_bipartite_graph_uses_expected_message_passing_and_label_edges(
     edge_store = data["user", "rates", "item"]
     assert _edge_pairs_with_attr(edge_store.edge_index, edge_store.edge_attr) == expected_message_passing_edges
     assert _edge_pairs_with_attr(edge_store.edge_label_index, edge_store.edge_label_attr) == expected_label_edges
+    assert edge_store.edge_attr.dtype == torch.float32
+    assert edge_store.edge_label_attr.dtype == torch.float32
     assert data["user"].user_index.tolist() == [0, 1, 2, 3, 4]
     assert data["item"].category_index.dtype == torch.int64
 
@@ -339,21 +343,21 @@ def test_bipartite_graph_datamodule_setup_creates_expected_graphs(
     assert _edge_pairs_with_attr(
         dm.train_data["user", "rates", "item"].edge_index,
         dm.train_data["user", "rates", "item"].edge_attr,
-    ) == [(2, 2, 5), (3, 3, 3), (4, 4, 5)]
+    ) == [(2, 2, 5.0), (3, 3, 3.0), (4, 4, 5.0)]
     assert _edge_pairs_with_attr(
         dm.val_data["user", "rates", "item"].edge_label_index,
         dm.val_data["user", "rates", "item"].edge_label_attr,
-    ) == [(2, 5, 4), (3, 6, 5), (4, 7, 3)]
+    ) == [(2, 5, 4.0), (3, 6, 5.0), (4, 7, 3.0)]
 
     dm.setup("test")
     assert _edge_pairs_with_attr(
         dm.test_data["user", "rates", "item"].edge_index,
         dm.test_data["user", "rates", "item"].edge_attr,
-    ) == [(2, 2, 5), (2, 5, 4), (3, 3, 3), (3, 6, 5), (4, 4, 5), (4, 7, 3)]
+    ) == [(2, 2, 5.0), (2, 5, 4.0), (3, 3, 3.0), (3, 6, 5.0), (4, 4, 5.0), (4, 7, 3.0)]
     assert _edge_pairs_with_attr(
         dm.test_data["user", "rates", "item"].edge_label_index,
         dm.test_data["user", "rates", "item"].edge_label_attr,
-    ) == [(2, 8, 5), (3, 9, 4), (4, 10, 4)]
+    ) == [(2, 8, 5.0), (3, 9, 4.0), (4, 10, 4.5)]
 
 
 def test_bipartite_graph_datamodule_dataloaders_use_stage_specific_label_edges(
