@@ -206,7 +206,7 @@ def create_bipartite_graph(
     )
     edge_attr = torch.as_tensor(
         np.ascontiguousarray(message_passing_edge_df["rating"].to_numpy()).reshape(-1, 1),
-        dtype=torch.long,
+        dtype=torch.float32,
     )
     edge_label_index = torch.as_tensor(
         np.ascontiguousarray(label_edge_df["user_index", "item_index"].to_numpy().T),
