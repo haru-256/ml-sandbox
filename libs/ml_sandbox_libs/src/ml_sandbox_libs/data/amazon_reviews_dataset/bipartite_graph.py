@@ -214,7 +214,7 @@ def create_bipartite_graph(
     )
     edge_label_attr = torch.as_tensor(
         np.ascontiguousarray(label_edge_df["rating"].to_numpy()).reshape(-1, 1),
-        dtype=torch.long,
+        dtype=torch.float32,
     )
     data = HeteroData(
         {  # type: ignore
