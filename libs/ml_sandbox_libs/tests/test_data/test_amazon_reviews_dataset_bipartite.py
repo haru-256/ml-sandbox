@@ -1,28 +1,43 @@
+import pathlib
+from typing import Any
+
 import polars as pl
+import pytest
+import torch
 from pytest_mock import MockerFixture
 
 from ml_sandbox_libs.data.amazon_reviews_dataset import (
     SpecialCategoryIndex,
     SpecialItemIndex,
     SpecialUserIndex,
+)
+from ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph import (
+    AmazonReviewsBipartiteGraphDataModule,
     bipartite_graph_preprocess_dataset,
+    create_bipartite_graph,
 )
 
 
-def test_bipartite_graph_preprocess_dataset(mocker: MockerFixture) -> None:
-    """Test the bipartite_graph_preprocess_dataset function."""
-    # Create mock dataset_dict and metadata
-    mock_dataset_dict = mocker.Mock()
-    mock_metadata = mocker.Mock()
+def _edge_pairs_with_attr(edge_index: torch.Tensor, edge_attr: torch.Tensor) -> list[tuple[int, int, int]]:
+    return sorted(
+        (src, dst, attr[0])
+        for (src, dst), attr in zip(edge_index.t().tolist(), edge_attr.tolist(), strict=True)
+    )
 
-    # Mock the return values for _common_preprocess_dataset
-    # Create data with NO duplicate user_id and parent_asin combinations across ALL splits
-    # since bipartite graph doesn't support duplicates when combining train+val+test
-    mock_train_df = pl.DataFrame(
+
+def _build_common_preprocess_return(*, duplicate_across_splits: bool = False) -> tuple[Any, ...]:
+    train_items = ["item1", "item2", "item3"]
+    if duplicate_across_splits:
+        val_items = ["item1", "item5", "item6"]
+    else:
+        val_items = ["item4", "item5", "item6"]
+    test_items = ["item7", "item8", "item9"]
+
+    train_df = pl.DataFrame(
         {
             "user_id": ["user1", "user2", "user3"],
             "user_index": [2, 3, 4],
-            "parent_asin": ["item1", "item2", "item3"],
+            "parent_asin": train_items,
             "item_index": [2, 3, 4],
             "rating": [5.0, 3.0, 5.0],
             "timestamp": [1000000, 1000001, 1000002],
@@ -35,13 +50,12 @@ def test_bipartite_graph_preprocess_dataset(mocker: MockerFixture) -> None:
             "category_index": [2, 3, 4],
         }
     )
-
-    mock_val_df = pl.DataFrame(
+    val_df = pl.DataFrame(
         {
             "user_id": ["user1", "user2", "user3"],
             "user_index": [2, 3, 4],
-            "parent_asin": ["item4", "item5", "item6"],
-            "item_index": [5, 6, 7],
+            "parent_asin": val_items,
+            "item_index": [5 if not duplicate_across_splits else 2, 6, 7],
             "rating": [4.0, 5.0, 3.0],
             "timestamp": [2000000, 2000001, 2000002],
             "history": ["item0 item1", "item2", "item1 item0"],
@@ -49,12 +63,11 @@ def test_bipartite_graph_preprocess_dataset(mocker: MockerFixture) -> None:
             "category_index": [2, 3, 4],
         }
     )
-
-    mock_test_df = pl.DataFrame(
+    test_df = pl.DataFrame(
         {
             "user_id": ["user1", "user2", "user3"],
             "user_index": [2, 3, 4],
-            "parent_asin": ["item7", "item8", "item9"],
+            "parent_asin": test_items,
             "item_index": [8, 9, 10],
             "rating": [5.0, 4.0, 4.5],
             "timestamp": [3000000, 3000001, 3000002],
@@ -63,8 +76,7 @@ def test_bipartite_graph_preprocess_dataset(mocker: MockerFixture) -> None:
             "category_index": [2, 3, 4],
         }
     )
-
-    mock_meta_df = pl.DataFrame(
+    meta_df = pl.DataFrame(
         {
             "parent_asin": [
                 "item1",
@@ -90,9 +102,8 @@ def test_bipartite_graph_preprocess_dataset(mocker: MockerFixture) -> None:
             ],
         }
     )
-
-    mock_user2index = {"user1": 2, "user2": 3, "user3": 4, "#UNK": SpecialUserIndex.UNK}
-    mock_item2index = {
+    user2index = {"user1": 2, "user2": 3, "user3": 4, "#UNK": SpecialUserIndex.UNK}
+    item2index = {
         "item1": 2,
         "item2": 3,
         "item3": 4,
@@ -105,80 +116,74 @@ def test_bipartite_graph_preprocess_dataset(mocker: MockerFixture) -> None:
         "#UNK": SpecialItemIndex.UNK,
         "#PAD": SpecialItemIndex.PAD,
     }
-    mock_category2index = {
+    category2index = {
         "Games/Action": 2,
         "Games/RPG": 3,
         "Electronics/Computers": 4,
         "#UNK": SpecialCategoryIndex.UNK,
         "#PAD": SpecialCategoryIndex.PAD,
     }
-    mock_item_index_2_category_index = {
-        2: 2,  # item1 -> Games/Action
-        3: 3,  # item2 -> Games/RPG
-        4: 4,  # item3 -> Electronics/Computers
-        5: 2,  # item4 -> Games/Action
-        6: 3,  # item5 -> Games/RPG
-        7: 4,  # item6 -> Electronics/Computers
-        8: 2,  # item7 -> Games/Action
-        9: 3,  # item8 -> Games/RPG
-        10: 4,  # item9 -> Electronics/Computers
+    item_index_2_category_index = {
+        2: 2,
+        3: 3,
+        4: 4,
+        5: 2,
+        6: 3,
+        7: 4,
+        8: 2,
+        9: 3,
+        10: 4,
         SpecialItemIndex.UNK: SpecialCategoryIndex.UNK,
         SpecialItemIndex.PAD: SpecialCategoryIndex.PAD,
     }
-
-    # Create index DataFrames
-    mock_user2index_df = pl.DataFrame(
-        {"user_id": list(mock_user2index.keys()), "user_index": list(mock_user2index.values())}
+    user2index_df = pl.DataFrame(
+        {"user_id": list(user2index.keys()), "user_index": list(user2index.values())}
     )
-    mock_item2index_df = pl.DataFrame(
-        {"parent_asin": list(mock_item2index.keys()), "item_index": list(mock_item2index.values())}
+    item2index_df = pl.DataFrame(
+        {"parent_asin": list(item2index.keys()), "item_index": list(item2index.values())}
     )
-    mock_category2index_df = pl.DataFrame(
+    category2index_df = pl.DataFrame(
         {
-            "category": list(mock_category2index.keys()),
-            "category_index": list(mock_category2index.values()),
+            "category": list(category2index.keys()),
+            "category_index": list(category2index.values()),
         }
     )
 
-    # Mock _common_preprocess_dataset
-    mock_common_preprocess_return = (
-        (mock_train_df, mock_val_df, mock_test_df),
-        mock_meta_df,
-        (mock_user2index, mock_item2index, mock_category2index, mock_item_index_2_category_index),
-        (mock_user2index_df, mock_item2index_df, mock_category2index_df),
+    return (
+        (train_df, val_df, test_df),
+        meta_df,
+        (user2index, item2index, category2index, item_index_2_category_index),
+        (user2index_df, item2index_df, category2index_df),
     )
 
+
+def _build_preprocessed_graph_inputs(mocker: MockerFixture) -> tuple[Any, ...]:
+    mock_dataset_dict = mocker.Mock()
+    mock_metadata = mocker.Mock()
+    common_preprocess_return = _build_common_preprocess_return()
+    mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph.common_preprocess_dataset",
+        return_value=common_preprocess_return,
+    )
+    return bipartite_graph_preprocess_dataset(mock_dataset_dict, mock_metadata)
+
+
+def test_bipartite_graph_preprocess_dataset_returns_expected_dataframe(
+    mocker: MockerFixture,
+) -> None:
+    mock_dataset_dict = mocker.Mock()
+    mock_metadata = mocker.Mock()
+    common_preprocess_return = _build_common_preprocess_return()
     mock_common_preprocess_func = mocker.patch(
         "ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph.common_preprocess_dataset",
-        return_value=mock_common_preprocess_return,
+        return_value=common_preprocess_return,
     )
 
-    # Call the function
-    result = bipartite_graph_preprocess_dataset(mock_dataset_dict, mock_metadata)
+    all_df, user2index, item2index, category2index, item_index_2_category_index = (
+        bipartite_graph_preprocess_dataset(mock_dataset_dict, mock_metadata)
+    )
 
-    (
-        all_df,
-        user2index,
-        item2index,
-        category2index,
-        item_index_2_category_index,
-    ) = result
-
-    # Verify return types
-    assert isinstance(all_df, pl.DataFrame)
-    assert isinstance(user2index, dict)
-    assert isinstance(item2index, dict)
-    assert isinstance(category2index, dict)
-    assert isinstance(item_index_2_category_index, dict)
-
-    # Verify that indices are returned correctly
-    assert user2index == mock_user2index
-    assert item2index == mock_item2index
-    assert category2index == mock_category2index
-    assert item_index_2_category_index == mock_item_index_2_category_index
-
-    # Verify expected columns in output DataFrames
-    expected_columns = [
+    assert all_df.columns == [
         "split",
         "user_id",
         "user_index",
@@ -190,87 +195,198 @@ def test_bipartite_graph_preprocess_dataset(mocker: MockerFixture) -> None:
         "timestamp",
         "num_ratings",
     ]
-
-    assert all_df.columns == expected_columns
-
-    train_df = all_df.filter(pl.col("split") == "train")
-    val_df = all_df.filter(pl.col("split") == "valid")  # Note: it's "valid", not "val"
-    test_df = all_df.filter(pl.col("split") == "test")
-
-    # Verify that each user-item combination appears only once across all splits
-    # Train split assertions
-    # user1 + item1: 1 interaction
-    user1_item1_rows = train_df.filter(
-        (pl.col("user_id") == "user1") & (pl.col("parent_asin") == "item1")
-    )
-    assert len(user1_item1_rows) == 1
-    assert user1_item1_rows["user_index"].item() == 2
-    assert user1_item1_rows["item_index"].item() == 2
-    assert user1_item1_rows["category"].item() == "Games/Action"
-    assert user1_item1_rows["category_index"].item() == 2
-    assert user1_item1_rows["rating"].item() == 5.0
-    assert user1_item1_rows["timestamp"].item() == 1000000
-    assert user1_item1_rows["num_ratings"].item() == 1
-
-    # user2 + item2: 1 interaction
-    user2_item2_rows = train_df.filter(
-        (pl.col("user_id") == "user2") & (pl.col("parent_asin") == "item2")
-    )
-    assert len(user2_item2_rows) == 1
-    assert user2_item2_rows["user_index"].item() == 3
-    assert user2_item2_rows["item_index"].item() == 3
-    assert user2_item2_rows["category"].item() == "Games/RPG"
-    assert user2_item2_rows["category_index"].item() == 3
-    assert user2_item2_rows["rating"].item() == 3.0
-    assert user2_item2_rows["timestamp"].item() == 1000001
-    assert user2_item2_rows["num_ratings"].item() == 1
-
-    # user3 + item3: 1 interaction
-    user3_item3_rows = train_df.filter(
-        (pl.col("user_id") == "user3") & (pl.col("parent_asin") == "item3")
-    )
-    assert len(user3_item3_rows) == 1
-    assert user3_item3_rows["user_index"].item() == 4
-    assert user3_item3_rows["item_index"].item() == 4
-    assert user3_item3_rows["category"].item() == "Electronics/Computers"
-    assert user3_item3_rows["category_index"].item() == 4
-    assert user3_item3_rows["rating"].item() == 5.0
-    assert user3_item3_rows["timestamp"].item() == 1000002
-    assert user3_item3_rows["num_ratings"].item() == 1
-
-    # Val split assertions - user1+item4, user2+item5, user3+item6
-    val_user1_item4_rows = val_df.filter(
-        (pl.col("user_id") == "user1") & (pl.col("parent_asin") == "item4")
-    )
-    assert len(val_user1_item4_rows) == 1
-    assert val_user1_item4_rows["user_index"].item() == 2
-    assert val_user1_item4_rows["item_index"].item() == 5
-    assert val_user1_item4_rows["rating"].item() == 4.0
-
-    # Test split assertions - user1+item7, user2+item8, user3+item9
-    test_user1_item7_rows = test_df.filter(
-        (pl.col("user_id") == "user1") & (pl.col("parent_asin") == "item7")
-    )
-    assert len(test_user1_item7_rows) == 1
-    assert test_user1_item7_rows["user_index"].item() == 2
-    assert test_user1_item7_rows["item_index"].item() == 8
-    assert test_user1_item7_rows["rating"].item() == 5.0
-
-    # Verify that val_df and test_df have same structure and each user-item pair is unique
-    assert len(train_df) == 3  # 3 unique user-item combinations in train
-    assert len(val_df) == 3  # 3 unique user-item combinations in val
-    assert len(test_df) == 3  # 3 unique user-item combinations in test
-    assert all(train_df["num_ratings"] == 1)  # All should be 1 for bipartite graph
-    assert all(val_df["num_ratings"] == 1)
-    assert all(test_df["num_ratings"] == 1)
-
-    # Verify that index columns are present and have correct data types
-    assert train_df["user_index"].dtype == pl.Int64
-    assert train_df["item_index"].dtype == pl.Int64
-    assert train_df["category_index"].dtype == pl.Int64
-
-    # Verify that common_preprocess_dataset was called with correct parameters
-    # Should be called with filter_no_history=False
+    assert all_df.height == 9
+    assert all_df.group_by("split").len().sort("split")["len"].to_list() == [3, 3, 3]
+    assert all_df["num_ratings"].to_list() == [1] * 9
+    assert user2index["user1"] == 2
+    assert item2index["item7"] == 8
+    assert category2index["Games/RPG"] == 3
+    assert item_index_2_category_index[10] == 4
     mock_common_preprocess_func.assert_called_once_with(
-        dataset_dict=mock_dataset_dict, metadata=mock_metadata, filter_no_history=False
+        dataset_dict=mock_dataset_dict,
+        metadata=mock_metadata,
+        filter_no_history=False,
     )
+
+
+def test_bipartite_graph_preprocess_dataset_raises_for_duplicate_user_item_pairs(
+    mocker: MockerFixture,
+) -> None:
+    mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph.common_preprocess_dataset",
+        return_value=_build_common_preprocess_return(duplicate_across_splits=True),
+    )
+
+    with pytest.raises(ValueError, match="multiple ratings for the same user and item"):
+        bipartite_graph_preprocess_dataset(mocker.Mock(), mocker.Mock())
+
+
+@pytest.mark.parametrize(
+    ("split", "expected_message_passing_edges", "expected_label_edges"),
+    [
+        (
+            "train",
+            [(2, 2, 5), (3, 3, 3), (4, 4, 5)],
+            [(2, 2, 5), (3, 3, 3), (4, 4, 5)],
+        ),
+        (
+            "valid",
+            [(2, 2, 5), (3, 3, 3), (4, 4, 5)],
+            [(2, 5, 4), (3, 6, 5), (4, 7, 3)],
+        ),
+        (
+            "test",
+            [(2, 2, 5), (2, 5, 4), (3, 3, 3), (3, 6, 5), (4, 4, 5), (4, 7, 3)],
+            [(2, 8, 5), (3, 9, 4), (4, 10, 4)],
+        ),
+    ],
+)
+def test_create_bipartite_graph_uses_expected_message_passing_and_label_edges(
+    mocker: MockerFixture,
+    split: str,
+    expected_message_passing_edges: list[tuple[int, int, int]],
+    expected_label_edges: list[tuple[int, int, int]],
+) -> None:
+    (
+        all_df,
+        user2index,
+        item2index,
+        _category2index,
+        item_index_2_category_index,
+    ) = _build_preprocessed_graph_inputs(mocker)
+
+    data = create_bipartite_graph(
+        split=split,  # type: ignore[arg-type]
+        all_df=all_df,
+        user2index=user2index,
+        item2index=item2index,
+        item_index_2_category_index=item_index_2_category_index,
+    )
+
+    edge_store = data["user", "rates", "item"]
+    assert _edge_pairs_with_attr(edge_store.edge_index, edge_store.edge_attr) == expected_message_passing_edges
+    assert _edge_pairs_with_attr(edge_store.edge_label_index, edge_store.edge_label_attr) == expected_label_edges
+    assert data["user"].user_index.tolist() == [0, 1, 2, 3, 4]
+    assert data["item"].category_index.dtype == torch.int64
+
+
+def test_create_bipartite_graph_rejects_invalid_split(mocker: MockerFixture) -> None:
+    (
+        all_df,
+        user2index,
+        item2index,
+        _category2index,
+        item_index_2_category_index,
+    ) = _build_preprocessed_graph_inputs(mocker)
+
+    with pytest.raises(ValueError, match="Invalid split"):
+        create_bipartite_graph(
+            split="oops",  # type: ignore[arg-type]
+            all_df=all_df,
+            user2index=user2index,
+            item2index=item2index,
+            item_index_2_category_index=item_index_2_category_index,
+        )
+
+
+def test_bipartite_graph_datamodule_prepare_data_populates_state(
+    mocker: MockerFixture, tmp_path: pathlib.Path
+) -> None:
+    mock_dataset_dict = mocker.Mock()
+    mock_metadata = mocker.Mock()
+    preprocess_return = _build_preprocessed_graph_inputs(mocker)
+    mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph.fetch_dataset",
+        return_value=mock_dataset_dict,
+    )
+    mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph.fetch_metadata",
+        return_value=mock_metadata,
+    )
+    preprocess_mock = mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph.bipartite_graph_preprocess_dataset",
+        return_value=preprocess_return,
+    )
+
+    dm = AmazonReviewsBipartiteGraphDataModule(save_dir=tmp_path)
+    dm.prepare_data()
+
+    assert dm.all_df.equals(preprocess_return[0])
+    assert dm.user2index == preprocess_return[1]
+    assert dm.item2index == preprocess_return[2]
+    assert dm.category2index == preprocess_return[3]
+    assert dm.item_index_2_category_index == preprocess_return[4]
+    preprocess_mock.assert_called_once_with(dataset_dict=mock_dataset_dict, metadata=mock_metadata)
+
+
+def test_bipartite_graph_datamodule_setup_creates_expected_graphs(
+    mocker: MockerFixture, tmp_path: pathlib.Path
+) -> None:
+    preprocess_return = _build_preprocessed_graph_inputs(mocker)
+    dm = AmazonReviewsBipartiteGraphDataModule(save_dir=tmp_path)
+    # This test focuses on split-specific graph construction. Disable PyG transforms
+    # so node reindexing does not obscure the expected edge assignments.
+    dm.transform = lambda data: data
+    (
+        dm.all_df,
+        dm.user2index,
+        dm.item2index,
+        dm.category2index,
+        dm.item_index_2_category_index,
+    ) = preprocess_return
+
+    dm.setup("fit")
+    assert _edge_pairs_with_attr(
+        dm.train_data["user", "rates", "item"].edge_index,
+        dm.train_data["user", "rates", "item"].edge_attr,
+    ) == [(2, 2, 5), (3, 3, 3), (4, 4, 5)]
+    assert _edge_pairs_with_attr(
+        dm.val_data["user", "rates", "item"].edge_label_index,
+        dm.val_data["user", "rates", "item"].edge_label_attr,
+    ) == [(2, 5, 4), (3, 6, 5), (4, 7, 3)]
+
+    dm.setup("test")
+    assert _edge_pairs_with_attr(
+        dm.test_data["user", "rates", "item"].edge_index,
+        dm.test_data["user", "rates", "item"].edge_attr,
+    ) == [(2, 2, 5), (2, 5, 4), (3, 3, 3), (3, 6, 5), (4, 4, 5), (4, 7, 3)]
+    assert _edge_pairs_with_attr(
+        dm.test_data["user", "rates", "item"].edge_label_index,
+        dm.test_data["user", "rates", "item"].edge_label_attr,
+    ) == [(2, 8, 5), (3, 9, 4), (4, 10, 4)]
+
+
+def test_bipartite_graph_datamodule_dataloaders_use_stage_specific_label_edges(
+    mocker: MockerFixture, tmp_path: pathlib.Path
+) -> None:
+    preprocess_return = _build_preprocessed_graph_inputs(mocker)
+    dm = AmazonReviewsBipartiteGraphDataModule(save_dir=tmp_path)
+    # This test verifies which graph and label edges each loader uses, not the
+    # behavior of the PyG transforms applied during setup.
+    dm.transform = lambda data: data
+    (
+        dm.all_df,
+        dm.user2index,
+        dm.item2index,
+        dm.category2index,
+        dm.item_index_2_category_index,
+    ) = preprocess_return
+    dm.setup("fit")
+    dm.setup("test")
+
+    loader_mock = mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph.LinkNeighborLoader",
+        side_effect=lambda **kwargs: kwargs,
+    )
+
+    train_loader_kwargs = dm.train_dataloader()
+    val_loader_kwargs = dm.val_dataloader()
+    test_loader_kwargs = dm.test_dataloader()
+
+    assert loader_mock.call_count == 3
+    assert train_loader_kwargs["data"] is dm.train_data
+    assert val_loader_kwargs["data"] is dm.val_data
+    assert test_loader_kwargs["data"] is dm.test_data
+    assert train_loader_kwargs["edge_label_index"][1] is dm.train_data["user", "rates", "item"].edge_label_index
+    assert val_loader_kwargs["edge_label_index"][1] is dm.val_data["user", "rates", "item"].edge_label_index
+    assert test_loader_kwargs["edge_label_index"][1] is dm.test_data["user", "rates", "item"].edge_label_index

@@ -2,41 +2,29 @@
 
 [![Python CI](https://github.com/haru-256/ml-sandbox/actions/workflows/python-ci.yml/badge.svg)](https://github.com/haru-256/ml-sandbox/actions/workflows/python-ci.yml)
 
-機械学習モデルの実装・実験・再利用可能な基盤整備を進めている Python モノレポです。
-特に推薦システムを中心に、Candidate Generation、Ranking、共通ライブラリ化、実験実行基盤までを扱っています。
+`ml-sandbox` は、推薦システムを中心に機械学習モデルの実装、実験、基盤整備を進める Python monorepo です。主な対象は `projects/recsys-candidate-generation` と `projects/recsys-ranking` で、候補生成とランキングを別 project として切り出し、その下支えとなる前処理、DataModule、共通 model module、optimizer、学習 utility は `libs/ml_sandbox_libs` に集約しています。実験の実行基盤は `apps/vertex-job-runner` に分離しており、model 実装だけでなく shared library 化とクラウド実行まで含めて設計しています。
 
-この README は、リポジトリで扱っている問題設定や実装方針を俯瞰できる概要資料として書いています。
-どのような問題設定を扱っているか、どのような実装をしているか、どのような設計で整理しているかが伝わることを目的にしています。
+技術スタックは Python 3.12 を前提に、`uv` と Makefile で package ごとに開発し、PyTorch、Lightning、Hydra、Polars、NumPy、TorchMetrics、PyTorch Geometric、Google Cloud / Vertex AI を中心に組み立てています。コードベースとしては、project ごとの関心を分けつつ shared component を明確に切り出し、型注釈、`mypy`、`ruff`、`pytest`、GitHub Actions を前提に保守している repo です。
+
+この README は、最初に全体像を短く把握できるようにしつつ、後半で各 project の問題設定、モデル、アーキテクチャ、設計方針まで辿れるように構成しています。
 
 ## このリポジトリについて
 
 このリポジトリでは、主に次のようなテーマを扱っています。
 
-- 推薦システム
-    - Multi-Stage Recommendation Architecture
-    - Candidate Generation / Retrieval
-    - Ranking
-    - Sequential Recommendation
-    - CTR / CVR を意識した特徴量相互作用モデリング
-- 機械学習実験基盤
-    - Hydra を使った設定管理
-    - PyTorch / Lightning を使った学習ループ
-    - 共通ライブラリ化による再利用性向上
-    - Vertex AI へのジョブ投入
-- データ処理
-    - Amazon Reviews 2023 を使った推薦用前処理
-    - user / item / category index 構築
-    - sequence 化
-    - negative sampling
-    - metadata の統合
+- 推薦システム:
+  Multi-Stage Recommendation Architecture、Candidate Generation / Retrieval、Ranking、Sequential Recommendation、CTR / CVR を意識した特徴量相互作用モデリング
+- 機械学習実験基盤:
+  Hydra を使った設定管理、PyTorch / Lightning を使った学習ループ、共通ライブラリ化による再利用性向上、Vertex AI へのジョブ投入
+- データ処理:
+  Amazon Reviews 2023 を使った推薦用前処理、user / item / category index 構築、sequence 化、negative sampling、metadata の統合
 
 このリポジトリは、単にモデルを個別実装するだけでなく、問題設定ごとの project 分離、共通ライブラリ化、クラウド実行基盤の整備まで含めて設計しています。
 
 ## リポジトリ構成
 
 ```text
-.
-├── README.md
+ml-sandbox/
 ├── apps/                      # 実行アプリケーション・CLI
 │   └── vertex-job-runner
 ├── libs/                      # 複数 project で再利用する内部ライブラリ
@@ -47,6 +35,55 @@
 │   └── sentiment_analysis
 └── infra/                     # Terraform などのインフラ定義
 ```
+
+役割の分け方は次の通りです。
+
+| Path | Role |
+| --- | --- |
+| `projects/recsys-candidate-generation` | 候補生成 / retrieval の実験と学習 |
+| `projects/recsys-ranking` | ranking の実験と学習 |
+| `libs/ml_sandbox_libs` | 前処理, DataModule, model module, loss, optimizer, utility の共通化 |
+| `apps/vertex-job-runner` | Vertex AI に job を投げる実行レイヤ |
+| `infra/terraform` | インフラ管理 |
+
+## 技術スタック
+
+### 言語
+
+- Python 3.12
+
+### ML / DL
+
+- PyTorch
+- Lightning
+- TorchMetrics
+- timm
+- PyTorch Geometric
+
+### 設定管理 / 実験管理
+
+- Hydra
+- `pyproject.toml`
+- `uv`
+- Makefile
+
+### データ処理
+
+- Polars
+- NumPy
+- datasets
+
+### 開発ツール
+
+- Ruff
+- mypy
+- pytest
+- GitHub Actions
+
+### クラウド / インフラ
+
+- Google Cloud Vertex AI
+- Terraform
 
 ## 推薦システム全体アーキテクチャ
 
@@ -74,14 +111,12 @@ flowchart LR
 
 大規模推薦では、全 item を精密に score することは計算量的に難しいため、通常は以下の責務分離が必要になります。
 
-- Candidate Generation
-    - 大規模 item 集合から、関連性の高そうな候補を高速に絞る
-    - 重要なのは recall を落としすぎないこと
-- Ranking
-    - 候補集合に対して、より表現力の高いモデルで精密にスコアリングする
-    - 特徴量相互作用や target-aware modeling が重要
-- Re-ranking
-    - 多様性、在庫、ビジネスルール、露出制御などを反映する
+- Candidate Generation:
+  大規模 item 集合から、関連性の高そうな候補を高速に絞る。重要なのは recall を落としすぎないことです。
+- Ranking:
+  候補集合に対して、より表現力の高いモデルで精密にスコアリングする。特徴量相互作用や target-aware modeling が重要です。
+- Re-ranking:
+  多様性、在庫、ビジネスルール、露出制御などを反映します。
 
 このリポジトリでは、特に Candidate Generation と Ranking を別 project として切り出し、問題設定と設計判断を分離しています。
 
@@ -144,19 +179,16 @@ flowchart LR
 
 ### 図の見方
 
-- Offline / Training Path
-    - Amazon Reviews 2023 を共通前処理し、Candidate Generation 用・Ranking 用の学習データを構築
-    - 学習済みモデルや artifact を管理し、online path に deploy
-- Candidate Generator
-    - 大規模 corpus から候補を高速に絞る層
-    - recall を重視し、user/item representation learning や sequence modeling が中心
-- Ranker
-    - 候補集合に対して、特徴量相互作用を用いて score する層
-    - user history、target item、metadata、dense/sparse features を統合
-- Re-ranker
-    - ビジネスルール、多様性、フィルタリングなどを反映して最終リストを作る層
-- Serving
-    - online request に対して段階的に candidate を絞り、最終的な Top-N を返す層
+- Offline / Training Path:
+  Amazon Reviews 2023 を共通前処理し、Candidate Generation 用・Ranking 用の学習データを構築します。学習済みモデルや artifact を管理し、online path に deploy します。
+- Candidate Generator:
+  大規模 corpus から候補を高速に絞る層です。recall を重視し、user/item representation learning や sequence modeling が中心です。
+- Ranker:
+  候補集合に対して、特徴量相互作用を用いて score する層です。user history、target item、metadata、dense/sparse features を統合します。
+- Re-ranker:
+  ビジネスルール、多様性、フィルタリングなどを反映して最終リストを作る層です。
+- Serving:
+  online request に対して段階的に candidate を絞り、最終的な Top-N を返す層です。
 
 ## モノレポ全体の構成
 
@@ -216,14 +248,14 @@ flowchart LR
 
 #### 技術的な焦点
 
-- Sequential Recommendation
-    - user の時系列行動履歴から次に関心を持つ item を予測
-- Collaborative Filtering / Retrieval
-    - user-item 相互作用から user / item representation を学習し、候補を取得
-- Negative Sampling
-    - 正例と負例の対比による efficient training
-- Representation Learning
-    - retrieval quality を高めるための embedding 学習
+- Sequential Recommendation:
+  user の時系列行動履歴から次に関心を持つ item を予測します。
+- Collaborative Filtering / Retrieval:
+  user-item 相互作用から user / item representation を学習し、候補を取得します。
+- Negative Sampling:
+  正例と負例の対比による efficient training を扱います。
+- Representation Learning:
+  retrieval quality を高めるための embedding 学習を扱います。
 
 #### 実装しているモデル
 
@@ -265,7 +297,7 @@ flowchart LR
 
 `projects/recsys-ranking`
 
-推薦システムにおける Ranking 段階を扱う project です。  
+推薦システムにおける Ranking 段階を扱う project です。
 Candidate Generation で取得した候補 item に対して、より表現力の高いモデルで精密に順位付けする段階を対象にしています。
 
 #### Ranking 段階のイメージ
@@ -385,7 +417,6 @@ Google Cloud Vertex AI の Custom Training Job を実行するための CLI で�
 - dry-run による job 設定の確認
 - project ごとの training entrypoint の共通実行
 
-
 ## 実験フロー
 
 ```mermaid
@@ -400,43 +431,6 @@ flowchart TD
 ```
 
 このフローは、`projects/*` にある training code と、`libs/*`, `apps/*` の役割分担を要約したものです。
-
-## 技術スタック
-
-### 言語
-
-- Python 3.12
-
-### ML / DL
-
-- PyTorch
-- Lightning
-- TorchMetrics
-- timm
-
-### 設定管理 / 実験管理
-
-- Hydra
-- `pyproject.toml`
-
-### データ処理
-
-- Polars
-- NumPy
-- datasets
-
-### 開発ツール
-
-- uv
-- Makefile
-- Ruff
-- mypy
-- pytest
-
-### クラウド / インフラ
-
-- Google Cloud Vertex AI
-- Terraform
 
 ## 設計方針
 
@@ -460,6 +454,23 @@ flowchart TD
 - `uv` と `Makefile` で package 単位に操作
 - Vertex AI 実行を CLI に分離
 
+## 開発の基本
+
+Python 関連コマンドは package root で `uv` 前提の Makefile を使います。
+
+```sh
+cd libs/ml_sandbox_libs && make install && make lint && make test
+cd projects/recsys-ranking && make install && make lint && make test
+cd projects/recsys-candidate-generation && make install && make lint && make test
+cd apps/vertex-job-runner && make install && make lint && make test
+```
+
+基本ルール:
+
+- `python`, `pip`, `pytest` を直接実行しない
+- package root でコマンドを実行する
+- shared library を変更した場合は downstream project 影響も確認する
+
 ## 関連 README
 
 - [`projects/recsys-candidate-generation/README.md`](projects/recsys-candidate-generation/README.md)
@@ -467,16 +478,3 @@ flowchart TD
 - [`projects/sentiment_analysis/README.md`](projects/sentiment_analysis/README.md)
 - [`libs/ml_sandbox_libs/README.md`](libs/ml_sandbox_libs/README.md)
 - [`apps/vertex-job-runner/README.md`](apps/vertex-job-runner/README.md)
-
-## まとめ
-
-このリポジトリでは、推薦システムを中心に、
-
-- Candidate Generation
-- Ranking
-- 共通ライブラリ化
-- 実験実行基盤
-
-といった要素を、project ごとに分けて整理しています。
-
-個別のモデル実装だけでなく、前処理、学習コードの再利用、実験実行まで含めて扱っている点が、このリポジトリの特徴です。
