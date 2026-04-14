@@ -130,7 +130,7 @@ flowchart LR
     subgraph Online["Online / Serving Path"]
         U[User Request]
         UC[User Context<br/>profile / session / history]
-        CG[Candidate Generator<br/>TwoTower / SASRec / gSASRec / SimpleX]
+        CG[Candidate Generator<br/>TwoTower / SASRec / gSASRec / SimpleX / LightGCN]
         CS[Candidate Set]
         RK[Ranker<br/>DeepFM / DLRM / DIN / DCNv2]
         RR[Re-ranker<br/>diversity / rules / filtering]
@@ -256,6 +256,8 @@ flowchart LR
   正例と負例の対比による efficient training を扱います。
 - Representation Learning:
   retrieval quality を高めるための embedding 学習を扱います。
+- Graph-based Retrieval:
+  user-item graph 上で message passing を行う GNN 系 retrieval を扱います。
 
 #### 実装しているモデル
 
@@ -263,6 +265,7 @@ flowchart LR
 - `SASRec`
 - `gSASRec`
 - `SimpleX`
+- `LightGCN`
 
 #### Candidate Generation モデル比較
 
@@ -272,6 +275,7 @@ flowchart LR
 | `SASRec` | Sequential Recommendation | user interaction sequence | self-attention で行動履歴の依存関係を表現し、次 item を予測 | sequence の文脈を捉えやすい | next-item prediction |
 | `gSASRec` | Sequential Recommendation | user interaction sequence | SASRec に gBCE 系の考え方を導入し、negative sampling 起因の過信を抑制 | hard negative に対する学習安定性を意識できる | robust sequential retrieval |
 | `SimpleX` | Collaborative Filtering | user history, item interactions | user history の単純集約と contrastive 的な学習を組み合わせる | 実装が比較的シンプルで強い baseline になりやすい | strong CF baseline |
+| `LightGCN` | Graph-based Collaborative Filtering | user-item bipartite graph | 線形な graph propagation で user / item embedding を更新し、bipartite graph 上の高次近傍を取り込む | graph 構造を素直に扱え、CF の強い GNN baseline になる | graph-based retrieval / CF |
 
 #### この project の技術的な意味
 
@@ -290,6 +294,7 @@ flowchart LR
 | SASRec | Self-Attentive Sequential Recommendation | <https://arxiv.org/abs/1808.09781> |
 | gSASRec | Reducing Overconfidence in Sequential Recommendation Trained with Negative Sampling | <https://arxiv.org/abs/2308.07192> |
 | SimpleX | SimpleX: A Simple and Strong Baseline for Collaborative Filtering | <https://arxiv.org/abs/2109.12613> |
+| LightGCN | LightGCN: Simplifying and Powering Graph Convolution Network for Recommendation | <https://arxiv.org/abs/2002.02126> |
 
 詳細は [`projects/recsys-candidate-generation/README.md`](projects/recsys-candidate-generation/README.md) を参照してください。
 

@@ -27,6 +27,9 @@
 - **Collaborative Filtering / Retrieval**
     - user-item の相互作用から user / item 表現を学習し、類似度ベースで候補を取得
     - 例: `TwoTower`, `SimpleX`
+- **Graph-based Collaborative Filtering**
+    - user-item bipartite graph 上で message passing を行い、高次近傍を取り込んだ retrieval を学習
+    - 例: `LightGCN`
 
 共通化できる data preprocessing、型、optimizer、学習 utility は `libs/ml_sandbox_libs` に寄せ、
 project 固有の model composition や training flow はこの directory 配下に置きます。
@@ -48,8 +51,14 @@ project 固有の model composition や training flow はこの directory 配下
 - 学習・評価用の negative sampling
 - item metadata の統合
 
-この project では、shared library 側の sequential recommendation 用 DataModule を利用します。
-project 内で個別の DataModule factory を重複実装せず、`ml_sandbox_libs` 側の共通実装を参照する前提です。
+この project では project-level の DataModule factory から、model に応じて適切な共通 DataModule を選択します。
+
+- `TwoTower` / `SASRec` / `gSASRec` / `SimpleX`
+  - `ml_sandbox_libs` 側の sequential recommendation 用 DataModule を利用
+- `LightGCN`
+  - `ml_sandbox_libs` 側の Amazon Reviews bipartite graph DataModule を利用
+
+project 内では factory の切り替えのみを持ち、前処理や DataModule 本体は `ml_sandbox_libs` の共通実装を参照します。
 
 ## Implemented Models
 
@@ -59,6 +68,7 @@ project 内で個別の DataModule factory を重複実装せず、`ml_sandbox_l
 - [x] `SASRec`
 - [x] `gSASRec`
 - [x] `SimpleX`
+- [x] `LightGCN`
 
 `src/models/factory.py` では設定に応じて以下の model module を生成します。
 
@@ -66,6 +76,7 @@ project 内で個別の DataModule factory を重複実装せず、`ml_sandbox_l
 - `SASRec`
 - `gSASRec`
 - `SimpleX`
+- `LightGCN`
 
 ## Project Structure
 
@@ -84,7 +95,7 @@ recsys-candidate-generation/
 └── src/
     ├── config/          # Hydra configuration
     ├── const/           # project-local constants
-    ├── data/            # shared datamodule import surface
+    ├── data/            # project-level datamodule factory
     ├── loss/            # loss factory
     ├── models/          # model implementations and factory
     ├── results/         # result helpers
@@ -135,6 +146,7 @@ uv run python src/fit.py model=TwoTower
 uv run python src/fit.py model=SASRec
 uv run python src/fit.py model=gSASRec
 uv run python src/fit.py model=SimpleX
+uv run python src/fit.py model=LightGCN loss=bpr
 ```
 
 ## Configuration
