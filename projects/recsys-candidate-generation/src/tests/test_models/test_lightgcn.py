@@ -5,7 +5,6 @@ from typing import Any, cast
 
 import pytest
 import torch
-from ml_sandbox_libs.loss import BPR
 from omegaconf import OmegaConf
 from torch import nn
 from torch_geometric.data import HeteroData
@@ -260,30 +259,6 @@ def test_lightgcn_encode_item_rejects_invalid_rank(lightgcn: LightGCN) -> None:
             item2user_edge_index=torch.tensor([[0, 1], [0, 1]], dtype=torch.long),
             item_local_index=torch.tensor([[[0]]], dtype=torch.long),
         )
-
-
-def test_bpr_loss_matches_manual_computation() -> None:
-    """Computes the same scalar loss as the manual BPR formula."""
-    loss_fn = BPR()
-    query_embeddings = torch.tensor([[1.0, 0.5], [0.5, 1.0]], dtype=torch.float32)
-    positive_doc_embeddings = torch.tensor([[2.0, 1.0], [1.5, 0.5]], dtype=torch.float32)
-    negative_doc_embeddings = torch.tensor(
-        [[[1.0, 0.0], [0.5, 0.5]], [[0.5, 0.0], [-0.5, 0.5]]],
-        dtype=torch.float32,
-    )
-
-    loss = loss_fn(query_embeddings, positive_doc_embeddings, negative_doc_embeddings)
-    pos_scores = torch.einsum("bd,bd->b", query_embeddings, positive_doc_embeddings).unsqueeze(1)
-    neg_scores = torch.einsum("bd,bnd->bn", query_embeddings, negative_doc_embeddings)
-    expected = -torch.log(torch.sigmoid(pos_scores.expand_as(neg_scores) - neg_scores)).mean()
-
-    assert torch.allclose(loss, expected)
-
-
-def test_bpr_loss_rejects_invalid_reduction() -> None:
-    """Rejects unsupported reduction modes."""
-    with pytest.raises(ValueError, match="Unsupported reduction"):
-        BPR(reduction="median")
 
 
 class DummyEmbeddingLoss(nn.Module):

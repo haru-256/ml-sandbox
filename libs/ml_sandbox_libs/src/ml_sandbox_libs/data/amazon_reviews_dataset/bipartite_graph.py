@@ -279,7 +279,7 @@ def _resolve_node_ids(
     *,
     node_type_name: str,
     public_index_attr: str,
-) -> torch.Tensor | None:
+) -> torch.Tensor:
     """Resolve sampled node ids and validate PyG/global-index consistency.
 
     Args:
@@ -354,10 +354,6 @@ def to_bipartite_graph_batch(data: HeteroData) -> AmazonReviewsBipartiteGraphBat
     user2item_edge_index = getattr(edge_store, "edge_index", None)
     item2user_edge_index = getattr(reverse_edge_store, "edge_index", None)
 
-    if user_node_ids is None:
-        raise ValueError("Sampled bipartite graph batch is missing user node ids.")
-    if item_node_ids is None:
-        raise ValueError("Sampled bipartite graph batch is missing item node ids.")
     if user2item_edge_index is None:
         raise ValueError(
             "Sampled bipartite graph batch is missing user2item message-passing edges."
