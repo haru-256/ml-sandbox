@@ -1,11 +1,13 @@
 ---
 name: python-project-workflow
-description: "Use when: Python project の決まり事、docstring の書き方、package 単位の lint / test / install 手順、uv を使った開発フロー、失敗した test や mypy / ruff error の直し方を確認したい。"
+description: "Use when: このリポジトリの Python package で作業し、package root での `make install` / `make fmt` / `make lint` / `make test` の順序、`uv` 前提の実行方法、Google style docstring、`ruff` / `mypy` / `pytest` failure の直し方を確認したい。"
 ---
 
 # Python Project Workflow
 
-この skill は、このリポジトリ内の Python project に共通する決まり事、docstring 方針、package 単位の開発フローを確認するときに使います。
+この skill は、このリポジトリ内の Python package に共通する作業手順を確認するときに使います。
+
+model 設計や shared module 切り出しが主題なら、`recsys-model-workflow` または `shared-module-extraction` を優先します。
 
 ## 対象
 
@@ -20,7 +22,7 @@ description: "Use when: Python project の決まり事、docstring の書き方�
 - Python 実行は `uv` を通す
 - まず package root へ移動する
 - CI は package ごとに `make install`, `make lint`, `make test` を実行する
-- testは`pytest`を使い、`uv run pytest` で実行する
+- test は `pytest` を使い、直接叩かず `make test` または `uv run pytest` で実行する
 - mock が必要な test では `pytest-mock` の `mocker` fixture を使い、`unittest.mock` を直接 import しない
 - Python の docstring は既存コードに合わせて Google style を使う
 - 関数・method の docstring には、処理内容、`Args`, `Returns`, `Raises` を明記する

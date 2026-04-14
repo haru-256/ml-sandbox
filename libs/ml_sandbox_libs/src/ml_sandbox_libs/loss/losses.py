@@ -1,6 +1,7 @@
 """Shared loss implementations for training modules."""
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from ml_sandbox_libs.utils.similarity import calc_cosine_similarity
@@ -129,6 +130,92 @@ class gBCE(nn.Module):
         return self.bce(logits, labels)
 
 
+class BPR(nn.Module):
+    """Bayesian Personalized Ranking loss for embedding-based retrieval models.
+
+    This loss compares positive and negative item scores derived from query and
+    document embeddings, then optimizes the pairwise ranking objective
+    ``-log(sigmoid(s_pos - s_neg))``.
+    """
+
+    def __init__(self, reduction: str = "mean") -> None:
+        """Initialize BPR loss.
+
+        Args:
+            reduction: Reduction method applied to the per-pair losses. Must be
+                one of ``"mean"``, ``"sum"``, or ``"none"``.
+
+        Raises:
+            ValueError: If ``reduction`` is unsupported.
+        """
+        super().__init__()
+        if reduction not in {"mean", "sum", "none"}:
+            raise ValueError(f"Unsupported reduction: {reduction}")
+        self.reduction = reduction
+
+    def calc_scores(
+        self, query_embeddings: torch.Tensor, doc_embeddings: torch.Tensor
+    ) -> torch.Tensor:
+        """Calculate dot-product scores between query and document embeddings.
+
+        Args:
+            query_embeddings: Query embeddings. Shape: ``(B, D)``.
+            doc_embeddings: Document embeddings. Shape: ``(B, D)`` or ``(B, N, D)``.
+
+        Returns:
+            Dot-product score tensor. Shape: ``(B,)`` for positive documents or
+            ``(B, N)`` for negative documents.
+
+        Raises:
+            ValueError: If ``doc_embeddings`` is neither 2D nor 3D.
+        """
+        if doc_embeddings.dim() == 2:
+            return torch.einsum("bd,bd->b", query_embeddings, doc_embeddings)
+        if doc_embeddings.dim() == 3:
+            return torch.einsum("bd,bnd->bn", query_embeddings, doc_embeddings)
+        raise ValueError(
+            f"doc_embeddings must be 2D or 3D, got shape {tuple(doc_embeddings.shape)}"
+        )
+
+    def forward(
+        self,
+        query_embeddings: torch.Tensor,
+        positive_doc_embeddings: torch.Tensor,
+        negative_doc_embeddings: torch.Tensor,
+    ) -> torch.Tensor:
+        """Compute BPR loss from query and document embeddings.
+
+        Args:
+            query_embeddings: Query embeddings. Shape: ``(B, D)``.
+            positive_doc_embeddings: Positive document embeddings. Shape: ``(B, D)``.
+            negative_doc_embeddings: Negative document embeddings. Shape: ``(B, N, D)``.
+
+        Returns:
+            Reduced BPR loss tensor.
+
+        Raises:
+            AssertionError: If the positive or negative score tensors have
+                unexpected dimensions.
+        """
+        pos_scores = self.calc_scores(query_embeddings, positive_doc_embeddings).unsqueeze(1)
+        neg_scores = self.calc_scores(query_embeddings, negative_doc_embeddings)
+
+        assert pos_scores.ndim == 2, f"pos_scores should be 2D, got {pos_scores.shape}"
+        assert neg_scores.ndim == 2, f"neg_scores should be 2D, got {neg_scores.shape}"
+        assert pos_scores.size(0) == neg_scores.size(0), (
+            f"pos_scores and neg_scores should share batch size, got {pos_scores.shape} and {neg_scores.shape}"
+        )
+
+        pos_scores = pos_scores.expand(-1, neg_scores.size(1))
+        loss = -F.logsigmoid(pos_scores - neg_scores)
+
+        if self.reduction == "mean":
+            return loss.mean()
+        if self.reduction == "sum":
+            return loss.sum()
+        return loss
+
+
 class CCL(nn.Module):
     """Cosine Contrastive Loss used by SimpleX."""
 
@@ -145,7 +232,7 @@ class CCL(nn.Module):
         self.margin = margin
         self.negative_weight = negative_weight
 
-    def calc_distances(
+    def calc_scores(
         self, query_embeddings: torch.Tensor, doc_embeddings: torch.Tensor
     ) -> torch.Tensor:
         """Calculate cosine similarities between query and document embeddings.
@@ -196,8 +283,8 @@ class CCL(nn.Module):
             AssertionError: If positive or negative similarity tensors have an
                 unexpected number of dimensions.
         """
-        pos_cos_sim = self.calc_distances(query_embeddings, positive_doc_embeddings).unsqueeze(1)
-        neg_cos_sim = self.calc_distances(query_embeddings, negative_doc_embeddings)
+        pos_cos_sim = self.calc_scores(query_embeddings, positive_doc_embeddings).unsqueeze(1)
+        neg_cos_sim = self.calc_scores(query_embeddings, negative_doc_embeddings)
 
         assert pos_cos_sim.size(1) == 1, (
             f"positive sample size should be one, Got {pos_cos_sim.size()=}"
@@ -216,4 +303,4 @@ class CCL(nn.Module):
         return torch.mean(pos_loss + neg_loss)
 
 
-__all__ = ["BCE", "CCL", "gBCE"]
+__all__ = ["BCE", "BPR", "CCL", "gBCE"]

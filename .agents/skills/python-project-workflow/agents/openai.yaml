@@ -1,0 +1,4 @@
+interface:
+  display_name: "Python Project Workflow"
+  short_description: "Help with repo Python package workflows"
+  default_prompt: "Use $python-project-workflow to check the correct package-level Python workflow in this repository."

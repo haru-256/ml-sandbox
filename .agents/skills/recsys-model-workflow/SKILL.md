@@ -1,11 +1,13 @@
 ---
 name: recsys-model-workflow
-description: "Use when: recsys-ranking や recsys-candidate-generation の model を変更したい、tower / DIN / DLRM / DeepFM / SASRec など推薦 model を直したい、shared module を使うべきか判断したい、model 周りの test 配置や責務分離を決めたい。"
+description: "Use when: `projects/recsys-ranking` や `projects/recsys-candidate-generation` の推薦 model を変更し、tower / DIN / DLRM / DeepFM / SASRec などの構成変更、project 固有実装と `libs/ml_sandbox_libs` に寄せる shared building block の切り分け、model 周りの test 配置や責務分離を判断したい。"
 ---
 
 # Recsys Model Workflow
 
 この skill は、推薦 model 周りの変更を進めるときに使います。
+
+重複実装を `libs` へ移す作業自体が主題なら、`shared-module-extraction` も併用します。
 
 ## 対象 project
 
@@ -31,6 +33,7 @@ description: "Use when: recsys-ranking や recsys-candidate-generation の model
 2. 文字列設定を受ける factory 層では、必要に応じて enum へ変換してから model に渡す。
 3. model 本体の constructor は、できるだけ型付きの enum や dataclass を受ける。
 4. shared module を使うなら、project 側の重複実装や重複 test を整理する。
+5. `libs` を触る場合は、library 単体だけでなく downstream project の確認も前提にする。
 
 ## test 方針
 

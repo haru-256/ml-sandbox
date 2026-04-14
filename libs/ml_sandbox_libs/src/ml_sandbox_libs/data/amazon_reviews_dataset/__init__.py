@@ -1,4 +1,9 @@
-from .bipartite_graph import bipartite_graph_preprocess_dataset
+from .bipartite_graph import (
+    AmazonReviewsBipartiteGraphBatch,
+    AmazonReviewsBipartiteGraphDataModule,
+    bipartite_graph_preprocess_dataset,
+    to_bipartite_graph_batch,
+)
 from .common import (
     SpecialCategoryIndex,
     SpecialItemIndex,
@@ -15,6 +20,8 @@ from .seq_rec import (
 )
 
 __all__ = [
+    "AmazonReviewsBipartiteGraphBatch",
+    "AmazonReviewsBipartiteGraphDataModule",
     "AmazonReviewsSeqRecBatch",
     "AmazonReviewsSeqRecDataModule",
     "AmazonReviewsSeqRecDataset",
@@ -26,4 +33,5 @@ __all__ = [
     "fetch_dataset",
     "fetch_metadata",
     "seq_rec_preprocess_dataset",
+    "to_bipartite_graph_batch",
 ]

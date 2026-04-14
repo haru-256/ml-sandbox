@@ -335,8 +335,8 @@ class SimpleXModule(BaseModule):
         user_emb, pos_item_emb, neg_item_emb = self(
             user=user, item_history=item_history, pos_item=pos_item, neg_item=neg_item
         )
-        pos_cos_sim = self.loss_fn.calc_distances(user_emb, pos_item_emb)
-        neg_cos_sim = self.loss_fn.calc_distances(user_emb, neg_item_emb)
+        pos_cos_sim = self.loss_fn.calc_scores(user_emb, pos_item_emb)
+        neg_cos_sim = self.loss_fn.calc_scores(user_emb, neg_item_emb)
 
         loss: torch.Tensor = self.loss_fn(user_emb, pos_item_emb, neg_item_emb)
 
@@ -376,8 +376,8 @@ class SimpleXModule(BaseModule):
         user_emb, pos_item_emb, neg_item_emb = self(
             user=user, item_history=item_history, pos_item=pos_item, neg_item=neg_item
         )
-        pos_cos_sim = self.loss_fn.calc_distances(user_emb, pos_item_emb)
-        neg_cos_sim = self.loss_fn.calc_distances(user_emb, neg_item_emb)
+        pos_cos_sim = self.loss_fn.calc_scores(user_emb, pos_item_emb)
+        neg_cos_sim = self.loss_fn.calc_scores(user_emb, neg_item_emb)
 
         loss: torch.Tensor = self.loss_fn(user_emb, pos_item_emb, neg_item_emb)
 

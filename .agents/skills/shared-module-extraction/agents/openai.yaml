@@ -1,0 +1,4 @@
+interface:
+  display_name: "Shared Module Extraction"
+  short_description: "Help extract shared modules into libs"
+  default_prompt: "Use $shared-module-extraction to move duplicated repository code into shared libs cleanly."

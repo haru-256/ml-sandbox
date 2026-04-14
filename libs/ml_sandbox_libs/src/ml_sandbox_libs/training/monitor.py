@@ -1,5 +1,6 @@
 """ExperimentMonitor for logging training/validation metrics."""
 
+from collections.abc import Sized
 from typing import Any, Literal
 
 import lightning as L
@@ -75,7 +76,11 @@ class ExperimentMonitor:
         return len(val_dataloader)
 
     def logging_step(
-        self, metrics_dict: dict[str, Any], stage: Literal["train", "val"], batch_idx: int
+        self,
+        metrics_dict: dict[str, Any],
+        stage: Literal["train", "val"],
+        batch_idx: int,
+        batch_size: int | Sized | None = None,
     ) -> None:
         """Logs metrics to the configured logger and standard output.
 
@@ -83,14 +88,25 @@ class ExperimentMonitor:
             metrics_dict: Dictionary containing metric names and their values.
             stage: The current stage ('train' or 'val').
             batch_idx: The current batch index.
+            batch_size: Optional explicit batch size used for Lightning logging.
+                Pass this for batch types whose size cannot be inferred safely.
 
         """
+        resolved_batch_size: int | None
+        if batch_size is None:
+            resolved_batch_size = None
+        elif isinstance(batch_size, int):
+            resolved_batch_size = batch_size
+        else:
+            resolved_batch_size = len(batch_size)
+
         self.module.log_dict(
             add_prefix_to_keys(metrics_dict, stage),
             # valはepoch単位の評価のみ。trainはTrainerのlogs_every_n_stepsで指定したstep単位の評価のためNoneにする
             on_step=None if stage == "train" else False,
             on_epoch=True,
             prog_bar=False,
+            batch_size=resolved_batch_size,
         )
         # stdinに出力する
         total_steps = self.total_train_steps if stage == "train" else self.total_val_steps

@@ -16,6 +16,7 @@ import models.factory as factory
         ("SASRec", "create_sasrec_module"),
         ("gSASRec", "create_gsasrec_module"),
         ("SimpleX", "create_simplex_module"),
+        ("LightGCN", "create_lightgcn_module"),
     ],
 )
 def test_create_model_module_dispatches_to_matching_creator(
@@ -50,6 +51,32 @@ def test_create_model_module_rejects_unsupported_model() -> None:
         factory.create_model_module(cfg, datamodule, optimizer)
 
 
+def test_create_lightgcn_module_rejects_neighbor_count_mismatch() -> None:
+    """Rejects LightGCN configs whose sampling hops do not match the layer count."""
+    cfg = OmegaConf.create(
+        {
+            "data": {"eval_top_k": 10},
+            "model": {
+                "out_dim": 16,
+                "name": "LightGCN",
+                "num_layers": 3,
+                "num_neighbors": [10, 5],
+            },
+        }
+    )
+    datamodule = cast(
+        Any,
+        SimpleNamespace(
+            user2index={"u": 0},
+            item2index={"i": 0},
+        ),
+    )
+    optimizer = cast(Any, SimpleNamespace())
+
+    with pytest.raises(ValueError, match="num_layers to match the length"):
+        factory.create_lightgcn_module(cfg, datamodule, optimizer)
+
+
 @pytest.mark.parametrize(
     ("creator_name", "module_name", "loss_factory_name"),
     [
@@ -57,6 +84,7 @@ def test_create_model_module_rejects_unsupported_model() -> None:
         ("create_sasrec_module", "SASRecModule", "create_score_loss"),
         ("create_gsasrec_module", "gSASRecModule", "create_score_loss"),
         ("create_simplex_module", "SimpleXModule", "create_embedding_loss"),
+        ("create_lightgcn_module", "LightGCNModule", "create_embedding_loss"),
     ],
 )
 def test_model_creators_use_pad_idx_from_datamodule(
@@ -74,10 +102,11 @@ def test_model_creators_use_pad_idx_from_datamodule(
                 "eval_top_k": 10,
             },
             "device": {"float16": False},
+            "loss": {"name": "ccl"},
             "model": {
                 "out_dim": 16,
                 "user_id_dim": 8,
-                "item_id_dim": 8,
+                "item_id_dim": 12,
                 "hidden_dims": [32, 16],
                 "normalization": "layer",
                 "activation": "relu",
@@ -88,6 +117,8 @@ def test_model_creators_use_pad_idx_from_datamodule(
                 "ffn_dropout": 0.1,
                 "user_id_weight": 0.5,
                 "user_history_pooling": "mean",
+                "num_layers": 2,
+                "num_neighbors": [9, 4],
             },
         }
     )
@@ -97,9 +128,21 @@ def test_model_creators_use_pad_idx_from_datamodule(
         SimpleNamespace(
             user2index={"u": 0},
             item2index={"i": 0},
+            num_users=1,
+            num_items=1,
             item_pad_idx=17,
         ),
     )
+    if creator_name == "create_lightgcn_module":
+        datamodule = cast(
+            Any,
+            SimpleNamespace(
+                user2index={"u": 0},
+                item2index={"i": 0},
+                num_users=1,
+                num_items=1,
+            ),
+        )
     sentinel_loss = object()
     captured_kwargs: dict[str, Any] = {}
 
@@ -116,5 +159,65 @@ def test_model_creators_use_pad_idx_from_datamodule(
     creator = getattr(factory, creator_name)
     creator(cfg, datamodule, optimizer)
 
-    assert captured_kwargs["pad_idx"] == datamodule.item_pad_idx
+    if creator_name == "create_lightgcn_module":
+        assert "pad_idx" not in captured_kwargs
+        assert captured_kwargs["loss_fn"] is sentinel_loss
+        assert captured_kwargs["num_users"] == datamodule.num_users
+        assert captured_kwargs["num_items"] == datamodule.num_items
+        assert captured_kwargs["out_dim"] == cfg.model.out_dim
+        assert captured_kwargs["num_layers"] == cfg.model.num_layers
+        assert captured_kwargs["eval_top_k"] == cfg.data.eval_top_k
+    else:
+        assert captured_kwargs["pad_idx"] == datamodule.item_pad_idx
+        assert captured_kwargs["loss_fn"] is sentinel_loss
+
+
+def test_create_lightgcn_module_uses_embedding_loss_factory_with_bpr(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Allows LightGCN to request the embedding-loss factory with BPR config."""
+    cfg = OmegaConf.create(
+        {
+            "data": {"eval_top_k": 10},
+            "loss": {"name": "bpr"},
+            "model": {
+                "name": "LightGCN",
+                "out_dim": 16,
+                "num_layers": 2,
+                "num_neighbors": [9, 4],
+            },
+        }
+    )
+    datamodule = cast(
+        Any,
+        SimpleNamespace(
+            user2index={"u": 0},
+            item2index={"i": 0},
+            num_users=1,
+            num_items=1,
+        ),
+    )
+    optimizer = cast(Any, SimpleNamespace())
+    sentinel_loss = object()
+    captured_kwargs: dict[str, Any] = {}
+
+    def fake_create_embedding_loss(cfg_arg: object) -> object:
+        assert cfg_arg is cfg
+        return sentinel_loss
+
+    class DummyModule:
+        def __init__(self, **kwargs: Any) -> None:
+            captured_kwargs.update(kwargs)
+
+    monkeypatch.setattr(factory, "create_embedding_loss", fake_create_embedding_loss)
+    monkeypatch.setattr(factory, "LightGCNModule", DummyModule)
+
+    factory.create_lightgcn_module(cfg, datamodule, optimizer)
+
     assert captured_kwargs["loss_fn"] is sentinel_loss
+    assert captured_kwargs["num_users"] == datamodule.num_users
+    assert captured_kwargs["num_items"] == datamodule.num_items
+    assert captured_kwargs["out_dim"] == cfg.model.out_dim
+    assert captured_kwargs["num_layers"] == cfg.model.num_layers
+    assert captured_kwargs["eval_top_k"] == cfg.data.eval_top_k
+    assert captured_kwargs["optimizer"] is optimizer

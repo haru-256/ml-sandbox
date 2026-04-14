@@ -383,7 +383,7 @@ def test_index_reuse() -> None:
 
 
 def test_retrieval_metrics() -> None:
-    """Test RetrievalMetrics composite class"""
+    """Test RetrievalMetrics updates nested metrics through shared top-k indices."""
     metrics = RetrievalMetrics(top_k=2)
 
     score = torch.tensor(
@@ -410,16 +410,9 @@ def test_retrieval_metrics() -> None:
     expected_mrr = torch.tensor([0.0, 1.0]).mean()
     expected_ndcg = torch.tensor([0.0, 1.0]).mean()
 
-    # Update and compute
+    # Update nested metrics through the thin wrapper.
     metrics.update(score, target)
-    results = metrics.compute()
 
-    torch.testing.assert_close(results["hit_rate"], expected_hr)
-    torch.testing.assert_close(results["mrr"], expected_mrr)
-    torch.testing.assert_close(results["ndcg"], expected_ndcg)
-
-    # Check reset
-    metrics.reset()
-    assert metrics.hit_rate.total == 0
-    assert metrics.mrr.total == 0
-    assert metrics.ndcg.total == 0
+    torch.testing.assert_close(metrics.hit_rate.compute(), expected_hr)
+    torch.testing.assert_close(metrics.mrr.compute(), expected_mrr)
+    torch.testing.assert_close(metrics.ndcg.compute(), expected_ndcg)

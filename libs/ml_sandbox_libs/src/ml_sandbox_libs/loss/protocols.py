@@ -63,18 +63,18 @@ class ScoreLossFn(Protocol):
 
 
 class EmbeddingLossFn(Protocol):
-    """Protocol for losses that operate on embedding distances or similarities.
+    """Protocol for losses that operate on embedding-derived pairwise scores.
 
     This protocol is intended for retrieval-style losses where the loss function
     receives query embeddings together with positive and negative document
-    embeddings. Implementations compute pairwise distances or similarities inside
-    the loss, then reduce them into a scalar objective.
+    embeddings. Implementations compute pairwise scores inside the loss, then
+    reduce them into a scalar objective.
     """
 
-    def calc_distances(
+    def calc_scores(
         self, query_embeddings: torch.Tensor, doc_embeddings: torch.Tensor
     ) -> torch.Tensor:
-        """Compute pairwise distances or similarities between embeddings.
+        """Compute pairwise scores between embeddings.
 
         Args:
             query_embeddings: Query-side embeddings. Shape: ``(B, D)``.
@@ -82,8 +82,8 @@ class EmbeddingLossFn(Protocol):
                 positive samples or ``(B, N, D)`` for negative samples.
 
         Returns:
-            Pairwise distance or similarity tensor. Shape is typically ``(B,)``
-            for positive samples or ``(B, N)`` for negative samples.
+            Pairwise score tensor. Shape is typically ``(B,)`` for positive
+            samples or ``(B, N)`` for negative samples.
         """
         ...
 
