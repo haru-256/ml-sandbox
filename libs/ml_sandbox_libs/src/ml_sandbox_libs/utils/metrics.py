@@ -325,10 +325,17 @@ class NDCG(Metric):
 
 
 class RetrievalMetrics(nn.Module):
-    """Refactoring metrics to be computed in a single pass.
+    """Thin wrapper that updates retrieval metrics with shared top-k indices.
 
-    This class computes HitRate, MRR, and NDCG efficiently by sharing
-    the top-k indices across metrics.
+    This wrapper intentionally subclasses ``nn.Module`` even though it does not
+    implement a model forward pass. Registering ``HitRate``, ``MRR``, and
+    ``NDCG`` as submodules keeps the nested ``torchmetrics.Metric`` instances
+    discoverable from the parent ``LightningModule`` when callers pass
+    ``metric_dict()`` to ``log_dict``.
+
+    The wrapper's only responsibilities are:
+    1. compute top-k indices once and fan them out to the three metrics
+    2. expose the nested metric objects for Lightning logging
     """
 
     def __init__(self, top_k: int = 10) -> None:
@@ -364,35 +371,17 @@ class RetrievalMetrics(nn.Module):
         self.mrr.update(score, target, indices=indices)
         self.ndcg.update(score, target, indices=indices)
 
-    def compute(self) -> dict[str, torch.Tensor]:
-        """Compute all metrics.
-
-        Returns:
-            Dictionary containing 'hit_rate', 'mrr', and 'ndcg' values.
-        """
-        return {
-            "hit_rate": self.hit_rate.compute(),
-            "mrr": self.mrr.compute(),
-            "ndcg": self.ndcg.compute(),
-        }
-
     def metric_dict(self) -> dict[str, Metric]:
-        """Return the registered metric objects for Lightning logging.
+        """Return nested metric objects for ``LightningModule.log_dict``.
 
         Returns:
-            Dictionary containing the nested torchmetrics objects.
+            Dictionary containing the registered nested ``torchmetrics`` objects.
         """
         return {
             "hit_rate": self.hit_rate,
             "mrr": self.mrr,
             "ndcg": self.ndcg,
         }
-
-    def reset(self) -> None:
-        """Reset all metrics."""
-        self.hit_rate.reset()
-        self.mrr.reset()
-        self.ndcg.reset()
 
 
 def format_metrics_dict(metrics_dict: dict[str, float | torch.Tensor | Metric]) -> str:

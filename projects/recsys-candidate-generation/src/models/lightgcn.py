@@ -5,7 +5,6 @@ from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import (
     AmazonReviewsBipartiteGraphBatch,
     SpecialItemIndex,
-    SpecialUserIndex,
     to_bipartite_graph_batch,
 )
 from ml_sandbox_libs.loss import EmbeddingLossFn
@@ -14,7 +13,6 @@ from ml_sandbox_libs.models.modules import IdEmbedding
 from ml_sandbox_libs.optimizer import Optimizer
 from ml_sandbox_libs.training import ExperimentMonitor, summarize_pos_neg_scores
 from ml_sandbox_libs.utils.metrics import RetrievalMetrics, create_retrieval_inputs
-from ml_sandbox_libs.utils.similarity import calc_dot_product
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torch import nn
 from torch_geometric.data import HeteroData
@@ -93,8 +91,8 @@ class LightGCN(CandidateGenerationModelBase):
     all propagated embeddings.
 
     Args:
-        num_users: Number of unique users.
-        num_items: Number of unique items.
+        num_users: Number of user embedding ids, including special indices.
+        num_items: Number of item embedding ids, including special indices.
         out_dim: Final embedding dimension after LightGCN propagation. User ID
             and item ID embeddings also use this dimension.
         num_layers: Number of LightGCN propagation layers.
@@ -116,8 +114,8 @@ class LightGCN(CandidateGenerationModelBase):
         self.out_dim = out_dim
         self.num_layers = num_layers
 
-        num_user_embeddings = num_users + len(SpecialUserIndex)
-        num_item_embeddings = num_items + len(SpecialItemIndex)
+        num_user_embeddings = num_users
+        num_item_embeddings = num_items
 
         self.user_embedding = IdEmbedding(num_user_embeddings, out_dim, padding_idx=None)
         self.item_embedding = IdEmbedding(
@@ -302,8 +300,8 @@ class LightGCNModule(BaseModule):
     """LightningModule wrapper for LightGCN training and evaluation.
 
     Args:
-        num_users: Number of unique users.
-        num_items: Number of unique items.
+        num_users: Number of user embedding ids, including special indices.
+        num_items: Number of item embedding ids, including special indices.
         out_dim: Final embedding dimension after LightGCN propagation. User ID
             and item ID embeddings also use this dimension.
         num_layers: Number of LightGCN propagation layers.
@@ -371,18 +369,20 @@ class LightGCNModule(BaseModule):
             dst_neg_index=dst_neg_index,
         )
 
-    def _compute_scores(
+    def _compute_step_outputs(
         self,
         batch: AmazonReviewsBipartiteGraphBatch,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Compute positive and negative scores for a typed bipartite batch.
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Compute loss and ranking scores for a typed bipartite batch.
 
         Args:
             batch: Typed bipartite graph batch.
 
         Returns:
-            Tuple containing positive scores with shape ``(B, 1)`` and negative
-            scores with shape ``(B, N)``.
+            Tuple containing:
+                - scalar loss tensor
+                - positive scores with shape ``(B, 1)``
+                - negative scores with shape ``(B, N)``
         """
         user_emb, pos_item_emb, neg_item_emb = self(
             user_node_ids=batch.user_node_ids,
@@ -393,8 +393,11 @@ class LightGCNModule(BaseModule):
             dst_pos_index=batch.dst_pos_index,
             dst_neg_index=batch.dst_neg_index,
         )
-        pos_scores, neg_scores = calc_dot_product(user_emb, pos_item_emb, neg_item_emb)
-        return pos_scores.unsqueeze(1), neg_scores  # (B, 1), (B, N)
+        pos_scores = self.loss_fn.calc_scores(user_emb, pos_item_emb).unsqueeze(1)  # (B, 1)
+        neg_scores = self.loss_fn.calc_scores(user_emb, neg_item_emb)  # (B, N)
+        loss = self.loss_fn(user_emb, pos_item_emb, neg_item_emb)
+
+        return loss, pos_scores, neg_scores
 
     @override
     def training_step(self, batch: HeteroData, batch_idx: int) -> torch.Tensor:
@@ -408,18 +411,7 @@ class LightGCNModule(BaseModule):
             Scalar training loss.
         """
         typed_batch = to_bipartite_graph_batch(batch)
-        user_emb, pos_item_emb, neg_item_emb = self(
-            user_node_ids=typed_batch.user_node_ids,
-            item_node_ids=typed_batch.item_node_ids,
-            user2item_edge_index=typed_batch.user2item_edge_index,
-            item2user_edge_index=typed_batch.item2user_edge_index,
-            src_index=typed_batch.src_index,
-            dst_pos_index=typed_batch.dst_pos_index,
-            dst_neg_index=typed_batch.dst_neg_index,
-        )
-        loss = self.loss_fn(user_emb, pos_item_emb, neg_item_emb)
-        pos_scores = self.loss_fn.calc_scores(user_emb, pos_item_emb).unsqueeze(1)  # (B, 1)
-        neg_scores = self.loss_fn.calc_scores(user_emb, neg_item_emb)  # (B, N)
+        loss, pos_scores, neg_scores = self._compute_step_outputs(typed_batch)
 
         self.monitor.logging_step(
             {
@@ -444,36 +436,18 @@ class LightGCNModule(BaseModule):
             Scalar validation loss.
         """
         typed_batch = to_bipartite_graph_batch(batch)
-        user_emb, pos_item_emb, neg_item_emb = self(
-            user_node_ids=typed_batch.user_node_ids,
-            item_node_ids=typed_batch.item_node_ids,
-            user2item_edge_index=typed_batch.user2item_edge_index,
-            item2user_edge_index=typed_batch.item2user_edge_index,
-            src_index=typed_batch.src_index,
-            dst_pos_index=typed_batch.dst_pos_index,
-            dst_neg_index=typed_batch.dst_neg_index,
-        )
-        loss = self.loss_fn(user_emb, pos_item_emb, neg_item_emb)
-        pos_scores = self.loss_fn.calc_scores(user_emb, pos_item_emb).unsqueeze(1)  # (B, 1)
-        neg_scores = self.loss_fn.calc_scores(user_emb, neg_item_emb)  # (B, N)
+        loss, pos_scores, neg_scores = self._compute_step_outputs(typed_batch)
 
         scores, target, _ = create_retrieval_inputs(
             pos_scores, neg_scores
         )  # (B, 1 + N), (B, 1 + N), (B, 1 + N)
-        metric_top_k = min(self.retrieval_metrics.top_k, scores.size(1))
-        if metric_top_k == self.retrieval_metrics.top_k:
-            self.retrieval_metrics.update(scores, target)
-            metrics = self.retrieval_metrics.metric_dict()
-        else:
-            temp_metrics = RetrievalMetrics(top_k=metric_top_k)
-            temp_metrics.update(scores, target)
-            metrics = temp_metrics.metric_dict()
+        self.retrieval_metrics.update(scores, target)
 
         self.monitor.logging_step(
             {
                 "loss": loss.item(),
                 **summarize_pos_neg_scores(pos_scores, neg_scores),
-                **metrics,
+                **self.retrieval_metrics.metric_dict(),
             },
             stage="val",
             batch_idx=batch_idx,

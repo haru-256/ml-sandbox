@@ -306,6 +306,14 @@ class DummyEmbeddingLoss(nn.Module):
         return torch.einsum("bd,bnd->bn", query_embeddings, doc_embeddings)
 
 
+def test_lightgcn_uses_datamodule_vocab_sizes_without_double_counting() -> None:
+    """Uses the passed vocab sizes directly for embedding table construction."""
+    model = LightGCN(num_users=20, num_items=30, out_dim=8, num_layers=2)
+
+    assert model.user_embedding.id_embedding.num_embeddings == 20
+    assert model.item_embedding.id_embedding.num_embeddings == 30
+
+
 def test_lightgcn_module_training_step_returns_scalar_loss(
     bipartite_batch: HeteroData,
 ) -> None:
@@ -323,7 +331,7 @@ def test_lightgcn_module_training_step_returns_scalar_loss(
         num_items=30,
         out_dim=8,
         num_layers=2,
-        eval_top_k=5,
+        eval_top_k=3,
         optimizer=optimizer,
         loss_fn=loss_fn,
     )
@@ -351,7 +359,7 @@ def test_lightgcn_module_validation_step_returns_scalar_loss(
         num_items=30,
         out_dim=8,
         num_layers=2,
-        eval_top_k=5,
+        eval_top_k=3,
         optimizer=optimizer,
         loss_fn=loss_fn,
     )

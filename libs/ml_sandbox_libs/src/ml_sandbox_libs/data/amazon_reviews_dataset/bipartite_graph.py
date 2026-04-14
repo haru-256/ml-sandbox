@@ -219,7 +219,7 @@ def create_bipartite_graph(
         dtype=torch.float32,
     )
     reverse_edge_index = edge_index.flip([0])
-    reverse_edge_attr = edge_attr.clone()
+    reverse_edge_attr = edge_attr
     data = HeteroData(
         {  # type: ignore
             "user": {"x": user_index.unsqueeze(-1), "user_index": user_index},
@@ -451,6 +451,7 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         self.eval_negative_sample_size = eval_negative_sample_size
         self.num_neighbors = list(num_neighbors)
         self.transform = T.Compose([T.RemoveSelfLoops()])
+        self._is_prepared = False
 
     # TODO: Consider saving preprocessed data to disk for faster loading
     def prepare_data(self) -> None:
@@ -458,8 +459,14 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
 
         This method loads the interaction dataset and metadata, preprocesses them
         into a combined interaction dataframe, and stores the resulting lookup
-        tables on the DataModule instance.
+        tables on the DataModule instance. Repeated calls on the same DataModule
+        instance are treated as no-ops so explicit metadata warmup does not
+        trigger duplicate preprocessing during ``Trainer.fit(...)``.
         """
+        if self._is_prepared:
+            logger.info("Amazon Reviews bipartite graph data is already prepared; skipping.")
+            return
+
         dataset_dict = fetch_dataset()
         metadata = fetch_metadata()
         (
@@ -474,6 +481,7 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         self.item2index = item2index
         self.category2index = category2index
         self.item_index_2_category_index = item_index_2_category_index
+        self._is_prepared = True
 
     def setup(self, stage: str) -> None:
         """Create split-specific graphs for the requested Lightning stage.

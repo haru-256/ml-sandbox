@@ -79,6 +79,8 @@ def main(cfg: DictConfig) -> None:
     optimizer = create_optimizer(cfg)
 
     # Initialize datamodule metadata required by model factories before module creation.
+    # The bipartite graph datamodule keeps this idempotent, so Lightning can call
+    # prepare_data() again during fit without repeating the expensive preprocessing.
     datamodule.prepare_data()
 
     # Create model

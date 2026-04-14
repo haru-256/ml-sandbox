@@ -284,6 +284,7 @@ def test_create_bipartite_graph_uses_expected_message_passing_and_label_edges(
         reverse_edge_store.edge_index,
         reverse_edge_store.edge_attr,
     ) == sorted((dst, src, attr) for src, dst, attr in expected_message_passing_edges)
+    assert reverse_edge_store.edge_attr.data_ptr() == edge_store.edge_attr.data_ptr()
     assert edge_store.edge_attr.dtype == torch.float32
     assert edge_store.edge_label_attr.dtype == torch.float32
     assert reverse_edge_store.edge_attr.dtype == torch.float32
@@ -337,6 +338,34 @@ def test_bipartite_graph_datamodule_prepare_data_populates_state(
     assert dm.item2index == preprocess_return[2]
     assert dm.category2index == preprocess_return[3]
     assert dm.item_index_2_category_index == preprocess_return[4]
+    preprocess_mock.assert_called_once_with(dataset_dict=mock_dataset_dict, metadata=mock_metadata)
+
+
+def test_bipartite_graph_datamodule_prepare_data_is_idempotent(
+    mocker: MockerFixture, tmp_path: pathlib.Path
+) -> None:
+    mock_dataset_dict = mocker.Mock()
+    mock_metadata = mocker.Mock()
+    preprocess_return = _build_preprocessed_graph_inputs(mocker)
+    fetch_dataset_mock = mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph.fetch_dataset",
+        return_value=mock_dataset_dict,
+    )
+    fetch_metadata_mock = mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph.fetch_metadata",
+        return_value=mock_metadata,
+    )
+    preprocess_mock = mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph.bipartite_graph_preprocess_dataset",
+        return_value=preprocess_return,
+    )
+
+    dm = AmazonReviewsBipartiteGraphDataModule(save_dir=tmp_path)
+    dm.prepare_data()
+    dm.prepare_data()
+
+    fetch_dataset_mock.assert_called_once_with()
+    fetch_metadata_mock.assert_called_once_with()
     preprocess_mock.assert_called_once_with(dataset_dict=mock_dataset_dict, metadata=mock_metadata)
 
 
