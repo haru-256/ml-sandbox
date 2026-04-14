@@ -5,6 +5,9 @@ import polars as pl
 import pytest
 import torch
 from pytest_mock import MockerFixture
+from torch_geometric.data import HeteroData
+from torch_geometric.loader import LinkNeighborLoader
+from torch_geometric.sampler import NegativeSampling
 
 from ml_sandbox_libs.data.amazon_reviews_dataset import (
     SpecialCategoryIndex,
@@ -12,9 +15,11 @@ from ml_sandbox_libs.data.amazon_reviews_dataset import (
     SpecialUserIndex,
 )
 from ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph import (
+    AmazonReviewsBipartiteGraphBatch,
     AmazonReviewsBipartiteGraphDataModule,
     bipartite_graph_preprocess_dataset,
     create_bipartite_graph,
+    to_bipartite_graph_batch,
 )
 
 
@@ -266,10 +271,22 @@ def test_create_bipartite_graph_uses_expected_message_passing_and_label_edges(
     )
 
     edge_store = data["user", "rates", "item"]
-    assert _edge_pairs_with_attr(edge_store.edge_index, edge_store.edge_attr) == expected_message_passing_edges
-    assert _edge_pairs_with_attr(edge_store.edge_label_index, edge_store.edge_label_attr) == expected_label_edges
+    reverse_edge_store = data["item", "rated_by", "user"]
+    assert (
+        _edge_pairs_with_attr(edge_store.edge_index, edge_store.edge_attr)
+        == expected_message_passing_edges
+    )
+    assert (
+        _edge_pairs_with_attr(edge_store.edge_label_index, edge_store.edge_label_attr)
+        == expected_label_edges
+    )
+    assert _edge_pairs_with_attr(
+        reverse_edge_store.edge_index,
+        reverse_edge_store.edge_attr,
+    ) == sorted((dst, src, attr) for src, dst, attr in expected_message_passing_edges)
     assert edge_store.edge_attr.dtype == torch.float32
     assert edge_store.edge_label_attr.dtype == torch.float32
+    assert reverse_edge_store.edge_attr.dtype == torch.float32
     assert data["user"].user_index.tolist() == [0, 1, 2, 3, 4]
     assert data["item"].category_index.dtype == torch.int64
 
@@ -330,7 +347,7 @@ def test_bipartite_graph_datamodule_setup_creates_expected_graphs(
     dm = AmazonReviewsBipartiteGraphDataModule(save_dir=tmp_path)
     # This test focuses on split-specific graph construction. Disable PyG transforms
     # so node reindexing does not obscure the expected edge assignments.
-    dm.transform = lambda data: data
+    dm.transform = lambda data: data  # type: ignore[assignment]
     (
         dm.all_df,
         dm.user2index,
@@ -345,15 +362,27 @@ def test_bipartite_graph_datamodule_setup_creates_expected_graphs(
         dm.train_data["user", "rates", "item"].edge_attr,
     ) == [(2, 2, 5.0), (3, 3, 3.0), (4, 4, 5.0)]
     assert _edge_pairs_with_attr(
+        dm.train_data["item", "rated_by", "user"].edge_index,
+        dm.train_data["item", "rated_by", "user"].edge_attr,
+    ) == [(2, 2, 5.0), (3, 3, 3.0), (4, 4, 5.0)]
+    assert _edge_pairs_with_attr(
         dm.val_data["user", "rates", "item"].edge_label_index,
         dm.val_data["user", "rates", "item"].edge_label_attr,
     ) == [(2, 5, 4.0), (3, 6, 5.0), (4, 7, 3.0)]
+    assert _edge_pairs_with_attr(
+        dm.val_data["item", "rated_by", "user"].edge_index,
+        dm.val_data["item", "rated_by", "user"].edge_attr,
+    ) == [(2, 2, 5.0), (3, 3, 3.0), (4, 4, 5.0)]
 
     dm.setup("test")
     assert _edge_pairs_with_attr(
         dm.test_data["user", "rates", "item"].edge_index,
         dm.test_data["user", "rates", "item"].edge_attr,
     ) == [(2, 2, 5.0), (2, 5, 4.0), (3, 3, 3.0), (3, 6, 5.0), (4, 4, 5.0), (4, 7, 3.0)]
+    assert _edge_pairs_with_attr(
+        dm.test_data["item", "rated_by", "user"].edge_index,
+        dm.test_data["item", "rated_by", "user"].edge_attr,
+    ) == [(2, 2, 5.0), (3, 3, 3.0), (4, 4, 5.0), (5, 2, 4.0), (6, 3, 5.0), (7, 4, 3.0)]
     assert _edge_pairs_with_attr(
         dm.test_data["user", "rates", "item"].edge_label_index,
         dm.test_data["user", "rates", "item"].edge_label_attr,
@@ -364,10 +393,10 @@ def test_bipartite_graph_datamodule_dataloaders_use_stage_specific_label_edges(
     mocker: MockerFixture, tmp_path: pathlib.Path
 ) -> None:
     preprocess_return = _build_preprocessed_graph_inputs(mocker)
-    dm = AmazonReviewsBipartiteGraphDataModule(save_dir=tmp_path)
+    dm = AmazonReviewsBipartiteGraphDataModule(save_dir=tmp_path, num_neighbors=[7, 3])
     # This test verifies which graph and label edges each loader uses, not the
     # behavior of the PyG transforms applied during setup.
-    dm.transform = lambda data: data
+    dm.transform = lambda data: data  # type: ignore[assignment]
     (
         dm.all_df,
         dm.user2index,
@@ -391,6 +420,279 @@ def test_bipartite_graph_datamodule_dataloaders_use_stage_specific_label_edges(
     assert train_loader_kwargs["data"] is dm.train_data
     assert val_loader_kwargs["data"] is dm.val_data
     assert test_loader_kwargs["data"] is dm.test_data
-    assert train_loader_kwargs["edge_label_index"][1] is dm.train_data["user", "rates", "item"].edge_label_index
-    assert val_loader_kwargs["edge_label_index"][1] is dm.val_data["user", "rates", "item"].edge_label_index
-    assert test_loader_kwargs["edge_label_index"][1] is dm.test_data["user", "rates", "item"].edge_label_index
+    assert (
+        train_loader_kwargs["edge_label_index"][1]
+        is dm.train_data["user", "rates", "item"].edge_label_index
+    )
+    assert (
+        val_loader_kwargs["edge_label_index"][1]
+        is dm.val_data["user", "rates", "item"].edge_label_index
+    )
+    assert (
+        test_loader_kwargs["edge_label_index"][1]
+        is dm.test_data["user", "rates", "item"].edge_label_index
+    )
+    assert train_loader_kwargs["num_neighbors"] == [7, 3]
+    assert val_loader_kwargs["num_neighbors"] == [7, 3]
+    assert test_loader_kwargs["num_neighbors"] == [7, 3]
+
+
+def test_bipartite_graph_transform_preserves_public_indices_for_loader_batches() -> None:
+    data = HeteroData(
+        {  # type: ignore[dict-item]
+            "user": {
+                "x": torch.tensor([[0], [1], [2]], dtype=torch.long),
+                "user_index": torch.tensor([0, 1, 2], dtype=torch.long),
+            },
+            "item": {
+                "x": torch.tensor([[0], [1], [2]], dtype=torch.long),
+                "item_index": torch.tensor([0, 1, 2], dtype=torch.long),
+                "category_index": torch.tensor([0, 1, 2], dtype=torch.long),
+            },
+            ("user", "rates", "item"): {
+                "edge_index": torch.tensor([[0, 1], [0, 1]], dtype=torch.long),
+                "edge_attr": torch.tensor([[5.0], [4.0]], dtype=torch.float32),
+                "edge_label_index": torch.tensor([[0, 1], [0, 1]], dtype=torch.long),
+                "edge_label_attr": torch.tensor([[5.0], [4.0]], dtype=torch.float32),
+            },
+            ("item", "rated_by", "user"): {
+                "edge_index": torch.tensor([[0, 1], [0, 1]], dtype=torch.long),
+                "edge_attr": torch.tensor([[5.0], [4.0]], dtype=torch.float32),
+            },
+        }
+    )
+    dm = AmazonReviewsBipartiteGraphDataModule(save_dir=pathlib.Path("/tmp"))
+    transformed = dm.transform(data)
+
+    loader = LinkNeighborLoader(
+        data=transformed,
+        num_neighbors=[-1],
+        batch_size=1,
+        edge_label_index=(
+            ("user", "rates", "item"),
+            transformed["user", "rates", "item"].edge_label_index,
+        ),
+        edge_label=None,
+        neg_sampling=NegativeSampling(mode="triplet", amount=1),
+        shuffle=False,
+        num_workers=0,
+    )
+
+    batch = next(iter(loader))
+
+    assert torch.equal(batch["user"].n_id, batch["user"].user_index)
+    assert torch.equal(batch["item"].n_id, batch["item"].item_index)
+
+
+def test_to_bipartite_graph_batch_returns_typed_batch() -> None:
+    data = HeteroData(
+        {  # type: ignore[dict-item]
+            "user": {
+                "n_id": torch.tensor([10, 11, 12], dtype=torch.long),
+                "user_index": torch.tensor([10, 11, 12], dtype=torch.long),
+                "src_index": torch.tensor([0, 2], dtype=torch.long),
+            },
+            "item": {
+                "n_id": torch.tensor([20, 21, 22, 23], dtype=torch.long),
+                "item_index": torch.tensor([20, 21, 22, 23], dtype=torch.long),
+                "dst_pos_index": torch.tensor([1, 3], dtype=torch.long),
+                "dst_neg_index": torch.tensor([[2, 0], [0, 1]], dtype=torch.long),
+            },
+            ("user", "rates", "item"): {
+                "edge_index": torch.tensor([[0, 1, 2], [1, 2, 3]], dtype=torch.long),
+                "edge_label_index": torch.tensor([[0, 2], [1, 3]], dtype=torch.long),
+            },
+            ("item", "rated_by", "user"): {
+                "edge_index": torch.tensor([[1, 2, 3], [0, 1, 2]], dtype=torch.long),
+            },
+        }
+    )
+
+    batch = to_bipartite_graph_batch(data)
+
+    assert isinstance(batch, AmazonReviewsBipartiteGraphBatch)
+    assert torch.equal(batch.user_node_ids, torch.tensor([10, 11, 12], dtype=torch.long))
+    assert torch.equal(batch.item_node_ids, torch.tensor([20, 21, 22, 23], dtype=torch.long))
+    assert torch.equal(
+        batch.user2item_edge_index,
+        torch.tensor([[0, 1, 2], [1, 2, 3]], dtype=torch.long),
+    )
+    assert torch.equal(
+        batch.item2user_edge_index,
+        torch.tensor([[1, 2, 3], [0, 1, 2]], dtype=torch.long),
+    )
+    assert torch.equal(batch.src_index, torch.tensor([0, 2], dtype=torch.long))
+    assert torch.equal(batch.dst_pos_index, torch.tensor([1, 3], dtype=torch.long))
+    assert torch.equal(batch.dst_neg_index, torch.tensor([[2, 0], [0, 1]], dtype=torch.long))
+
+
+def test_to_bipartite_graph_batch_falls_back_to_public_index_fields() -> None:
+    data = HeteroData(
+        {  # type: ignore[dict-item]
+            "user": {
+                "user_index": torch.tensor([2, 3], dtype=torch.long),
+                "src_index": torch.tensor([0], dtype=torch.long),
+            },
+            "item": {
+                "item_index": torch.tensor([5, 6, 7], dtype=torch.long),
+                "dst_pos_index": torch.tensor([2], dtype=torch.long),
+                "dst_neg_index": torch.tensor([1], dtype=torch.long),
+            },
+            ("user", "rates", "item"): {
+                "edge_index": torch.tensor([[0, 1], [1, 2]], dtype=torch.long),
+                "edge_label_index": torch.tensor([[0], [2]], dtype=torch.long),
+            },
+            ("item", "rated_by", "user"): {
+                "edge_index": torch.tensor([[1, 2], [0, 1]], dtype=torch.long),
+            },
+        }
+    )
+
+    batch = to_bipartite_graph_batch(data)
+
+    assert torch.equal(batch.user_node_ids, torch.tensor([2, 3], dtype=torch.long))
+    assert torch.equal(batch.item_node_ids, torch.tensor([5, 6, 7], dtype=torch.long))
+    assert torch.equal(
+        batch.user2item_edge_index,
+        torch.tensor([[0, 1], [1, 2]], dtype=torch.long),
+    )
+    assert torch.equal(
+        batch.item2user_edge_index,
+        torch.tensor([[1, 2], [0, 1]], dtype=torch.long),
+    )
+
+
+@pytest.mark.parametrize(
+    ("node_store_key", "node_store", "match"),
+    [
+        (
+            "user",
+            {
+                "n_id": torch.tensor([10, 11], dtype=torch.long),
+                "user_index": torch.tensor([10, 12], dtype=torch.long),
+            },
+            "Sampled user batch has inconsistent node ids",
+        ),
+        (
+            "item",
+            {
+                "n_id": torch.tensor([20, 21], dtype=torch.long),
+                "item_index": torch.tensor([20, 22], dtype=torch.long),
+            },
+            "Sampled item batch has inconsistent node ids",
+        ),
+    ],
+)
+def test_to_bipartite_graph_batch_rejects_mismatched_public_indices(
+    node_store_key: str,
+    node_store: dict[str, torch.Tensor],
+    match: str,
+) -> None:
+    data_dict: dict[object, object] = {
+        "user": {
+            "n_id": torch.tensor([10, 11], dtype=torch.long),
+            "user_index": torch.tensor([10, 11], dtype=torch.long),
+            "src_index": torch.tensor([0], dtype=torch.long),
+        },
+        "item": {
+            "n_id": torch.tensor([20, 21, 22], dtype=torch.long),
+            "item_index": torch.tensor([20, 21, 22], dtype=torch.long),
+            "dst_pos_index": torch.tensor([2], dtype=torch.long),
+            "dst_neg_index": torch.tensor([1], dtype=torch.long),
+        },
+        ("user", "rates", "item"): {
+            "edge_index": torch.tensor([[0, 1], [1, 2]], dtype=torch.long),
+            "edge_label_index": torch.tensor([[0], [2]], dtype=torch.long),
+        },
+        ("item", "rated_by", "user"): {
+            "edge_index": torch.tensor([[1, 2], [0, 1]], dtype=torch.long),
+        },
+    }
+    data_dict[node_store_key] = node_store
+    data = HeteroData(data_dict)  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match=match):
+        to_bipartite_graph_batch(data)
+
+
+@pytest.mark.parametrize(
+    ("data", "match"),
+    [
+        (
+            HeteroData(
+                {  # type: ignore[dict-item]
+                    "user": {},
+                    "item": {
+                        "n_id": torch.tensor([1], dtype=torch.long),
+                        "dst_pos_index": torch.tensor([0], dtype=torch.long),
+                        "dst_neg_index": torch.tensor([0], dtype=torch.long),
+                    },
+                    ("user", "rates", "item"): {
+                        "edge_index": torch.tensor([[0], [0]], dtype=torch.long),
+                        "edge_label_index": torch.tensor([[0], [0]], dtype=torch.long),
+                    },
+                    ("item", "rated_by", "user"): {
+                        "edge_index": torch.tensor([[0], [0]], dtype=torch.long),
+                    },
+                }
+            ),
+            "missing user node ids",
+        ),
+        (
+            HeteroData(
+                {  # type: ignore[dict-item]
+                    "user": {
+                        "n_id": torch.tensor([1], dtype=torch.long),
+                        "src_index": torch.tensor([0], dtype=torch.long),
+                    },
+                    "item": {},
+                    ("user", "rates", "item"): {
+                        "edge_index": torch.tensor([[0], [0]], dtype=torch.long),
+                        "edge_label_index": torch.tensor([[0], [0]], dtype=torch.long),
+                    },
+                    ("item", "rated_by", "user"): {
+                        "edge_index": torch.tensor([[0], [0]], dtype=torch.long),
+                    },
+                }
+            ),
+            "missing item node ids",
+        ),
+        (
+            HeteroData(
+                {  # type: ignore[dict-item]
+                    "user": {"n_id": torch.tensor([1], dtype=torch.long)},
+                    "item": {"n_id": torch.tensor([2], dtype=torch.long)},
+                    ("user", "rates", "item"): {
+                        "edge_index": torch.tensor([[0], [0]], dtype=torch.long),
+                        "edge_label_index": torch.tensor([[0], [0]], dtype=torch.long),
+                    },
+                    ("item", "rated_by", "user"): {
+                        "edge_index": torch.tensor([[0], [0]], dtype=torch.long),
+                    },
+                }
+            ),
+            "missing triplet supervision indices",
+        ),
+        (
+            HeteroData(
+                {  # type: ignore[dict-item]
+                    "user": {
+                        "n_id": torch.tensor([1], dtype=torch.long),
+                        "src_index": torch.tensor([0], dtype=torch.long),
+                    },
+                    "item": {"n_id": torch.tensor([2], dtype=torch.long)},
+                    ("user", "rates", "item"): {
+                        "edge_index": torch.tensor([[0], [0]], dtype=torch.long),
+                        "edge_label_index": torch.tensor([[0], [0]], dtype=torch.long),
+                    },
+                }
+            ),
+            "missing item2user message-passing edges",
+        ),
+    ],
+)
+def test_to_bipartite_graph_batch_rejects_missing_required_fields(
+    data: HeteroData, match: str
+) -> None:
+    with pytest.raises(ValueError, match=match):
+        to_bipartite_graph_batch(data)

@@ -1,6 +1,7 @@
 import pathlib
 
 import polars as pl
+import pytest
 import torch
 from pytest_mock import MockerFixture
 
@@ -25,6 +26,29 @@ def test_datamodule_exposes_special_indices(tmp_path: pathlib.Path) -> None:
     assert dm.item_unk_idx == int(SpecialItemIndex.UNK)
     assert dm.category_pad_idx == int(SpecialCategoryIndex.PAD)
     assert dm.category_unk_idx == int(SpecialCategoryIndex.UNK)
+
+
+def test_seq_rec_datamodule_num_users_and_num_items_require_initialized_indices(
+    tmp_path: pathlib.Path,
+) -> None:
+    """Require prepared index mappings before exposing user and item counts."""
+    dm = AmazonReviewsSeqRecDataModule(save_dir=tmp_path)
+
+    with pytest.raises(AttributeError):
+        _ = dm.num_users
+
+    with pytest.raises(AttributeError):
+        _ = dm.num_items
+
+
+def test_seq_rec_datamodule_exposes_num_users_and_num_items(tmp_path: pathlib.Path) -> None:
+    """Expose indexed user and item counts through public properties."""
+    dm = AmazonReviewsSeqRecDataModule(save_dir=tmp_path)
+    dm.user2index = {"#UNK": 0, "user_a": 1, "user_b": 2}
+    dm.item2index = {"#PAD": 0, "#UNK": 1, "item_a": 2, "item_b": 3}
+
+    assert dm.num_users == 3
+    assert dm.num_items == 4
 
 
 def test_seq_rec_preprocess_dataset(mocker: MockerFixture) -> None:

@@ -1,0 +1,5 @@
+name: "LightGCN"
+
+out_dim: 64 # LightGCNで伝播・最終出力に使う共通埋め込み次元数。user_idとitem_idのembedding次元もこの値になる
+num_layers: 2 # LightGCNの伝播層数。0層目の初期埋め込みと各層出力を平均して最終表現を作る
+num_neighbors: [10, 5] # LinkNeighborLoaderで各hopごとにサンプリングするneighbor数

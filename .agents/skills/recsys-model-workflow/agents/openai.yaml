@@ -1,0 +1,4 @@
+interface:
+  display_name: "Recsys Model Workflow"
+  short_description: "Help with recsys model design and changes"
+  default_prompt: "Use $recsys-model-workflow to review or implement a recommender model change in this repository."

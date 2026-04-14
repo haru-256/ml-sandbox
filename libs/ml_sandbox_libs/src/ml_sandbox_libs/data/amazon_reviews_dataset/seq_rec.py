@@ -478,6 +478,30 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
         return SpecialCategoryIndex
 
     @property
+    def num_users(self) -> int:
+        """Return the number of indexed users.
+
+        Returns:
+            Number of indexed users including special indices.
+
+        Raises:
+            AttributeError: If user indices are not initialized yet.
+        """
+        return len(self.user2index)
+
+    @property
+    def num_items(self) -> int:
+        """Return the number of indexed items.
+
+        Returns:
+            Number of indexed items including special indices.
+
+        Raises:
+            AttributeError: If item indices are not initialized yet.
+        """
+        return len(self.item2index)
+
+    @property
     def item_pad_idx(self) -> int:
         """Return the padding index used for item features.
 

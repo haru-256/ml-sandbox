@@ -1,4 +1,4 @@
-from ml_sandbox_libs.loss import BCE, CCL, EmbeddingLossFn, ScoreLossFn, gBCE
+from ml_sandbox_libs.loss import BCE, BPR, CCL, EmbeddingLossFn, ScoreLossFn, gBCE
 from omegaconf import DictConfig
 
 
@@ -54,5 +54,7 @@ def create_embedding_loss(cfg: DictConfig) -> EmbeddingLossFn:
             margin=cfg.loss.margin,
             negative_weight=cfg.loss.negative_weight,
         )
+    if loss_name == "bpr":
+        return BPR()
 
     raise ValueError(f"Unsupported embedding loss: {cfg.loss.name}")

@@ -1,12 +1,18 @@
-from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecDataModule
+from typing import cast
+
+from ml_sandbox_libs.data.amazon_reviews_dataset import (
+    AmazonReviewsBipartiteGraphDataModule,
+    AmazonReviewsSeqRecDataModule,
+)
 from ml_sandbox_libs.loss import EmbeddingLossFn, ScoreLossFn
 from ml_sandbox_libs.models.base import BaseModule
 from ml_sandbox_libs.models.types import ActivationType, NormalizeType, enum_from_str
 from ml_sandbox_libs.optimizer import AdamWCosine
 from omegaconf import DictConfig
 
+from config.validation import validate_lightgcn_neighbor_config
 from loss import create_embedding_loss, create_score_loss
-from models import SASRecModule, SimpleXModule, TwoTowerModule, gSASRecModule
+from models import LightGCNModule, SASRecModule, SimpleXModule, TwoTowerModule, gSASRecModule
 
 
 def create_two_tower_module(
@@ -26,12 +32,12 @@ def create_two_tower_module(
     """
     loss_fn: ScoreLossFn = create_score_loss(
         cfg,
-        num_items=len(datamodule.item2index),
+        num_items=datamodule.num_items,
         neg_sample_size=cfg.data.neg_sample_size,
     )
     return TwoTowerModule(
-        num_users=len(datamodule.user2index),
-        num_items=len(datamodule.item2index),
+        num_users=datamodule.num_users,
+        num_items=datamodule.num_items,
         out_dim=cfg.model.out_dim,
         user_id_dim=cfg.model.user_id_dim,
         item_id_dim=cfg.model.item_id_dim,
@@ -63,11 +69,11 @@ def create_sasrec_module(
     """
     loss_fn: ScoreLossFn = create_score_loss(
         cfg,
-        num_items=len(datamodule.item2index),
+        num_items=datamodule.num_items,
         neg_sample_size=cfg.data.neg_sample_size,
     )
     return SASRecModule(
-        num_items=len(datamodule.item2index),
+        num_items=datamodule.num_items,
         out_dim=cfg.model.out_dim,
         num_heads=cfg.model.num_heads,
         num_blocks=cfg.model.num_blocks,
@@ -99,11 +105,11 @@ def create_gsasrec_module(
     """
     loss_fn: ScoreLossFn = create_score_loss(
         cfg,
-        num_items=len(datamodule.item2index),
+        num_items=datamodule.num_items,
         neg_sample_size=cfg.data.neg_sample_size,
     )
     return gSASRecModule(
-        num_items=len(datamodule.item2index),
+        num_items=datamodule.num_items,
         out_dim=cfg.model.out_dim,
         num_heads=cfg.model.num_heads,
         num_blocks=cfg.model.num_blocks,
@@ -135,8 +141,8 @@ def create_simplex_module(
     """
     loss_fn: EmbeddingLossFn = create_embedding_loss(cfg)
     return SimpleXModule(
-        num_users=len(datamodule.user2index),
-        num_items=len(datamodule.item2index),
+        num_users=datamodule.num_users,
+        num_items=datamodule.num_items,
         out_dim=cfg.model.out_dim,
         user_id_dim=cfg.model.user_id_dim,
         item_id_dim=cfg.model.item_id_dim,
@@ -153,9 +159,37 @@ def create_simplex_module(
     )
 
 
+def create_lightgcn_module(
+    cfg: DictConfig,
+    datamodule: AmazonReviewsBipartiteGraphDataModule,
+    optimizer: AdamWCosine,
+) -> LightGCNModule:
+    """Create LightGCN model module.
+
+    Args:
+        cfg: Configuration object
+        datamodule: Bipartite graph data module instance
+        optimizer: Optimizer instance
+
+    Returns:
+        Initialized LightGCNModule
+    """
+    validate_lightgcn_neighbor_config(cfg)
+    loss_fn: EmbeddingLossFn = create_embedding_loss(cfg)
+    return LightGCNModule(
+        num_users=datamodule.num_users,
+        num_items=datamodule.num_items,
+        out_dim=cfg.model.out_dim,
+        num_layers=cfg.model.num_layers,
+        optimizer=optimizer,
+        loss_fn=loss_fn,
+        eval_top_k=cfg.data.eval_top_k,
+    )
+
+
 def create_model_module(
     cfg: DictConfig,
-    datamodule: AmazonReviewsSeqRecDataModule,
+    datamodule: AmazonReviewsSeqRecDataModule | AmazonReviewsBipartiteGraphDataModule,
     optimizer: AdamWCosine,
 ) -> BaseModule:
     """Factory function to create model module based on configuration.
@@ -173,15 +207,37 @@ def create_model_module(
     """
     match cfg.model.name:
         case "TwoTower":
-            return create_two_tower_module(cfg, datamodule, optimizer)
+            return create_two_tower_module(
+                cfg,
+                cast(AmazonReviewsSeqRecDataModule, datamodule),
+                optimizer,
+            )
         case "SASRec":
-            return create_sasrec_module(cfg, datamodule, optimizer)
+            return create_sasrec_module(
+                cfg,
+                cast(AmazonReviewsSeqRecDataModule, datamodule),
+                optimizer,
+            )
         case "gSASRec":
-            return create_gsasrec_module(cfg, datamodule, optimizer)
+            return create_gsasrec_module(
+                cfg,
+                cast(AmazonReviewsSeqRecDataModule, datamodule),
+                optimizer,
+            )
         case "SimpleX":
-            return create_simplex_module(cfg, datamodule, optimizer)
+            return create_simplex_module(
+                cfg,
+                cast(AmazonReviewsSeqRecDataModule, datamodule),
+                optimizer,
+            )
+        case "LightGCN":
+            return create_lightgcn_module(
+                cfg,
+                cast(AmazonReviewsBipartiteGraphDataModule, datamodule),
+                optimizer,
+            )
         case _:
             raise NotImplementedError(
                 f"Model '{cfg.model.name}' is not supported. "
-                "Available models: ['TwoTower', 'SASRec', 'gSASRec', 'SimpleX']"
+                "Available models: ['TwoTower', 'SASRec', 'gSASRec', 'SimpleX', 'LightGCN']"
             )

@@ -1,4 +1,6 @@
 import pathlib
+from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import Literal
 
 import datasets as D
@@ -163,6 +165,8 @@ def create_bipartite_graph(
             - ``("user", "rates", "item")`` edges with:
               ``edge_index`` and ``edge_attr`` for message passing, and
               ``edge_label_index`` and ``edge_label_attr`` for supervision.
+            - ``("item", "rated_by", "user")`` reverse edges with:
+              ``edge_index`` and ``edge_attr`` for message passing.
 
     Raises:
         ValueError: If ``split`` is invalid.
@@ -199,9 +203,7 @@ def create_bipartite_graph(
             raise ValueError(f"Invalid split: {split}")
 
     edge_index = torch.as_tensor(
-        np.ascontiguousarray(
-            message_passing_edge_df["user_index", "item_index"].to_numpy().T
-        ),
+        np.ascontiguousarray(message_passing_edge_df["user_index", "item_index"].to_numpy().T),
         dtype=torch.long,
     )
     edge_attr = torch.as_tensor(
@@ -216,6 +218,8 @@ def create_bipartite_graph(
         np.ascontiguousarray(label_edge_df["rating"].to_numpy()).reshape(-1, 1),
         dtype=torch.float32,
     )
+    reverse_edge_index = edge_index.flip([0])
+    reverse_edge_attr = edge_attr.clone()
     data = HeteroData(
         {  # type: ignore
             "user": {"x": user_index.unsqueeze(-1), "user_index": user_index},
@@ -230,9 +234,150 @@ def create_bipartite_graph(
                 "edge_label_index": edge_label_index,
                 "edge_label_attr": edge_label_attr,
             },
+            ("item", "rated_by", "user"): {
+                "edge_index": reverse_edge_index,
+                "edge_attr": reverse_edge_attr,
+            },
         }
     )
     return data
+
+
+@dataclass(frozen=True)
+class AmazonReviewsBipartiteGraphBatch:
+    """Typed batch representation for bipartite graph link prediction.
+
+    This batch is derived from a ``LinkNeighborLoader`` output with
+    ``NegativeSampling(mode="triplet")`` and exposes the tensors needed by
+    graph-based recommendation models such as LightGCN.
+
+    Fields:
+        user_node_ids: Global user node indices for sampled user nodes.
+        item_node_ids: Global item node indices for sampled item nodes.
+        user2item_edge_index: Local message-passing edge index for the
+            ``("user", "rates", "item")`` relation, shape ``(2, E)``.
+        item2user_edge_index: Local message-passing edge index for the
+            ``("item", "rated_by", "user")`` relation, shape ``(2, E)``.
+        src_index: Local user indices for supervision triplets, shape ``(B,)``.
+        dst_pos_index: Local positive item indices for supervision triplets,
+            shape ``(B,)``.
+        dst_neg_index: Local negative item indices for supervision triplets,
+            shape ``(B,)`` or ``(B, N)``.
+    """
+
+    user_node_ids: torch.Tensor
+    item_node_ids: torch.Tensor
+    user2item_edge_index: torch.Tensor
+    item2user_edge_index: torch.Tensor
+    src_index: torch.Tensor
+    dst_pos_index: torch.Tensor
+    dst_neg_index: torch.Tensor
+
+
+def _resolve_node_ids(
+    store: HeteroData,
+    *,
+    node_type_name: str,
+    public_index_attr: str,
+) -> torch.Tensor | None:
+    """Resolve sampled node ids and validate PyG/global-index consistency.
+
+    Args:
+        store: Sampled node store from a heterogeneous PyG batch.
+        node_type_name: Human-readable node type name used in error messages.
+        public_index_attr: Attribute name that stores the domain-specific global
+            index in the original graph.
+
+    Returns:
+        The resolved global node ids.
+
+    Raises:
+        ValueError: If both ``n_id`` and the public index attribute are present
+            but point to different global node ids.
+    """
+    public_index = getattr(store, public_index_attr, None)
+    n_id = getattr(store, "n_id", None)
+
+    if public_index is not None and n_id is not None and not torch.equal(public_index, n_id):
+        raise ValueError(
+            f"Sampled {node_type_name} batch has inconsistent node ids: "
+            f"{public_index_attr}={public_index.tolist()} and n_id={n_id.tolist()}."
+        )
+
+    if public_index is not None:
+        return public_index
+    if n_id is not None:
+        return n_id
+    raise ValueError(
+        f"Sampled bipartite graph batch is missing {node_type_name} node ids: "
+        f"both {public_index_attr} and n_id are unavailable."
+    )
+
+
+def to_bipartite_graph_batch(data: HeteroData) -> AmazonReviewsBipartiteGraphBatch:
+    """Convert a sampled PyG heterogeneous batch into a typed bipartite batch.
+
+    Args:
+        data: Sampled heterogeneous graph batch returned by ``LinkNeighborLoader``.
+
+    Returns:
+        Typed batch object exposing sampled node ids, relation-specific
+        message-passing edges, and supervision triplet indices stored on the
+        sampled user/item node stores.
+
+    Raises:
+        ValueError: If the required user/item node ids, relation-specific
+            message-passing edges, triplet supervision indices are missing from
+            the sampled batch, or PyG ``n_id`` disagrees with the stored public
+            user/item indices.
+    """
+    edge_store = data["user", "rates", "item"]
+    reverse_edge_store = data["item", "rated_by", "user"]
+    user_store = data["user"]
+    item_store = data["item"]
+
+    user_node_ids = _resolve_node_ids(
+        user_store,
+        node_type_name="user",
+        public_index_attr="user_index",
+    )
+    item_node_ids = _resolve_node_ids(
+        item_store,
+        node_type_name="item",
+        public_index_attr="item_index",
+    )
+
+    src_index = getattr(user_store, "src_index", None)
+    dst_pos_index = getattr(item_store, "dst_pos_index", None)
+    dst_neg_index = getattr(item_store, "dst_neg_index", None)
+
+    user2item_edge_index = getattr(edge_store, "edge_index", None)
+    item2user_edge_index = getattr(reverse_edge_store, "edge_index", None)
+
+    if user_node_ids is None:
+        raise ValueError("Sampled bipartite graph batch is missing user node ids.")
+    if item_node_ids is None:
+        raise ValueError("Sampled bipartite graph batch is missing item node ids.")
+    if user2item_edge_index is None:
+        raise ValueError(
+            "Sampled bipartite graph batch is missing user2item message-passing edges."
+        )
+    if item2user_edge_index is None:
+        raise ValueError(
+            "Sampled bipartite graph batch is missing item2user message-passing edges."
+        )
+    if src_index is None or dst_pos_index is None or dst_neg_index is None:
+        raise ValueError("Sampled bipartite graph batch is missing triplet supervision indices.")
+
+    return AmazonReviewsBipartiteGraphBatch(
+        user_node_ids=user_node_ids,
+        item_node_ids=item_node_ids,
+        user2item_edge_index=user2item_edge_index,
+        item2user_edge_index=item2user_edge_index,
+        src_index=src_index,
+        dst_pos_index=dst_pos_index,
+        dst_neg_index=dst_neg_index,
+    )
 
 
 class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
@@ -243,6 +388,30 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
     for train, validation, and test stages.
     """
 
+    @property
+    def num_users(self) -> int:
+        """Return the number of indexed users.
+
+        Returns:
+            Number of indexed users including special indices.
+
+        Raises:
+            AttributeError: If user indices are not initialized yet.
+        """
+        return len(self.user2index)
+
+    @property
+    def num_items(self) -> int:
+        """Return the number of indexed items.
+
+        Returns:
+            Number of indexed items including special indices.
+
+        Raises:
+            AttributeError: If item indices are not initialized yet.
+        """
+        return len(self.item2index)
+
     def __init__(
         self,
         save_dir: pathlib.Path,
@@ -251,7 +420,8 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         neg_sample_size: int = 1,
         sampling_val_test: bool = False,
         eval_negative_sample_size: int = 100,
-    ):
+        num_neighbors: Sequence[int] = (10, 5),
+    ) -> None:
         """Initialize the Amazon Reviews bipartite graph DataModule.
 
         Args:
@@ -264,9 +434,13 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
                 DataModules in this package.
             eval_negative_sample_size: Number of triplet negatives sampled per
                 positive edge during validation and test.
+            num_neighbors: Number of neighbors sampled per hop by
+                ``LinkNeighborLoader``.
 
         Note:
-            Neighbor sampling is fixed to two hops with ``[10, 5]`` neighbors per hop.
+            Neighbor sampling defaults to two hops with ``[10, 5]`` neighbors per
+            hop. Isolated nodes are intentionally preserved so PyG ``n_id`` stays
+            aligned with the public ``user_index`` and ``item_index`` fields.
         """
         super().__init__()
         self.save_dir = save_dir
@@ -275,7 +449,8 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         self.neg_sample_size = neg_sample_size
         self.sampling_val_test = sampling_val_test
         self.eval_negative_sample_size = eval_negative_sample_size
-        self.transform = T.Compose([T.RemoveIsolatedNodes(), T.RemoveSelfLoops()])
+        self.num_neighbors = list(num_neighbors)
+        self.transform = T.Compose([T.RemoveSelfLoops()])
 
     # TODO: Consider saving preprocessed data to disk for faster loading
     def prepare_data(self) -> None:
@@ -348,7 +523,7 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         neg_sampling = NegativeSampling(mode="triplet", amount=self.neg_sample_size)
         loader = LinkNeighborLoader(
             data=self.train_data,
-            num_neighbors=[10, 5],
+            num_neighbors=self.num_neighbors,
             batch_size=self.batch_size,
             edge_label_index=(
                 ("user", "rates", "item"),
@@ -371,7 +546,7 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         neg_sampling = NegativeSampling(mode="triplet", amount=self.eval_negative_sample_size)
         loader = LinkNeighborLoader(
             data=self.val_data,
-            num_neighbors=[10, 5],
+            num_neighbors=self.num_neighbors,
             batch_size=self.batch_size,
             edge_label_index=(
                 ("user", "rates", "item"),
@@ -394,7 +569,7 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         neg_sampling = NegativeSampling(mode="triplet", amount=self.eval_negative_sample_size)
         loader = LinkNeighborLoader(
             data=self.test_data,
-            num_neighbors=[10, 5],
+            num_neighbors=self.num_neighbors,
             batch_size=self.batch_size,
             edge_label_index=(
                 ("user", "rates", "item"),

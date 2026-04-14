@@ -44,7 +44,7 @@ def _create_optimizer() -> AdamWCosine:
 
 def _create_module(mocker: MockerFixture) -> SimpleXModule:
     loss_fn = mocker.Mock(return_value=torch.tensor(0.5, requires_grad=True))
-    loss_fn.calc_distances.side_effect = [
+    loss_fn.calc_scores.side_effect = [
         torch.tensor([0.8, 0.7, 0.6, 0.5]),
         torch.tensor(
             [

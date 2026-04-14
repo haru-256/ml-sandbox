@@ -3,7 +3,7 @@ name = "recsys-candidate-generation"
 version = "0.1.0"
 description = "Recommendation system candidate generation module for ML Sandbox project."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
   "lightning~=2.5.1",
   "torchmetrics~=1.7.1",
@@ -19,8 +19,22 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cpu = ["torch==2.10.0", "torchvision==0.25.0"]
-gpu = ["torch==2.10.0", "torchvision==0.25.0"]
+cpu = [
+    "torch==2.10.0",
+    "pyg_lib",
+    "torch_scatter",
+    "torch_sparse",
+    "torch_cluster",
+    "torch_spline_conv",
+]
+gpu = [
+  "torch==2.10.0",
+  "pyg_lib",
+  "torch_scatter",
+  "torch_sparse",
+  "torch_cluster",
+  "torch_spline_conv",
+]
 
 [dependency-groups]
 dev = ["notebook~=7.3.2", "ipywidgets>=8.1.5", "tqdm~=4.67.1"]
@@ -38,11 +52,38 @@ torch = [
   { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'Darwin'" },
   { index = "pytorch-gpu", extra = "gpu" },
 ]
-torchvision = [
-  { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'Darwin'" },
-  { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'Darwin'" },
-  { index = "pytorch-gpu", extra = "gpu" },
+# indexファイルが存在しないため、以下のlinkから明示的にURLを指定
+# pyg_libsはtorch2.10.0に対しては、nightly版しか提供されていない
+# https://data.pyg.org/whl/torch-2.10.0+cu128.html
+# https://data.pyg.org/whl/torch-2.10.0+cpu.html
+# https://data.pyg.org/whl/nightly/torch-2.10.0+cu128.html
+# https://data.pyg.org/whl/nightly/torch-2.10.0+cpu.html
+pyg_lib = [
+  { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210-cp312-cp312-macosx_11_0_arm64.whl", extra = "cpu", marker = "platform_system == 'Darwin'" },
+  { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcu128/pyg_lib-0.6.0.dev20260313%2Bpt210cu128-cp312-cp312-manylinux_2_28_x86_64.whl", extra = "gpu" },
 ]
+torch_scatter = [
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_scatter-2.1.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
+]
+torch_sparse = [
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18%2Bpt210cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl", extra = "cpu", marker = "platform_system == 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_sparse-0.6.18%2Bpt210cu128-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
+]
+torch_cluster = [
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3%2Bpt210cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_cluster-1.6.3%2Bpt210cu128-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
+]
+torch_spline_conv = [
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl", extra = "cpu", marker = "platform_system == 'Darwin'" },
+  { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_spline_conv-1.2.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl", extra = "gpu" },
+]
+
 
 [[tool.uv.index]]
 name = "pytorch-cpu-mac"
@@ -56,7 +97,7 @@ explicit = true
 
 [[tool.uv.index]]
 name = "pytorch-gpu"
-url = "https://download.pytorch.org/whl/cu126"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = true
 
 [tool.ruff]
