@@ -1,12 +1,12 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:best-practices"],
   "timezone": "Asia/Tokyo",
   "schedule": ["every 2 weeks on monday"],
   "minimumReleaseAge": "14 days",
   "lockFileMaintenance": {
     "enabled": true,
-    "automerge": false
+    "automerge": true
   },
   "packageRules": [
     {
