@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   "lightning~=2.4.0",
-  "torchmetrics~=1.4.1",
+  "torchmetrics~=1.9.0",
   "bertviz~=1.2.0",
   "transformers[torch,onnxruntime,optuna,sentencepiece,sklearn,vision]~=4.40.0",
   "datasets~=2.21.0",
