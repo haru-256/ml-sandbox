@@ -225,10 +225,11 @@ wheels = [
 
 [[package]]
 name = "bertviz"
-version = "1.2.0"
+version = "1.4.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "boto3" },
+    { name = "ipython" },
     { name = "regex" },
     { name = "requests" },
     { name = "sentencepiece" },
@@ -236,9 +237,9 @@ dependencies = [
     { name = "tqdm" },
     { name = "transformers" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/af/17/f2d963ab20f520865429feff6895b3ca2afaccc4772479bd99b79954cc60/bertviz-1.2.0.tar.gz", hash = "sha256:68231ec2c80a22037ac5b310b1bbec145a270cc1979c4917e253961caea3593c", size = 130174, upload-time = "2021-07-31T16:05:16.936Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9c/11/edd831ca9748c844e262cb6ae09d0827526b09e2ab004c3c59adb70f126e/bertviz-1.4.1.tar.gz", hash = "sha256:28d5c350a45dd4ece16f74df3f44ed15548e3ebaf36d837ac93bc60a594bf07a", size = 136693, upload-time = "2025-06-01T12:48:41.468Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ce/82/cc428952f1fda81ad28f435918f07d0545a9e489f3fac3ed3577b13125dc/bertviz-1.2.0-py3-none-any.whl", hash = "sha256:ad64c60f7819b06b2a27715b25488c3e06983f28898a0fc256815cc15c000983", size = 156216, upload-time = "2021-07-31T16:05:14.352Z" },
+    { url = "https://files.pythonhosted.org/packages/ad/47/ee011feb71ae2dfe9d37936b67ad4887efadd4c75d33ba28068a9743054f/bertviz-1.4.1-py3-none-any.whl", hash = "sha256:e53e5fb77812d73fdc1142f56334cbf723d6cfcb54f9a6f6d3d5c83dd9763192", size = 157522, upload-time = "2025-06-01T12:48:39.832Z" },
 ]
 
 [[package]]
@@ -2699,7 +2700,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "bertviz", specifier = "~=1.2.0" },
+    { name = "bertviz", specifier = "~=1.4.1" },
     { name = "datasets", specifier = "~=2.21.0" },
     { name = "lightning", specifier = "~=2.6.1" },
     { name = "numpy", specifier = "~=2.0.0" },
