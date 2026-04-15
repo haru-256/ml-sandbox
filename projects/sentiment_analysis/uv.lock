@@ -2453,7 +2453,7 @@ wheels = [
 
 [[package]]
 name = "tensorboard"
-version = "2.17.1"
+version = "2.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "absl-py" },
@@ -2461,14 +2461,14 @@ dependencies = [
     { name = "markdown" },
     { name = "numpy" },
     { name = "packaging" },
+    { name = "pillow" },
     { name = "protobuf" },
     { name = "setuptools" },
-    { name = "six" },
     { name = "tensorboard-data-server" },
     { name = "werkzeug" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d4/41/dccba8c5f955bc35b6110ff78574e4e5c8226ad62f08e732096c3861309b/tensorboard-2.17.1-py3-none-any.whl", hash = "sha256:253701a224000eeca01eee6f7e978aea7b408f60b91eb0babdb04e78947b773e", size = 5502989, upload-time = "2024-08-14T18:10:47.657Z" },
+    { url = "https://files.pythonhosted.org/packages/9c/d9/a5db55f88f258ac669a92858b70a714bbbd5acd993820b41ec4a96a4d77f/tensorboard-2.20.0-py3-none-any.whl", hash = "sha256:9dc9f978cb84c0723acf9a345d96c184f0293d18f166bb8d59ee098e6cfaaba6", size = 5525680, upload-time = "2025-07-17T19:20:49.638Z" },
 ]
 
 [[package]]
@@ -2707,7 +2707,7 @@ requires-dist = [
     { name = "polars", specifier = "~=1.39.3" },
     { name = "rich", specifier = "~=13.9.4" },
     { name = "spacy", specifier = "~=3.8.14" },
-    { name = "tensorboard", specifier = "~=2.17.1" },
+    { name = "tensorboard", specifier = "~=2.20.0" },
     { name = "torchinfo", specifier = "~=1.8.0" },
     { name = "torchmetrics", specifier = "~=1.9.0" },
     { name = "transformers", extras = ["torch", "onnxruntime", "optuna", "sentencepiece", "sklearn", "vision"], specifier = "~=4.40.0" },
