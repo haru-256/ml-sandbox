@@ -5,7 +5,7 @@ description = "Recommendation system candidate generation module for ML Sandbox 
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-  "lightning~=2.5.1",
+  "lightning~=2.6.1",
   "torchmetrics~=1.9.0",
   "numpy~=2.2.5",
   "polars~=1.39.3",
