@@ -6,6 +6,26 @@
   },
   "packageRules": [
     {
+      "matchPaths": ["projects/sentiment_analysis/**"],
+      "groupName": "sentiment-analysis dependencies"
+    },
+    {
+      "matchPaths": ["projects/recsys-ranking/**"],
+      "groupName": "recsys-ranking dependencies"
+    },
+    {
+      "matchPaths": ["projects/recsys-candidate-generation/**"],
+      "groupName": "recsys-candidate-generation dependencies"
+    },
+    {
+      "matchPaths": ["libs/ml_sandbox_libs/**"],
+      "groupName": "ml-sandbox-libs dependencies"
+    },
+    {
+      "matchPaths": ["apps/vertex-job-runner/**"],
+      "groupName": "vertex-job-runner dependencies"
+    },
+    {
       "matchUpdateTypes": ["minor", "patch"],
       "automerge": true,
       "minimumReleaseAge": "14 days"
