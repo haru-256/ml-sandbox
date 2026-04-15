@@ -5,7 +5,7 @@ description = "Recommendation system ranking module for ML Sandbox project."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-  "lightning~=2.5.4",
+  "lightning~=2.6.1",
   "litmodels~=0.1.8",
   "torchmetrics~=1.9.0",
   "numpy~=2.3.2",
