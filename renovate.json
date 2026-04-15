@@ -60,7 +60,7 @@
     },
     {
       "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true
+      "automerge": false
     },
     {
       "matchUpdateTypes": ["major"],
