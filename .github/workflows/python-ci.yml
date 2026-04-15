@@ -51,7 +51,7 @@ jobs:
     env:
       RUFF_OUTPUT_FORMAT: github
     concurrency:
-      group: ${{ github.workflow }}-${{ matrix.project }}
+      group: ${{ github.workflow }}-${{ matrix.project }}-${{ github.ref }}
       cancel-in-progress: true
     defaults:
       run:
