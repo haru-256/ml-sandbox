@@ -10,63 +10,39 @@
   },
   "packageRules": [
     {
-      "matchPaths": ["projects/sentiment_analysis/**"],
+      "matchPaths": ["projects/[^/]+/**"],
       "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "sentiment-analysis minor dependencies",
+      "groupName": "{{{parentDir}}} minor dependencies",
       "automerge": false
     },
     {
-      "matchPaths": ["projects/sentiment_analysis/**"],
+      "matchPaths": ["projects/[^/]+/**"],
       "matchUpdateTypes": ["major"],
-      "groupName": "sentiment-analysis major dependencies",
+      "groupName": "{{{parentDir}}} major dependencies",
       "automerge": false
     },
     {
-      "matchPaths": ["projects/recsys-ranking/**"],
+      "matchPaths": ["libs/[^/]+/**"],
       "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "recsys-ranking minor dependencies",
+      "groupName": "{{{parentDir}}} minor dependencies",
       "automerge": false
     },
     {
-      "matchPaths": ["projects/recsys-ranking/**"],
+      "matchPaths": ["libs/[^/]+/**"],
       "matchUpdateTypes": ["major"],
-      "groupName": "recsys-ranking major dependencies",
+      "groupName": "{{{parentDir}}} major dependencies",
       "automerge": false
     },
     {
-      "matchPaths": ["projects/recsys-candidate-generation/**"],
+      "matchPaths": ["apps/[^/]+/**"],
       "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "recsys-candidate-generation minor dependencies",
+      "groupName": "{{{parentDir}}} minor dependencies",
       "automerge": false
     },
     {
-      "matchPaths": ["projects/recsys-candidate-generation/**"],
+      "matchPaths": ["apps/[^/]+/**"],
       "matchUpdateTypes": ["major"],
-      "groupName": "recsys-candidate-generation major dependencies",
-      "automerge": false
-    },
-    {
-      "matchPaths": ["libs/ml_sandbox_libs/**"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "ml-sandbox-libs minor dependencies",
-      "automerge": false
-    },
-    {
-      "matchPaths": ["libs/ml_sandbox_libs/**"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "ml-sandbox-libs major dependencies",
-      "automerge": false
-    },
-    {
-      "matchPaths": ["apps/vertex-job-runner/**"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "vertex-job-runner minor dependencies",
-      "automerge": false
-    },
-    {
-      "matchPaths": ["apps/vertex-job-runner/**"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "vertex-job-runner major dependencies",
+      "groupName": "{{{parentDir}}} major dependencies",
       "automerge": false
     }
   ]
