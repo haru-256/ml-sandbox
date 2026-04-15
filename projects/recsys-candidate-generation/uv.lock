@@ -393,14 +393,14 @@ wheels = [
 
 [[package]]
 name = "deepdiff"
-version = "8.1.1"
+version = "8.6.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "orderly-set" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/50/4b/ce2d3a36f77186d7dbca0f10b33e6a1c0eee390d9434960d2a14e2736b52/deepdiff-8.1.1.tar.gz", hash = "sha256:dd7bc7d5c8b51b5b90f01b0e2fe23c801fd8b4c6a7ee7e31c5a3c3663fcc7ceb", size = 433560, upload-time = "2024-12-16T23:54:15.801Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/89/50/767448e792d41bfb6094ee317a355c1cb221dca24b2e178e2203bbea2a77/deepdiff-8.6.2.tar.gz", hash = "sha256:186dcbd181e4d76cef11ab05f802d0056c5d6083c5a6748c1473e9d7481e183e", size = 634860, upload-time = "2026-03-18T17:16:33.785Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/66/f7/2df72b55635926872b947203aacbe7e1109a51929aec8ebfef8c4a348eb5/deepdiff-8.1.1-py3-none-any.whl", hash = "sha256:b0231fa3afb0f7184e82535f2b4a36636442ed21e94a0cf3aaa7982157e7ebca", size = 84655, upload-time = "2024-12-16T23:54:12.973Z" },
+    { url = "https://files.pythonhosted.org/packages/2b/5f/c52bd1255db763d0cdcb7084d2e90c42119cb229302c56bdf1d0aa78abd2/deepdiff-8.6.2-py3-none-any.whl", hash = "sha256:4d22034a866c3928303a9332c279362f714192d9305bac17c498720d095fd1b4", size = 91979, upload-time = "2026-03-18T17:16:32.171Z" },
 ]
 
 [[package]]
@@ -1404,7 +1404,7 @@ provides-extras = ["cpu", "gpu"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "deepdiff", specifier = "~=8.1.1" },
+    { name = "deepdiff", specifier = "~=8.6.2" },
     { name = "ipywidgets", specifier = ">=8.1.5" },
     { name = "mypy", specifier = "~=1.14.0" },
     { name = "notebook", specifier = "~=7.5.5" },
@@ -2020,11 +2020,11 @@ wheels = [
 
 [[package]]
 name = "orderly-set"
-version = "5.3.2"
+version = "5.5.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/51/14/b2c6d6f9b95054b0b0c0afe54dc613285d2a8ab5d74080c2cc9d6500caa6/orderly_set-5.3.2.tar.gz", hash = "sha256:5fd6d917788d0e2196582f38a1c4b74591963d4df9be24ae5a51ba4cea2c987f", size = 20937, upload-time = "2025-04-09T23:58:43.653Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/88/39c83c35d5e97cc203e9e77a4f93bf87ec89cf6a22ac4818fdcc65d66584/orderly_set-5.5.0.tar.gz", hash = "sha256:e87185c8e4d8afa64e7f8160ee2c542a475b738bc891dc3f58102e654125e6ce", size = 27414, upload-time = "2025-07-10T20:10:55.885Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e2/26/53b6ff62f27d0b449aebf9a05a569d9ee2ca6b9bf089aeda0c6813ba239d/orderly_set-5.3.2-py3-none-any.whl", hash = "sha256:81250ce092333db454a70e5d7ef1409ec4d3002e0d2c7546d710f4639f20f19d", size = 12338, upload-time = "2025-04-09T23:58:42.342Z" },
+    { url = "https://files.pythonhosted.org/packages/12/27/fb8d7338b4d551900fa3e580acbe7a0cf655d940e164cb5c00ec31961094/orderly_set-5.5.0-py3-none-any.whl", hash = "sha256:46f0b801948e98f427b412fcabb831677194c05c3b699b80de260374baa0b1e7", size = 13068, upload-time = "2025-07-10T20:10:54.377Z" },
 ]
 
 [[package]]
@@ -2694,7 +2694,7 @@ lint = [
     { name = "ruff", specifier = "~=0.11.4" },
 ]
 test = [
-    { name = "deepdiff", specifier = "~=8.1.1" },
+    { name = "deepdiff", specifier = "~=8.6.2" },
     { name = "pytest", specifier = "~=8.3.4" },
     { name = "pytest-mock", specifier = "~=3.14.0" },
 ]
