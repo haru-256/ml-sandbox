@@ -16,7 +16,7 @@ class PointwiseFeedForward(nn.Module):
         self.gelu = nn.GELU()
         self.dropout = nn.Dropout(hidden_dropout_prob)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass for feed-forward layer
 
         Args:

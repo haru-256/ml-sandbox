@@ -3,7 +3,7 @@ import torch
 from models.modules.base.attention import scaled_dot_product_attention
 
 
-def test_scaled_dot_product_attention():
+def test_scaled_dot_product_attention() -> None:
     # Test case 1: No mask provided
     query = torch.tensor([[[10], [1], [1]], [[1], [10], [1]]]).float()  # shape (2, 3, 1)
     key = torch.tensor([[[10], [1]], [[1], [10]]]).float()  # shape (2, 2, 1)

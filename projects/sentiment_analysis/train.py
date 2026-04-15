@@ -6,15 +6,15 @@ import torch
 from lightning.pytorch.callbacks import EarlyStopping, ModelSummary, RichProgressBar
 from torchinfo import summary
 
-from data.dataset import IMDbDataModule, SpecialTokens
-from models.classifier import TransformerForSequenceClassification
+from data import IMDbDataModule, SpecialTokens
+from models import TransformerForSequenceClassification
 from utils.logging import setup_logger
 
 setup_logger()
 logger = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
     save_dir = pathlib.Path("data/data")
 
     datamodule = IMDbDataModule(save_dir=save_dir, batch_size=128)

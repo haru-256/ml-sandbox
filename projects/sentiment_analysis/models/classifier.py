@@ -1,6 +1,7 @@
 import lightning as L
 import torch
 import torch.nn as nn
+from torch.optim import Adam, Optimizer
 from torchmetrics.classification import BinaryAccuracy
 
 from utils import create_self_attention_mask
@@ -14,7 +15,7 @@ class Classifier(nn.Module):
 
         Args:
             dropout_prob: dropout probability
-            hidden_size: hidden size of transformer encoder
+            input_size: hidden size of transformer encoder
             num_labels: _description_
         """
         super().__init__()
@@ -68,10 +69,7 @@ class TransformerForSequenceClassification(L.LightningModule):
         self.loss_fn = nn.BCEWithLogitsLoss()
         self.accuracy = BinaryAccuracy(threshold=0.5)
 
-        self.training_step_outputs = []
-        self.validation_step_outputs = []
-
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass for transformer model
 
         Args:
@@ -91,12 +89,14 @@ class TransformerForSequenceClassification(L.LightningModule):
         out = self.classifier(enc)
         return out
 
-    def training_step(self, batch, batch_idx) -> torch.Tensor:
+    def training_step(
+        self, batch: tuple[torch.Tensor, torch.Tensor], _batch_idx: int
+    ) -> torch.Tensor:
         x, y = batch
         logits: torch.Tensor = self(x)
         logits = logits.squeeze(dim=1)
-        loss = self.loss_fn(logits, y)
-        accuracy = self.accuracy(logits, y)
+        loss: torch.Tensor = self.loss_fn(logits, y)
+        accuracy = self.accuracy(torch.sigmoid(logits), y)
 
         self.log_dict(
             {"train_loss": loss, "train_logits": logits.mean(), "train_accuracy": accuracy},
@@ -104,16 +104,17 @@ class TransformerForSequenceClassification(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-        self.training_step_outputs.append(loss)
 
         return loss
 
-    def validation_step(self, batch, batch_idx) -> torch.Tensor:
+    def validation_step(
+        self, batch: tuple[torch.Tensor, torch.Tensor], _batch_idx: int
+    ) -> torch.Tensor:
         x, y = batch
         logits: torch.Tensor = self(x)
         logits = logits.squeeze(dim=1)
-        loss = self.loss_fn(logits, y)
-        accuracy = self.accuracy(logits, y)
+        loss: torch.Tensor = self.loss_fn(logits, y)
+        accuracy = self.accuracy(torch.sigmoid(logits), y)
 
         self.log_dict(
             {"val_loss": loss, "val_logits": logits.mean(), "val_accuracy": accuracy},
@@ -121,10 +122,9 @@ class TransformerForSequenceClassification(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-        self.validation_step_outputs.append(loss)
 
         return loss
 
-    def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=self.learning_rate)
+    def configure_optimizers(self) -> Optimizer:
+        optimizer = Adam(self.parameters(), lr=self.learning_rate)
         return optimizer

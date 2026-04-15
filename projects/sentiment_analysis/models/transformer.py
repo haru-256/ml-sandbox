@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 
+from utils import create_cross_attention_mask, create_self_attention_mask
+
 from .modules import TransformerDecoder, TransformerEncoder
 
 
@@ -19,7 +21,14 @@ class Transformer(nn.Module):
         """Transformer model for seq2seq
 
         Args:
-            config: Transformer configuration
+            pad_idx: padding index
+            vocab_size: size of vocabulary
+            hidden_size: embedding dimension
+            num_encoder_blocks: number of encoder blocks
+            num_decoder_blocks: number of decoder blocks
+            num_attention_heads: number of attention heads
+            hidden_dropout_prob: dropout probability for hidden
+            max_position_embeddings: maximum sequence length that the model can handle
         """
         super().__init__()
         # pad token index
@@ -43,7 +52,7 @@ class Transformer(nn.Module):
         self.layer_norm = nn.LayerNorm(hidden_size)
         self.linear = nn.Linear(hidden_size, vocab_size)
 
-    def forward(self, encoder_input: torch.Tensor, decoder_input: torch.Tensor):
+    def forward(self, encoder_input: torch.Tensor, decoder_input: torch.Tensor) -> torch.Tensor:
         """Forward pass for transformer model
 
         Args:
@@ -51,16 +60,26 @@ class Transformer(nn.Module):
             decoder_input: decoder input tensor, shape (batch_size, seq_len)
 
         Returns:
-            output tensor, shape (batch_size, vocab_size), logits for each token
+            output tensor, shape (batch_size, seq_len, vocab_size), logits for each token
         """
-        # TODO: self-attention mask, cross-attention mask
+        # attention masks
+        encoder_self_attn_mask = create_self_attention_mask(
+            encoder_input, self.pad_idx, is_causal=False
+        )
+        decoder_self_attn_mask = create_self_attention_mask(
+            decoder_input, self.pad_idx, is_causal=True
+        )
+        cross_attn_mask = create_cross_attention_mask(encoder_input, decoder_input, self.pad_idx)
+
         # encoder output shape is (batch_size, seq_len, hidden_size)
-        encoder_output = self.encoder(encoder_input)
+        encoder_output = self.encoder(encoder_input, encoder_self_attn_mask)
         # decoder output shape is (batch_size, seq_len, hidden_size)
-        decoder_output = self.decoder(decoder_input, encoder_output)
+        decoder_output = self.decoder(
+            decoder_input, encoder_output, decoder_self_attn_mask, cross_attn_mask
+        )
 
         h = self.layer_norm(decoder_output)
-        # shape (batch_size, vocab_size)
+        # shape (batch_size, seq_len, vocab_size)
         out = self.linear(h)
 
         return out

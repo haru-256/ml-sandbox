@@ -1,5 +1,4 @@
 from math import sqrt
-from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -10,7 +9,7 @@ def scaled_dot_product_attention(
     query: torch.Tensor,
     key: torch.Tensor,
     value: torch.Tensor,
-    mask: Optional[torch.Tensor] = None,
+    mask: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Scaled dot-product attentionを計算する
 
@@ -40,7 +39,7 @@ def scaled_dot_product_attention(
 
 
 class SelfAttentionHead(nn.Module):
-    def __init__(self, embed_dim: int, head_dim: int):
+    def __init__(self, embed_dim: int, head_dim: int) -> None:
         """自己注意機構の1つのheadを計算する
 
         Args:
@@ -52,7 +51,7 @@ class SelfAttentionHead(nn.Module):
         self.k = nn.Linear(embed_dim, head_dim)
         self.v = nn.Linear(embed_dim, head_dim)
 
-    def forward(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor | None = None) -> torch.Tensor:
         """
         自己注意機構を計算する, ある1つのheadに対して計算する
 
@@ -70,7 +69,7 @@ class SelfAttentionHead(nn.Module):
 
 
 class MultiHeadSelfAttention(nn.Module):
-    def __init__(self, hidden_size: int, num_attention_heads: int):
+    def __init__(self, hidden_size: int, num_attention_heads: int) -> None:
         """自己注意機構を計算する
 
         Args:
@@ -80,16 +79,16 @@ class MultiHeadSelfAttention(nn.Module):
         super().__init__()
         embed_dim = hidden_size
         num_heads = num_attention_heads
-        assert (
-            embed_dim % num_heads == 0
-        ), f"embed_dim must be divisible by num_heads, got {embed_dim=} and {num_heads=}"
+        assert embed_dim % num_heads == 0, (
+            f"embed_dim must be divisible by num_heads, got {embed_dim=} and {num_heads=}"
+        )
         head_dim = embed_dim // num_heads
         self.heads = nn.ModuleList(
             [SelfAttentionHead(embed_dim, head_dim) for _ in range(num_heads)]
         )
         self.output_linear = nn.Linear(embed_dim, embed_dim)
 
-    def forward(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None):
+    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor | None = None) -> torch.Tensor:
         """Multi-head self-attentionを計算する
 
         Args:
@@ -105,11 +104,11 @@ class MultiHeadSelfAttention(nn.Module):
 
 
 class CrossAttentionHead(nn.Module):
-    def __init__(self, tgt_embed_dim: int, src_embed_dim: int, head_dim: int):
+    def __init__(self, tgt_embed_dim: int, src_embed_dim: int, head_dim: int) -> None:
         """Cross attentionの1つのheadを計算する
 
         Args:
-            txt_embed_dim: input tensorのembedding dimension
+            tgt_embed_dim: input tensorのembedding dimension
             src_embed_dim: encoder output tensorのembedding dimension
             head_dim: 1headのdimension
         """
@@ -122,14 +121,14 @@ class CrossAttentionHead(nn.Module):
         self,
         tgt: torch.Tensor,
         src: torch.Tensor,
-        attn_mask: Optional[torch.Tensor] = None,
-    ):
+        attn_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Cross attentionの1つのheadを計算する
 
         Args:
             tgt: input tensor, shape (batch_size, tgt_seq_len, tgt_embed_dim). usually the decoder input
             src: encoder output tensor, shape (batch_size, src_seq_len, src_embed_dim). usually the encoder output
-            attn_mask: mask tensor for PAD token of context, shape (batch_size, tgt_seq_len, tgt_seq_len), Default is None
+            attn_mask: mask tensor for PAD token of context, shape (batch_size, tgt_seq_len, src_seq_len), Default is None
 
         Returns:
             attention outputs, shape (batch_size, tgt_seq_len, head_dim)
@@ -141,7 +140,7 @@ class CrossAttentionHead(nn.Module):
 
 
 class MultiHeadCrossAttention(nn.Module):
-    def __init__(self, hidden_size: int, num_attention_heads: int):
+    def __init__(self, hidden_size: int, num_attention_heads: int) -> None:
         """Cross attentionを計算する
 
         Args:
@@ -163,8 +162,8 @@ class MultiHeadCrossAttention(nn.Module):
         self,
         tgt: torch.Tensor,
         src: torch.Tensor,
-        attn_mask: Optional[torch.Tensor] = None,
-    ):
+        attn_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Cross attentionを計算する
 
         Args:

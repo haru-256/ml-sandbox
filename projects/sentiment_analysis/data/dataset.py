@@ -9,6 +9,7 @@ import lightning as L
 import polars as pl
 import spacy
 import torch
+from spacy.language import Language  # type: ignore
 from torch.utils.data import DataLoader, Dataset
 
 logger = logging.getLogger(__name__)
@@ -31,11 +32,12 @@ def fetch_dataset() -> D.DatasetDict:
     return dataset_dict
 
 
-def tokenize_normalize(text: str, nlp: spacy.Language) -> list[str]:
+def tokenize_normalize(text: str, nlp: Language) -> list[str]:
     """Tokenize the text.
 
     Args:
         text: text to be tokenized
+        nlp: spacy language model
 
     Returns:
         list of str
@@ -76,7 +78,7 @@ def preprocess_dataset(
     """preprocess the dataset
 
     Args:
-        dataset: dataset from the datasets library(transformers)
+        dataset_dict: dataset from the datasets library(transformers)
         max_vocab_size: maximum size of the vocabulary
         max_seq_len: maximum sequence length
 
@@ -118,7 +120,7 @@ def preprocess_dataset(
         if len(rt) < max_len:
             rt += [pad_id] * (max_len - len(rt))
         assert len(rt) == max_len
-        rt = [cls_id] + rt
+        rt = [cls_id, *rt]
         return rt
 
     fn = functools.partial(id_truncate_padding, max_len=max_seq_len)
@@ -138,16 +140,8 @@ def preprocess_dataset(
     return train_df, test_df, vocab
 
 
-def dataset_factory() -> tuple[pl.DataFrame, pl.DataFrame]:
-    """
-
-    Returns:
-        _description_
-    """
-
-
-class IMDbDataset(Dataset):
-    def __init__(self, df: pl.DataFrame):
+class IMDbDataset(Dataset[tuple[torch.Tensor, torch.Tensor]]):
+    def __init__(self, df: pl.DataFrame) -> None:
         """IMDb dataset
 
         Args:
@@ -155,10 +149,10 @@ class IMDbDataset(Dataset):
         """
         self.df = df
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.df)
 
-    def __getitem__(self, idx) -> tuple[list[int], int]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         row = self.df.row(idx, named=True)
         input_seq = torch.tensor(row["input_seq"], dtype=torch.long)
         label = torch.tensor(row["label"], dtype=torch.float32)
@@ -173,7 +167,7 @@ class IMDbDataModule(L.LightningDataModule):
         num_workers: int = 2,
         max_vocab_size: int = 10000,
         max_seq_len: int = 512,
-    ):
+    ) -> None:
         """IMDb data module
 
         Args:
@@ -231,7 +225,7 @@ class IMDbDataModule(L.LightningDataModule):
         else:
             raise NotImplementedError(f"Invalid stage: {stage}")
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -240,7 +234,7 @@ class IMDbDataModule(L.LightningDataModule):
             persistent_workers=True,
         )
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
         return DataLoader(
             self.test_dataset,
             batch_size=self.batch_size,
@@ -248,7 +242,7 @@ class IMDbDataModule(L.LightningDataModule):
             persistent_workers=True,
         )
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader[tuple[torch.Tensor, torch.Tensor]]:
         return DataLoader(
             self.test_dataset,
             batch_size=self.batch_size,

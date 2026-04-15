@@ -3,7 +3,7 @@ from torch import nn
 
 from .base.attention import MultiHeadSelfAttention
 from .base.embedding import Embeddings
-from .base.point_wise_feed_forword import PointwiseFeedForward
+from .base.point_wise_feed_forward import PointwiseFeedForward
 
 
 class TransformerEncoderBlock(nn.Module):
@@ -22,7 +22,7 @@ class TransformerEncoderBlock(nn.Module):
         self.self_attention = MultiHeadSelfAttention(hidden_size, num_attention_heads)
         self.feed_forward = PointwiseFeedForward(hidden_size, hidden_size * 4, hidden_dropout_prob)
 
-    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor):
+    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor) -> torch.Tensor:
         """Forward pass for transformer encoder layer
 
         Args:
@@ -70,7 +70,7 @@ class TransformerEncoder(nn.Module):
             ]
         )
 
-    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor):
+    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor) -> torch.Tensor:
         """Forward pass for transformer encoder
 
         Args:
