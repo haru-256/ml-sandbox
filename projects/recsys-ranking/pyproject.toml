@@ -3,7 +3,7 @@ name = "recsys-ranking"
 version = "0.1.0"
 description = "Recommendation system ranking module for ML Sandbox project."
 readme = "README.md"
-requires-python = "~=3.12.0"
+requires-python = ">=3.12,<3.13"
 dependencies = [
   "lightning~=2.5.4",
   "litmodels~=0.1.8",

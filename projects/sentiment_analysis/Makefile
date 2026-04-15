@@ -15,9 +15,8 @@ test: ## Run tests
 lock: ## Lock dependencies
 	uv lock
 
-setup: ## Setup the project
-	uv sync
-	uv tool install ruff@0.6.3
+install: ## Setup the project
+	uv sync --all-groups
 
 train: ## Train the model
 	uv run python train.py
