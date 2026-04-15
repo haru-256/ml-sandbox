@@ -1,5 +1,5 @@
 # Using multi-stage build to slim down the image
-FROM --platform=linux/amd64 nvidia/cuda:12.6.3-cudnn-runtime-ubuntu24.04
+FROM --platform=linux/amd64 nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04
 
 # Install uv
 COPY --from=ghcr.io/astral-sh/uv:0.6.14 /uv /uvx /bin/
