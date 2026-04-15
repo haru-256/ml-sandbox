@@ -1,46 +1,22 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:best-practices"],
+  "extends": ["config:recommended"],
   "timezone": "Asia/Tokyo",
   "schedule": ["every 2 weeks on monday"],
   "minimumReleaseAge": "14 days",
   "lockFileMaintenance": {
     "enabled": true,
-    "automerge": true
+    "automerge": false
   },
   "packageRules": [
     {
-      "matchPaths": ["projects/[^/]+/**"],
+      "matchPaths": ["projects/*/**", "libs/*/**", "apps/*/**"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "{{{parentDir}}} minor dependencies",
       "automerge": false
     },
     {
-      "matchPaths": ["projects/[^/]+/**"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "{{{parentDir}}} major dependencies",
-      "automerge": false
-    },
-    {
-      "matchPaths": ["libs/[^/]+/**"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "{{{parentDir}}} minor dependencies",
-      "automerge": false
-    },
-    {
-      "matchPaths": ["libs/[^/]+/**"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "{{{parentDir}}} major dependencies",
-      "automerge": false
-    },
-    {
-      "matchPaths": ["apps/[^/]+/**"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "{{{parentDir}}} minor dependencies",
-      "automerge": false
-    },
-    {
-      "matchPaths": ["apps/[^/]+/**"],
+      "matchPaths": ["projects/*/**", "libs/*/**", "apps/*/**"],
       "matchUpdateTypes": ["major"],
       "groupName": "{{{parentDir}}} major dependencies",
       "automerge": false
