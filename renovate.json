@@ -7,23 +7,53 @@
   "packageRules": [
     {
       "matchPaths": ["projects/sentiment_analysis/**"],
-      "groupName": "sentiment-analysis dependencies"
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "sentiment-analysis minor dependencies"
+    },
+    {
+      "matchPaths": ["projects/sentiment_analysis/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "sentiment-analysis major dependencies"
     },
     {
       "matchPaths": ["projects/recsys-ranking/**"],
-      "groupName": "recsys-ranking dependencies"
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "recsys-ranking minor dependencies"
+    },
+    {
+      "matchPaths": ["projects/recsys-ranking/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "recsys-ranking major dependencies"
     },
     {
       "matchPaths": ["projects/recsys-candidate-generation/**"],
-      "groupName": "recsys-candidate-generation dependencies"
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "recsys-candidate-generation minor dependencies"
+    },
+    {
+      "matchPaths": ["projects/recsys-candidate-generation/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "recsys-candidate-generation major dependencies"
     },
     {
       "matchPaths": ["libs/ml_sandbox_libs/**"],
-      "groupName": "ml-sandbox-libs dependencies"
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "ml-sandbox-libs minor dependencies"
+    },
+    {
+      "matchPaths": ["libs/ml_sandbox_libs/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "ml-sandbox-libs major dependencies"
     },
     {
       "matchPaths": ["apps/vertex-job-runner/**"],
-      "groupName": "vertex-job-runner dependencies"
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "vertex-job-runner minor dependencies"
+    },
+    {
+      "matchPaths": ["apps/vertex-job-runner/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "vertex-job-runner major dependencies"
     },
     {
       "matchUpdateTypes": ["minor", "patch"],
