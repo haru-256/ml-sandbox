@@ -2,68 +2,71 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "timezone": "Asia/Tokyo",
-  "schedule": ["on the first and third monday of the month"],
+  "schedule": ["every 2 weeks on monday"],
   "minimumReleaseAge": "14 days",
   "lockFileMaintenance": {
-    "enabled": true
+    "enabled": true,
+    "automerge": false
   },
   "packageRules": [
     {
       "matchPaths": ["projects/sentiment_analysis/**"],
       "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "sentiment-analysis minor dependencies"
+      "groupName": "sentiment-analysis minor dependencies",
+      "automerge": false
     },
     {
       "matchPaths": ["projects/sentiment_analysis/**"],
       "matchUpdateTypes": ["major"],
-      "groupName": "sentiment-analysis major dependencies"
-    },
-    {
-      "matchPaths": ["projects/recsys-ranking/**"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "recsys-ranking minor dependencies"
-    },
-    {
-      "matchPaths": ["projects/recsys-ranking/**"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "recsys-ranking major dependencies"
-    },
-    {
-      "matchPaths": ["projects/recsys-candidate-generation/**"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "recsys-candidate-generation minor dependencies"
-    },
-    {
-      "matchPaths": ["projects/recsys-candidate-generation/**"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "recsys-candidate-generation major dependencies"
-    },
-    {
-      "matchPaths": ["libs/ml_sandbox_libs/**"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "ml-sandbox-libs minor dependencies"
-    },
-    {
-      "matchPaths": ["libs/ml_sandbox_libs/**"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "ml-sandbox-libs major dependencies"
-    },
-    {
-      "matchPaths": ["apps/vertex-job-runner/**"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "vertex-job-runner minor dependencies"
-    },
-    {
-      "matchPaths": ["apps/vertex-job-runner/**"],
-      "matchUpdateTypes": ["major"],
-      "groupName": "vertex-job-runner major dependencies"
-    },
-    {
-      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "sentiment-analysis major dependencies",
       "automerge": false
     },
     {
+      "matchPaths": ["projects/recsys-ranking/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "recsys-ranking minor dependencies",
+      "automerge": false
+    },
+    {
+      "matchPaths": ["projects/recsys-ranking/**"],
       "matchUpdateTypes": ["major"],
+      "groupName": "recsys-ranking major dependencies",
+      "automerge": false
+    },
+    {
+      "matchPaths": ["projects/recsys-candidate-generation/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "recsys-candidate-generation minor dependencies",
+      "automerge": false
+    },
+    {
+      "matchPaths": ["projects/recsys-candidate-generation/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "recsys-candidate-generation major dependencies",
+      "automerge": false
+    },
+    {
+      "matchPaths": ["libs/ml_sandbox_libs/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "ml-sandbox-libs minor dependencies",
+      "automerge": false
+    },
+    {
+      "matchPaths": ["libs/ml_sandbox_libs/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "ml-sandbox-libs major dependencies",
+      "automerge": false
+    },
+    {
+      "matchPaths": ["apps/vertex-job-runner/**"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "vertex-job-runner minor dependencies",
+      "automerge": false
+    },
+    {
+      "matchPaths": ["apps/vertex-job-runner/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "vertex-job-runner major dependencies",
       "automerge": false
     }
   ]
