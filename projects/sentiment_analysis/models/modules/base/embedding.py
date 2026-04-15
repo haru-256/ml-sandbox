@@ -3,7 +3,7 @@ from torch import nn
 
 
 class Embeddings(nn.Module):
-    def __init__(self, vocab_size: int, hidden_size: int, max_position_embeddings: int):
+    def __init__(self, vocab_size: int, hidden_size: int, max_position_embeddings: int) -> None:
         """Embedding layer for transformer model, including token and position embeddings
 
         Args:
@@ -17,7 +17,7 @@ class Embeddings(nn.Module):
         self.layer_norm = nn.LayerNorm(hidden_size, eps=1e-12)
         self.dropout = nn.Dropout()
 
-    def forward(self, input_ids: torch.Tensor):
+    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
         """Forward pass for embedding layer
 
         Args:

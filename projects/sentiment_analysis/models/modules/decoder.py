@@ -3,7 +3,7 @@ from torch import nn
 
 from .base.attention import MultiHeadCrossAttention, MultiHeadSelfAttention
 from .base.embedding import Embeddings
-from .base.point_wise_feed_forword import PointwiseFeedForward
+from .base.point_wise_feed_forward import PointwiseFeedForward
 
 
 class TransformerDecoderBlock(nn.Module):
@@ -29,7 +29,7 @@ class TransformerDecoderBlock(nn.Module):
         src: torch.Tensor,
         self_attn_mask: torch.Tensor,
         cross_attn_mask: torch.Tensor,
-    ):
+    ) -> torch.Tensor:
         """Forward pass for transformer decoder layer
 
         Args:
@@ -87,7 +87,7 @@ class TransformerDecoder(nn.Module):
         src: torch.Tensor,
         self_attn_mask: torch.Tensor,
         cross_attn_mask: torch.Tensor,
-    ):
+    ) -> torch.Tensor:
         """Forward pass for transformer encoder
 
         Args:

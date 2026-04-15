@@ -3,7 +3,7 @@ import torch
 from utils import create_cross_attention_mask, create_self_attention_mask
 
 
-def test_create_self_attention_mask():
+def test_create_self_attention_mask() -> None:
     # no pad token
     x = torch.tensor([[1, 2, 3], [4, 5, 6]])
     pad_idx = 0
@@ -44,7 +44,7 @@ def test_create_self_attention_mask():
     assert torch.equal(expected, actual)
 
 
-def test_create_cross_attention_mask():
+def test_create_cross_attention_mask() -> None:
     # no pad token
     tgt = torch.tensor([[7, 8], [9, 10]])
     src = torch.tensor([[1, 2, 3], [4, 5, 6]])
