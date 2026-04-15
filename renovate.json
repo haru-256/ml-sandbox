@@ -7,7 +7,6 @@
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch"],
-      // "groupName": "all non-major dependencies",　// groupingすることで複数projectのlockを解決することができずエラーで落ちるよう
       "automerge": true,
       "minimumReleaseAge": "14 days"
     },
