@@ -28,7 +28,7 @@ class Transformer(nn.Module):
             num_decoder_blocks: number of decoder blocks
             num_attention_heads: number of attention heads
             hidden_dropout_prob: dropout probability for hidden
-            max_position_embeddings: maximum position for
+            max_position_embeddings: maximum sequence length for position embeddings
         """
         super().__init__()
         # pad token index
@@ -60,7 +60,7 @@ class Transformer(nn.Module):
             decoder_input: decoder input tensor, shape (batch_size, seq_len)
 
         Returns:
-            output tensor, shape (batch_size, vocab_size), logits for each token
+            output tensor, shape (batch_size, seq_len, vocab_size), logits for each token
         """
         # attention masks
         encoder_self_attn_mask = create_self_attention_mask(
@@ -79,7 +79,7 @@ class Transformer(nn.Module):
         )
 
         h = self.layer_norm(decoder_output)
-        # shape (batch_size, vocab_size)
+        # shape (batch_size, seq_len, vocab_size)
         out = self.linear(h)
 
         return out

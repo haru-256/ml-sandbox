@@ -79,9 +79,9 @@ class MultiHeadSelfAttention(nn.Module):
         super().__init__()
         embed_dim = hidden_size
         num_heads = num_attention_heads
-        assert (
-            embed_dim % num_heads == 0
-        ), f"embed_dim must be divisible by num_heads, got {embed_dim=} and {num_heads=}"
+        assert embed_dim % num_heads == 0, (
+            f"embed_dim must be divisible by num_heads, got {embed_dim=} and {num_heads=}"
+        )
         head_dim = embed_dim // num_heads
         self.heads = nn.ModuleList(
             [SelfAttentionHead(embed_dim, head_dim) for _ in range(num_heads)]
@@ -108,7 +108,7 @@ class CrossAttentionHead(nn.Module):
         """Cross attentionの1つのheadを計算する
 
         Args:
-            txt_embed_dim: input tensorのembedding dimension
+            tgt_embed_dim: input tensorのembedding dimension
             src_embed_dim: encoder output tensorのembedding dimension
             head_dim: 1headのdimension
         """
@@ -128,7 +128,7 @@ class CrossAttentionHead(nn.Module):
         Args:
             tgt: input tensor, shape (batch_size, tgt_seq_len, tgt_embed_dim). usually the decoder input
             src: encoder output tensor, shape (batch_size, src_seq_len, src_embed_dim). usually the encoder output
-            attn_mask: mask tensor for PAD token of context, shape (batch_size, tgt_seq_len, tgt_seq_len), Default is None
+            attn_mask: mask tensor for PAD token of context, shape (batch_size, tgt_seq_len, src_seq_len), Default is None
 
         Returns:
             attention outputs, shape (batch_size, tgt_seq_len, head_dim)

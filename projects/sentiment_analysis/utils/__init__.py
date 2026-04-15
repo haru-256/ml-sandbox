@@ -16,7 +16,7 @@ def create_self_attention_mask(x: torch.Tensor, pad_idx: int, is_causal: bool) -
     pad_mask = (x == pad_idx).reshape(batch_size, 1, seq_len)
     if is_causal:
         # shape (1, seq_len, seq_len), upper triangular matrix is True
-        causal_mask = ~torch.tril(torch.ones(seq_len, seq_len)).unsqueeze(0).bool()
+        causal_mask = ~torch.tril(torch.ones(seq_len, seq_len, device=x.device)).unsqueeze(0).bool()
         attn_mask = torch.logical_or(pad_mask, causal_mask)
     else:
         attn_mask = pad_mask.expand(-1, seq_len, -1)
