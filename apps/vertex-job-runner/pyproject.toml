@@ -46,7 +46,7 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [build-system]
-requires = ["uv_build>=0.9.23,<0.10.0"]
+requires = ["uv_build>=0.11.3,<0.12.0"]
 build-backend = "uv_build"
 
 [tool.vrun]
