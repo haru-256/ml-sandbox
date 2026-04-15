@@ -69,9 +69,6 @@ class TransformerForSequenceClassification(L.LightningModule):
         self.loss_fn = nn.BCEWithLogitsLoss()
         self.accuracy = BinaryAccuracy(threshold=0.5)
 
-        self.training_step_outputs: list[torch.Tensor] = []
-        self.validation_step_outputs: list[torch.Tensor] = []
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward pass for transformer model
 
@@ -99,7 +96,7 @@ class TransformerForSequenceClassification(L.LightningModule):
         logits: torch.Tensor = self(x)
         logits = logits.squeeze(dim=1)
         loss: torch.Tensor = self.loss_fn(logits, y)
-        accuracy = self.accuracy(logits, y)
+        accuracy = self.accuracy(torch.sigmoid(logits), y)
 
         self.log_dict(
             {"train_loss": loss, "train_logits": logits.mean(), "train_accuracy": accuracy},
@@ -107,7 +104,6 @@ class TransformerForSequenceClassification(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-        self.training_step_outputs.append(loss)
 
         return loss
 
@@ -118,7 +114,7 @@ class TransformerForSequenceClassification(L.LightningModule):
         logits: torch.Tensor = self(x)
         logits = logits.squeeze(dim=1)
         loss: torch.Tensor = self.loss_fn(logits, y)
-        accuracy = self.accuracy(logits, y)
+        accuracy = self.accuracy(torch.sigmoid(logits), y)
 
         self.log_dict(
             {"val_loss": loss, "val_logits": logits.mean(), "val_accuracy": accuracy},
@@ -126,7 +122,6 @@ class TransformerForSequenceClassification(L.LightningModule):
             on_epoch=True,
             prog_bar=True,
         )
-        self.validation_step_outputs.append(loss)
 
         return loss
 

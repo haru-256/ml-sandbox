@@ -28,7 +28,7 @@ class Transformer(nn.Module):
             num_decoder_blocks: number of decoder blocks
             num_attention_heads: number of attention heads
             hidden_dropout_prob: dropout probability for hidden
-            max_position_embeddings: maximum sequence length for position embeddings
+            max_position_embeddings: maximum sequence length that the model can handle
         """
         super().__init__()
         # pad token index
