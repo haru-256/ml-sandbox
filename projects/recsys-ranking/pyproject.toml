@@ -7,7 +7,7 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
   "lightning~=2.5.4",
   "litmodels~=0.1.8",
-  "torchmetrics~=1.8.1",
+  "torchmetrics~=1.9.0",
   "numpy~=2.3.2",
   "polars~=1.39.3",
   "torchinfo~=1.8.0",
