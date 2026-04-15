@@ -3,19 +3,14 @@ import logging
 import pathlib
 import pickle
 from collections import Counter
-from typing import TYPE_CHECKING, Any
 
 import datasets as D
 import lightning as L
 import polars as pl
 import spacy
 import torch
+from spacy.language import Language  # type: ignore
 from torch.utils.data import DataLoader, Dataset
-
-if TYPE_CHECKING:
-    from spacy.language import Language
-else:
-    Language = Any
 
 logger = logging.getLogger(__name__)
 
