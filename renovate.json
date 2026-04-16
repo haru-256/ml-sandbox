@@ -1,17 +1,24 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": ["config:best-practices"],
+  "timezone": "Asia/Tokyo",
+  "schedule": ["before 8am every 2 weeks on monday"],
+  "minimumReleaseAge": "14 days",
   "lockFileMaintenance": {
-    "enabled": true
+    "enabled": true,
+    "automerge": false
   },
   "packageRules": [
     {
+      "matchPaths": ["projects/*/**", "libs/*/**", "apps/*/**"],
       "matchUpdateTypes": ["minor", "patch"],
-      "automerge": true,
-      "minimumReleaseAge": "14 days"
+      "groupName": "{{{parentDir}}} minor dependencies",
+      "automerge": false
     },
     {
+      "matchPaths": ["projects/*/**", "libs/*/**", "apps/*/**"],
       "matchUpdateTypes": ["major"],
+      "groupName": "{{{parentDir}}} major dependencies",
       "automerge": false
     }
   ]
