@@ -58,7 +58,7 @@ def test_create_datamodule_builds_lightgcn_graph_datamodule(
         "neg_sample_size": cfg.data.neg_sample_size,
         "num_workers": cfg.device.num_workers,
         "eval_negative_sample_size": 100,
-        "num_neighbors": [9, 4],
+        "num_neighbors": (9, 4),
     }
 
 

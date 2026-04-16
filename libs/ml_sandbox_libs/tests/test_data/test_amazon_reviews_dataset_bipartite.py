@@ -1,5 +1,4 @@
 import pathlib
-from typing import Any
 
 import polars as pl
 import pytest
@@ -10,6 +9,9 @@ from torch_geometric.loader import LinkNeighborLoader
 from torch_geometric.sampler import NegativeSampling
 
 from ml_sandbox_libs.data.amazon_reviews_dataset import (
+    AmazonReviewsBipartiteGraphPreprocessedResult,
+    AmazonReviewsIndices,
+    AmazonReviewsPreprocessedResult,
     SpecialCategoryIndex,
     SpecialItemIndex,
     SpecialUserIndex,
@@ -32,7 +34,9 @@ def _edge_pairs_with_attr(
     )
 
 
-def _build_common_preprocess_return(*, duplicate_across_splits: bool = False) -> tuple[Any, ...]:
+def _build_common_preprocess_return(
+    *, duplicate_across_splits: bool = False
+) -> AmazonReviewsPreprocessedResult:
     train_items = ["item1", "item2", "item3"]
     if duplicate_across_splits:
         val_items = ["item1", "item5", "item6"]
@@ -156,15 +160,26 @@ def _build_common_preprocess_return(*, duplicate_across_splits: bool = False) ->
         }
     )
 
-    return (
-        (train_df, val_df, test_df),
-        meta_df,
-        (user2index, item2index, category2index, item_index_2_category_index),
-        (user2index_df, item2index_df, category2index_df),
+    return AmazonReviewsPreprocessedResult(
+        train_df=train_df,
+        val_df=val_df,
+        test_df=test_df,
+        meta_df=meta_df,
+        indices=AmazonReviewsIndices(
+            user2index=user2index,
+            item2index=item2index,
+            category2index=category2index,
+            item_index_2_category_index=item_index_2_category_index,
+        ),
+        user2index_df=user2index_df,
+        item2index_df=item2index_df,
+        category2index_df=category2index_df,
     )
 
 
-def _build_preprocessed_graph_inputs(mocker: MockerFixture) -> tuple[Any, ...]:
+def _build_preprocessed_graph_inputs(
+    mocker: MockerFixture,
+) -> AmazonReviewsBipartiteGraphPreprocessedResult:
     mock_dataset_dict = mocker.Mock()
     mock_metadata = mocker.Mock()
     common_preprocess_return = _build_common_preprocess_return()
@@ -186,9 +201,12 @@ def test_bipartite_graph_preprocess_dataset_returns_expected_dataframe(
         return_value=common_preprocess_return,
     )
 
-    all_df, user2index, item2index, category2index, item_index_2_category_index = (
-        bipartite_graph_preprocess_dataset(mock_dataset_dict, mock_metadata)
-    )
+    result = bipartite_graph_preprocess_dataset(mock_dataset_dict, mock_metadata)
+    all_df = result.all_df
+    user2index = result.indices.user2index
+    item2index = result.indices.item2index
+    category2index = result.indices.category2index
+    item_index_2_category_index = result.indices.item_index_2_category_index
 
     assert all_df.columns == [
         "split",
@@ -254,13 +272,11 @@ def test_create_bipartite_graph_uses_expected_message_passing_and_label_edges(
     expected_message_passing_edges: list[tuple[int, int, float]],
     expected_label_edges: list[tuple[int, int, float]],
 ) -> None:
-    (
-        all_df,
-        user2index,
-        item2index,
-        _category2index,
-        item_index_2_category_index,
-    ) = _build_preprocessed_graph_inputs(mocker)
+    processed = _build_preprocessed_graph_inputs(mocker)
+    all_df = processed.all_df
+    user2index = processed.indices.user2index
+    item2index = processed.indices.item2index
+    item_index_2_category_index = processed.indices.item_index_2_category_index
 
     data = create_bipartite_graph(
         split=split,  # type: ignore[arg-type]
@@ -293,13 +309,11 @@ def test_create_bipartite_graph_uses_expected_message_passing_and_label_edges(
 
 
 def test_create_bipartite_graph_rejects_invalid_split(mocker: MockerFixture) -> None:
-    (
-        all_df,
-        user2index,
-        item2index,
-        _category2index,
-        item_index_2_category_index,
-    ) = _build_preprocessed_graph_inputs(mocker)
+    processed = _build_preprocessed_graph_inputs(mocker)
+    all_df = processed.all_df
+    user2index = processed.indices.user2index
+    item2index = processed.indices.item2index
+    item_index_2_category_index = processed.indices.item_index_2_category_index
 
     with pytest.raises(ValueError, match="Invalid split"):
         create_bipartite_graph(
@@ -333,11 +347,11 @@ def test_bipartite_graph_datamodule_prepare_data_populates_state(
     dm = AmazonReviewsBipartiteGraphDataModule(save_dir=tmp_path)
     dm.prepare_data()
 
-    assert dm.all_df.equals(preprocess_return[0])
-    assert dm.user2index == preprocess_return[1]
-    assert dm.item2index == preprocess_return[2]
-    assert dm.category2index == preprocess_return[3]
-    assert dm.item_index_2_category_index == preprocess_return[4]
+    assert dm.all_df.equals(preprocess_return.all_df)
+    assert dm.user2index == preprocess_return.indices.user2index
+    assert dm.item2index == preprocess_return.indices.item2index
+    assert dm.category2index == preprocess_return.indices.category2index
+    assert dm.item_index_2_category_index == preprocess_return.indices.item_index_2_category_index
     preprocess_mock.assert_called_once_with(dataset_dict=mock_dataset_dict, metadata=mock_metadata)
 
 
@@ -377,13 +391,11 @@ def test_bipartite_graph_datamodule_setup_creates_expected_graphs(
     # This test focuses on split-specific graph construction. Disable PyG transforms
     # so node reindexing does not obscure the expected edge assignments.
     dm.transform = lambda data: data  # type: ignore[assignment]
-    (
-        dm.all_df,
-        dm.user2index,
-        dm.item2index,
-        dm.category2index,
-        dm.item_index_2_category_index,
-    ) = preprocess_return
+    dm.all_df = preprocess_return.all_df
+    dm.user2index = preprocess_return.indices.user2index
+    dm.item2index = preprocess_return.indices.item2index
+    dm.category2index = preprocess_return.indices.category2index
+    dm.item_index_2_category_index = preprocess_return.indices.item_index_2_category_index
 
     dm.setup("fit")
     assert _edge_pairs_with_attr(
@@ -422,17 +434,18 @@ def test_bipartite_graph_datamodule_dataloaders_use_stage_specific_label_edges(
     mocker: MockerFixture, tmp_path: pathlib.Path
 ) -> None:
     preprocess_return = _build_preprocessed_graph_inputs(mocker)
-    dm = AmazonReviewsBipartiteGraphDataModule(save_dir=tmp_path, num_neighbors=[7, 3])
+    dm = AmazonReviewsBipartiteGraphDataModule(
+        save_dir=tmp_path,
+        num_neighbors=(7, 3),
+    )
     # This test verifies which graph and label edges each loader uses, not the
     # behavior of the PyG transforms applied during setup.
     dm.transform = lambda data: data  # type: ignore[assignment]
-    (
-        dm.all_df,
-        dm.user2index,
-        dm.item2index,
-        dm.category2index,
-        dm.item_index_2_category_index,
-    ) = preprocess_return
+    dm.all_df = preprocess_return.all_df
+    dm.user2index = preprocess_return.indices.user2index
+    dm.item2index = preprocess_return.indices.item2index
+    dm.category2index = preprocess_return.indices.category2index
+    dm.item_index_2_category_index = preprocess_return.indices.item_index_2_category_index
     dm.setup("fit")
     dm.setup("test")
 

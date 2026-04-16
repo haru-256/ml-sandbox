@@ -15,6 +15,7 @@ from torch_geometric.loader import LinkNeighborLoader
 from torch_geometric.sampler import NegativeSampling
 
 from .common import (
+    AmazonReviewsIndices,
     SpecialCategoryIndex,
     SpecialItemIndex,
     SpecialUserIndex,
@@ -24,15 +25,17 @@ from .common import (
 )
 
 
+@dataclass(frozen=True)
+class AmazonReviewsBipartiteGraphPreprocessedResult:
+    """Container for bipartite graph preprocessing artifacts."""
+
+    all_df: pl.DataFrame
+    indices: AmazonReviewsIndices
+
+
 def bipartite_graph_preprocess_dataset(
     dataset_dict: D.DatasetDict, metadata: D.Dataset
-) -> tuple[
-    pl.DataFrame,
-    dict[str, int],
-    dict[str, int],
-    dict[str, int],
-    dict[int, int],
-]:
+) -> AmazonReviewsBipartiteGraphPreprocessedResult:
     """Preprocess Amazon Reviews interactions for bipartite graph construction.
 
     This function merges train, validation, and test interactions into a single
@@ -45,30 +48,24 @@ def bipartite_graph_preprocess_dataset(
         metadata: Product metadata dataset containing item categories.
 
     Returns:
-        A tuple containing the preprocessed interaction dataframe and lookup tables:
-            - ``all_df``: Combined dataframe with columns ``split``, ``user_id``,
-              ``user_index``, ``parent_asin``, ``item_index``, ``category``,
-              ``category_index``, ``rating``, ``timestamp``, and ``num_ratings``.
-            - ``user2index``: Mapping from user IDs to integer indices.
-            - ``item2index``: Mapping from item ASINs to integer indices.
-            - ``category2index``: Mapping from category names to integer indices.
-            - ``item_index_2_category_index``: Mapping from item indices to category
-              indices.
+        AmazonReviewsBipartiteGraphPreprocessedResult: Combined interaction
+            dataframe and lookup indices for graph construction.
 
     Raises:
         ValueError: If the same user-item pair appears more than once after
             aggregation.
     """
 
-    (
-        (train_df, val_df, test_df),
-        _,
-        (user2index, item2index, category2index, item_index_2_category_index),
-        (user2index_df, item2index_df, category2index_df),
-    ) = common_preprocess_dataset(
+    processed = common_preprocess_dataset(
         dataset_dict=dataset_dict,
         metadata=metadata,
         filter_no_history=False,
+    )
+    train_df, val_df, test_df = processed.train_df, processed.val_df, processed.test_df
+    user2index_df, item2index_df, category2index_df = (
+        processed.user2index_df,
+        processed.item2index_df,
+        processed.category2index_df,
     )
 
     def _preprocess(df: pl.DataFrame) -> pl.DataFrame:
@@ -124,12 +121,9 @@ def bipartite_graph_preprocess_dataset(
     )
     all_df = _preprocess(all_df)
 
-    return (
-        all_df,
-        user2index,
-        item2index,
-        category2index,
-        item_index_2_category_index,
+    return AmazonReviewsBipartiteGraphPreprocessedResult(
+        all_df=all_df,
+        indices=processed.indices,
     )
 
 
@@ -414,7 +408,6 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         batch_size: int = 32,
         num_workers: int = 2,
         neg_sample_size: int = 1,
-        sampling_val_test: bool = False,
         eval_negative_sample_size: int = 100,
         num_neighbors: Sequence[int] = (10, 5),
     ) -> None:
@@ -422,12 +415,12 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
 
         Args:
             save_dir: Directory path reserved for preprocessed dataset files.
-            batch_size: Number of samples per batch for data loaders. Defaults to 32.
-            num_workers: Number of worker processes for data loading. Defaults to 2.
-            neg_sample_size: Number of triplet negatives sampled per positive edge
-                during training.
-            sampling_val_test: Unused compatibility argument kept to align with other
-                DataModules in this package.
+            batch_size: Number of samples per batch for data loaders. Defaults
+                to 32.
+            num_workers: Number of worker processes for data loading. Defaults
+                to 2.
+            neg_sample_size: Number of triplet negatives sampled per positive
+                edge during training.
             eval_negative_sample_size: Number of triplet negatives sampled per
                 positive edge during validation and test.
             num_neighbors: Number of neighbors sampled per hop by
@@ -443,7 +436,6 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.neg_sample_size = neg_sample_size
-        self.sampling_val_test = sampling_val_test
         self.eval_negative_sample_size = eval_negative_sample_size
         self.num_neighbors = list(num_neighbors)
         self.transform = T.Compose([T.RemoveSelfLoops()])
@@ -465,18 +457,12 @@ class AmazonReviewsBipartiteGraphDataModule(L.LightningDataModule):
 
         dataset_dict = fetch_dataset()
         metadata = fetch_metadata()
-        (
-            all_df,
-            user2index,
-            item2index,
-            category2index,
-            item_index_2_category_index,
-        ) = bipartite_graph_preprocess_dataset(dataset_dict=dataset_dict, metadata=metadata)
-        self.all_df = all_df
-        self.user2index = user2index
-        self.item2index = item2index
-        self.category2index = category2index
-        self.item_index_2_category_index = item_index_2_category_index
+        processed = bipartite_graph_preprocess_dataset(dataset_dict=dataset_dict, metadata=metadata)
+        self.all_df = processed.all_df
+        self.user2index = processed.indices.user2index
+        self.item2index = processed.indices.item2index
+        self.category2index = processed.indices.category2index
+        self.item_index_2_category_index = processed.indices.item_index_2_category_index
         self._is_prepared = True
 
     def setup(self, stage: str) -> None:

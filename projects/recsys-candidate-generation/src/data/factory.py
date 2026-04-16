@@ -35,7 +35,7 @@ def create_datamodule(
             neg_sample_size=cfg.data.neg_sample_size,
             num_workers=cfg.device.num_workers,
             eval_negative_sample_size=eval_negative_sample_size,
-            num_neighbors=list(cfg.model.get("num_neighbors", [10, 5])),
+            num_neighbors=tuple(cfg.model.get("num_neighbors", [10, 5])),
         )
 
     return AmazonReviewsSeqRecDataModule(

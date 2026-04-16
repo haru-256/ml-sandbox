@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import IntEnum
 from typing import Literal
 
@@ -18,6 +19,30 @@ class SpecialItemIndex(IntEnum):
 class SpecialCategoryIndex(IntEnum):
     PAD = 0  # corresponds to padding id
     UNK = 1  # corresponds to unknown id
+
+
+@dataclass(frozen=True)
+class AmazonReviewsIndices:
+    """Mapping from IDs to integer indices for users, items, and categories."""
+
+    user2index: dict[str, int]
+    item2index: dict[str, int]
+    category2index: dict[str, int]
+    item_index_2_category_index: dict[int, int]
+
+
+@dataclass(frozen=True)
+class AmazonReviewsPreprocessedResult:
+    """Container for preprocessed Amazon Reviews datasets and indices."""
+
+    train_df: pl.DataFrame
+    val_df: pl.DataFrame
+    test_df: pl.DataFrame
+    meta_df: pl.DataFrame
+    indices: AmazonReviewsIndices
+    user2index_df: pl.DataFrame
+    item2index_df: pl.DataFrame
+    category2index_df: pl.DataFrame
 
 
 def fetch_dataset(
@@ -102,12 +127,7 @@ def build_feature_indices(
     train_df: pl.DataFrame,
     meta_df: pl.DataFrame,
     threshold: float = 0.95,
-) -> tuple[
-    dict[str, int],  # user2index
-    dict[str, int],  # item2index
-    dict[str, int],  # category2index
-    dict[int, int],  # item_index_2_category_index
-]:
+) -> AmazonReviewsIndices:
     """Builds indices for users, items, and categories from the provided datasets.
 
     Args:
@@ -116,12 +136,7 @@ def build_feature_indices(
         threshold: The threshold for `unk_filter_by_count` to determine frequent users/items/categories. Defaults to 0.95.
 
     Returns:
-        A tuple containing:
-            - user2index: Mapping from user ID string to integer index.
-            - item2index: Mapping from item ID (parent_asin) string to integer index.
-            - category2index: Mapping from category string to integer index.
-            - item_index_2_category_index: Mapping from item integer index to category integer index.
-            - processed_train_df: The Polars DataFrame for training data after initial processing (conversion, metadata join, optional history filtering) from which indices were derived.
+        AmazonReviewsIndices: Mapping from IDs to integer indices.
     """
     # Assign unique ID to users, items and categories
     # 以下の条件を満たすUser/Item/CategoryはUNKに対応させるため、欠損させる。欠損したitemは後ほどUNKに対応させる
@@ -258,23 +273,17 @@ def build_feature_indices(
     ):
         item_index_2_category_index[item2index["#PAD"]] = SpecialCategoryIndex.PAD
 
-    return (
-        user2index,
-        item2index,
-        category2index,
-        item_index_2_category_index,
+    return AmazonReviewsIndices(
+        user2index=user2index,
+        item2index=item2index,
+        category2index=category2index,
+        item_index_2_category_index=item_index_2_category_index,
     )
 
 
-# TODO: Consider using a namedtuple for clarity in the return type
 def common_preprocess_dataset(
     dataset_dict: D.DatasetDict, metadata: D.Dataset, filter_no_history: bool = True
-) -> tuple[
-    tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame],
-    pl.DataFrame,
-    tuple[dict[str, int], dict[str, int], dict[str, int], dict[int, int]],
-    tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame],
-]:
+) -> AmazonReviewsPreprocessedResult:
     """Common preprocessing steps for the Amazon Reviews dataset.
 
     This function performs general preprocessing steps including:
@@ -290,11 +299,7 @@ def common_preprocess_dataset(
         filter_no_history: If True, filters out users with no interaction history. Defaults to True.
 
     Returns:
-        A tuple containing:
-            - (train_df, val_df, test_df): Tuple of preprocessed train, validation, and test DataFrames.
-            - meta_df: Preprocessed metadata DataFrame.
-            - (user2index, item2index, category2index, item_index_2_category_index): Tuple of dictionaries mapping features to integer indices.
-            - (user2index_df, item2index_df, category2index_df): Tuple of DataFrames corresponding to the indices.
+        AmazonReviewsPreprocessedResult: Container for preprocessed DataFrames and indices.
     """
     schema_overrides = {
         "user_id": pl.String,
@@ -327,31 +332,33 @@ def common_preprocess_dataset(
         val_df = val_df.filter(pl.col("history") != "")
         test_df = test_df.filter(pl.col("history") != "")
 
-    (
-        user2index,
-        item2index,
-        category2index,
-        item_index_2_category_index,
-    ) = build_feature_indices(train_df, meta_df, threshold=0.95)
+    indices = build_feature_indices(train_df, meta_df, threshold=0.95)
     user2index_df = pl.from_dict(
-        {"user_id": list(user2index.keys()), "user_index": list(user2index.values())}
+        {
+            "user_id": list(indices.user2index.keys()),
+            "user_index": list(indices.user2index.values()),
+        }
     )
     item2index_df = pl.from_dict(
         {
-            "parent_asin": list(item2index.keys()),
-            "item_index": list(item2index.values()),
+            "parent_asin": list(indices.item2index.keys()),
+            "item_index": list(indices.item2index.values()),
         }
     )
     category2index_df = pl.from_dict(
         {
-            "category": list(category2index.keys()),
-            "category_index": list(category2index.values()),
+            "category": list(indices.category2index.keys()),
+            "category_index": list(indices.category2index.values()),
         }
     )
 
-    return (
-        (train_df, val_df, test_df),
-        meta_df,
-        (user2index, item2index, category2index, item_index_2_category_index),
-        (user2index_df, item2index_df, category2index_df),
+    return AmazonReviewsPreprocessedResult(
+        train_df=train_df,
+        val_df=val_df,
+        test_df=test_df,
+        meta_df=meta_df,
+        indices=indices,
+        user2index_df=user2index_df,
+        item2index_df=item2index_df,
+        category2index_df=category2index_df,
     )

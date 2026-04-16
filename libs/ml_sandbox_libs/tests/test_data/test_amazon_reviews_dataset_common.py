@@ -48,9 +48,10 @@ def test_build_feature_indices() -> None:
     meta_df = pl.from_dict(metadata_data)
 
     # Call the function with DataFrames directly
-    user2index, item2index, category2index, item_index_2_category_index = build_feature_indices(
-        train_df, meta_df, threshold=0.8
-    )
+    indices = build_feature_indices(train_df, meta_df, threshold=0.8)
+    user2index, item2index = indices.user2index, indices.item2index
+    category2index = indices.category2index
+    item_index_2_category_index = indices.item_index_2_category_index
 
     # Verify results
     # Check that special indices are included
