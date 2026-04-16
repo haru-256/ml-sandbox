@@ -1,5 +1,4 @@
 import pathlib
-import pickle
 
 import polars as pl
 import pytest
@@ -360,39 +359,3 @@ def test_negative_sampling_has_average_rating(
 
     # Check types
     assert neg_average_ratings.dtype == torch.float32
-
-
-def test_prepare_data_migrates_legacy_item_metadata_cache(tmp_path: pathlib.Path) -> None:
-    """Migrate legacy cached item metadata dictionaries to typed dataclasses."""
-    dummy_df = pl.DataFrame({"user_index": [1], "item_index": [2]})
-    for split in ("train", "val", "test"):
-        dummy_df.write_parquet(tmp_path / f"{split}.parquet")
-
-    with open(tmp_path / "user2index.pkl", "wb") as f:
-        pickle.dump({"#UNK": 0, "user_a": 1}, f)
-    with open(tmp_path / "item2index.pkl", "wb") as f:
-        pickle.dump({"#PAD": 0, "#UNK": 1, "item_a": 2}, f)
-    with open(tmp_path / "category2index.pkl", "wb") as f:
-        pickle.dump({"#PAD": 0, "#UNK": 1, "category_a": 2}, f)
-
-    legacy_item_metadata = {
-        0: {"category_index": 0, "average_rating": 0.0, "rating_number": 0},
-        1: {"category_index": 1, "average_rating": 0.0, "rating_number": 0},
-        2: {"category_index": 2, "average_rating": 4.5, "rating_number": 10},
-    }
-    item_metadata_path = tmp_path / "item_index_2_metadata.pkl"
-    with open(item_metadata_path, "wb") as f:
-        pickle.dump(legacy_item_metadata, f)
-
-    dm = AmazonReviewsSeqRecDataModule(save_dir=tmp_path)
-
-    dm.prepare_data()
-
-    assert dm.item_index_2_metadata[2] == AmazonReviewsItemMetadata(
-        category_index=2,
-        average_rating=4.5,
-        rating_number=10,
-    )
-    with open(item_metadata_path, "rb") as f:
-        migrated_item_metadata = pickle.load(f)
-    assert isinstance(migrated_item_metadata[2], AmazonReviewsItemMetadata)

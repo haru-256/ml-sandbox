@@ -43,64 +43,6 @@ class AmazonReviewsSeqRecPreprocessedResult:
     item_index_2_metadata: dict[int, AmazonReviewsItemMetadata]
 
 
-def _normalize_cached_item_index_2_metadata(
-    raw_metadata: object,
-) -> tuple[dict[int, AmazonReviewsItemMetadata], bool]:
-    """Normalize cached item metadata to the current dataclass representation.
-
-    Args:
-        raw_metadata: Unpickled payload loaded from ``item_index_2_metadata.pkl``.
-
-    Returns:
-        A tuple containing the normalized metadata mapping and whether a legacy
-        cache payload was migrated.
-
-    Raises:
-        KeyError: If a legacy cache entry is missing one of the required fields.
-        TypeError: If the cached payload shape is unsupported.
-    """
-    if not isinstance(raw_metadata, dict):
-        raise TypeError(
-            "Invalid cached item_index_2_metadata.pkl: expected dict, "
-            f"got {type(raw_metadata).__name__}"
-        )
-
-    normalized_metadata: dict[int, AmazonReviewsItemMetadata] = {}
-    migrated = False
-    for item_index, metadata in raw_metadata.items():
-        if not isinstance(item_index, int):
-            raise TypeError(
-                "Invalid cached item_index_2_metadata.pkl: expected integer keys, "
-                f"got {type(item_index).__name__}"
-            )
-
-        if isinstance(metadata, AmazonReviewsItemMetadata):
-            normalized_metadata[item_index] = metadata
-            continue
-
-        if not isinstance(metadata, dict):
-            raise TypeError(
-                "Invalid cached item_index_2_metadata.pkl: expected values of type "
-                "AmazonReviewsItemMetadata or legacy dict payloads."
-            )
-
-        missing_fields = {"category_index", "average_rating", "rating_number"} - metadata.keys()
-        if missing_fields:
-            raise KeyError(
-                "Invalid cached item_index_2_metadata.pkl: missing fields "
-                f"{sorted(missing_fields)} for item_index={item_index}"
-            )
-
-        normalized_metadata[item_index] = AmazonReviewsItemMetadata(
-            category_index=int(metadata["category_index"]),
-            average_rating=float(metadata["average_rating"]),
-            rating_number=int(metadata["rating_number"]),
-        )
-        migrated = True
-
-    return normalized_metadata, migrated
-
-
 def seq_rec_preprocess_dataset(
     dataset_dict: D.DatasetDict, metadata: D.Dataset, filter_no_history: bool = True
 ) -> AmazonReviewsSeqRecPreprocessedResult:
@@ -631,17 +573,7 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
             with open(category2index_path, "rb") as f:
                 self.category2index: dict[str, int] = pickle.load(f)
             with open(item_index_2_metadata_path, "rb") as f:
-                raw_item_index_2_metadata = pickle.load(f)
-            self.item_index_2_metadata, migrated = _normalize_cached_item_index_2_metadata(
-                raw_item_index_2_metadata
-            )
-            if migrated:
-                logger.warning(
-                    "Detected legacy cached item_index_2_metadata.pkl format; "
-                    "migrating to AmazonReviewsItemMetadata."
-                )
-                with open(item_index_2_metadata_path, "wb") as f:
-                    pickle.dump(self.item_index_2_metadata, f)
+                self.item_index_2_metadata: dict[int, AmazonReviewsItemMetadata] = pickle.load(f)
         else:
             if not self.save_dir.exists():
                 self.save_dir.mkdir(parents=True)
