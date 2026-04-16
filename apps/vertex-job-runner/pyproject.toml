@@ -18,7 +18,7 @@ dependencies = [
 vrun = "vertex_job_runner.cli:app"
 
 [dependency-groups]
-test = ["pytest~=8.4.2", "pytest-console-scripts~=1.4.1"]
+test = ["pytest~=9.0.3", "pytest-console-scripts~=1.4.1"]
 lint = ["ruff~=0.8.4", "mypy~=1.14.1"]
 
 [tool.uv]
