@@ -10,13 +10,21 @@
   },
   "packageRules": [
     {
-      "matchPaths": ["projects/*/**", "libs/*/**", "apps/*/**"],
+      "matchFileNames": [
+        "projects/*/**",
+        "libs/*/**",
+        "apps/*/**"
+      ],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "{{{parentDir}}} minor dependencies",
       "automerge": false
     },
     {
-      "matchPaths": ["projects/*/**", "libs/*/**", "apps/*/**"],
+      "matchFileNames": [
+        "projects/*/**",
+        "libs/*/**",
+        "apps/*/**"
+      ],
       "matchUpdateTypes": ["major"],
       "groupName": "{{{parentDir}}} major dependencies",
       "automerge": false
