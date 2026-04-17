@@ -1,5 +1,6 @@
 import pathlib
 from datetime import datetime
+from typing import cast
 
 import hydra
 import lightning as L
@@ -77,7 +78,7 @@ def prepare_datamodule(
     )
 
 
-def build_module(cfg: DictConfig, datamodule: AmazonReviewsSeqRecDataModule) -> BaseModule:
+def build_module(cfg: DictConfig, datamodule: L.LightningDataModule) -> BaseModule:
     """Create the ranking LightningModule for the configured training run.
 
     Args:
@@ -87,6 +88,7 @@ def build_module(cfg: DictConfig, datamodule: AmazonReviewsSeqRecDataModule) -> 
     Returns:
         Configured ranking LightningModule.
     """
+    datamodule = cast(AmazonReviewsSeqRecDataModule, datamodule)
     datamodule.prepare_data()
     optimizer = create_optimizer(cfg)
     loss_fn = create_loss(

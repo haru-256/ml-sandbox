@@ -1,5 +1,6 @@
 import pathlib
 from datetime import datetime
+from typing import cast
 
 import hydra
 import lightning as L
@@ -78,7 +79,7 @@ def prepare_datamodule(
 
 def build_module(
     cfg: DictConfig,
-    datamodule: AmazonReviewsSeqRecDataModule | AmazonReviewsBipartiteGraphDataModule,
+    datamodule: L.LightningDataModule,
 ) -> BaseModule:
     """Create the candidate-generation LightningModule.
 
@@ -89,6 +90,10 @@ def build_module(
     Returns:
         Configured candidate-generation LightningModule.
     """
+    datamodule = cast(
+        AmazonReviewsSeqRecDataModule | AmazonReviewsBipartiteGraphDataModule,
+        datamodule,
+    )
     datamodule.prepare_data()
     optimizer = create_optimizer(cfg)
     return create_model_module(cfg, datamodule, optimizer)
