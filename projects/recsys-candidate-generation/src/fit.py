@@ -3,12 +3,15 @@ from datetime import datetime
 
 import hydra
 import lightning as L
-import torch
 from lightning.pytorch.callbacks import EarlyStopping
 from lightning.pytorch.loggers import WandbLogger
-from loguru import logger
+from ml_sandbox_libs.data.amazon_reviews_dataset import (
+    AmazonReviewsBipartiteGraphDataModule,
+    AmazonReviewsSeqRecDataModule,
+)
+from ml_sandbox_libs.models.base import BaseModule
 from ml_sandbox_libs.optimizer import create_optimizer
-from ml_sandbox_libs.utils import setup_logger
+from ml_sandbox_libs.training import run_training
 from omegaconf import DictConfig
 
 from const import EVAL_NEG_SAMPLE_SIZE
@@ -53,49 +56,57 @@ def create_trainer(cfg: DictConfig, save_dir: pathlib.Path) -> L.Trainer:
     )
 
 
-@hydra.main(version_base=None, config_path="config", config_name="config")
-def main(cfg: DictConfig) -> None:
-    """Main training function.
+def prepare_datamodule(
+    cfg: DictConfig,
+    save_dir: pathlib.Path,
+) -> AmazonReviewsSeqRecDataModule | AmazonReviewsBipartiteGraphDataModule:
+    """Create the candidate-generation datamodule for the training run.
 
     Args:
-        cfg: Hydra configuration object
+        cfg: Hydra configuration object.
+        save_dir: Base save directory for the experiment.
+
+    Returns:
+        Candidate-generation datamodule instance.
     """
-    setup_logger()
-    logger.info(f"Starting the fit process with configuration: {cfg}")
-
-    if cfg.device.accelerator == "gpu":
-        torch.set_float32_matmul_precision("medium")
-
-    save_dir = pathlib.Path(cfg.save_dir)
-
-    # Initialize data module
-    datamodule = create_datamodule(
+    return create_datamodule(
         cfg=cfg,
         save_dir=save_dir,
         eval_negative_sample_size=EVAL_NEG_SAMPLE_SIZE,
     )
 
-    # Create optimizer
-    optimizer = create_optimizer(cfg)
 
-    # Initialize datamodule metadata required by model factories before module creation.
-    # The bipartite graph datamodule keeps this idempotent, so Lightning can call
-    # prepare_data() again during fit without repeating the expensive preprocessing.
+def build_module(
+    cfg: DictConfig,
+    datamodule: AmazonReviewsSeqRecDataModule | AmazonReviewsBipartiteGraphDataModule,
+) -> BaseModule:
+    """Create the candidate-generation LightningModule.
+
+    Args:
+        cfg: Hydra configuration object.
+        datamodule: Datamodule used for training.
+
+    Returns:
+        Configured candidate-generation LightningModule.
+    """
     datamodule.prepare_data()
+    optimizer = create_optimizer(cfg)
+    return create_model_module(cfg, datamodule, optimizer)
 
-    # Create model
-    module = create_model_module(cfg, datamodule, optimizer)
 
-    # Print model summary
-    logger.info(
-        module.summary(
-            batch_size=cfg.data.batch_size,
-        )
+@hydra.main(version_base=None, config_path="config", config_name="config")
+def main(cfg: DictConfig) -> None:
+    """Main training function.
+
+    Args:
+        cfg: Hydra configuration object.
+    """
+    run_training(
+        cfg,
+        prepare_datamodule=prepare_datamodule,
+        build_module=build_module,
+        build_trainer=create_trainer,
     )
-
-    # Create trainer and start training
-    trainer = create_trainer(cfg, save_dir)
-    trainer.fit(model=module, datamodule=datamodule)
 
 
 if __name__ == "__main__":
