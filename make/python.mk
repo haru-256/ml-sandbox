@@ -11,11 +11,11 @@ fmt: ## Run formatter
 	uv run ruff format .
 
 test: ## Run tests
-	uv run pytest . -v -s
+	uv run pytest . -v
 
 clean-cache: ## Remove cache files
 	rm -rf .mypy_cache .pytest_cache .ruff_cache
-	fd -H --type directory __pycache__ . -x rm -rf
+	find . -type d -name "__pycache__" -exec rm -rf {} +
 
 lock: ## Lock dependencies
 	uv lock
