@@ -23,7 +23,8 @@ def create_seq_rec_datamodule(
         max_seq_len: Maximum user-history sequence length.
         neg_sample_size: Number of negative samples used during training.
         num_workers: Number of dataloader worker processes.
-        eval_negative_sample_size: Number of negative samples used for validation and test.
+        eval_negative_sample_size: Number of negative samples used for
+            validation and test.
 
     Returns:
         AmazonReviewsSeqRecDataModule: Instantiated datamodule.

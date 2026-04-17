@@ -1,6 +1,7 @@
 import pathlib
 import pickle
-from typing import Any, NamedTuple
+from dataclasses import dataclass
+from typing import NamedTuple
 
 import datasets as D
 import lightning as L
@@ -12,6 +13,7 @@ from loguru import logger
 from torch.utils.data import DataLoader, Dataset
 
 from .common import (
+    AmazonReviewsIndices,
     SpecialCategoryIndex,
     SpecialItemIndex,
     SpecialUserIndex,
@@ -21,17 +23,29 @@ from .common import (
 )
 
 
+@dataclass(frozen=True)
+class AmazonReviewsItemMetadata:
+    """Static metadata used for item-level negative sampling."""
+
+    category_index: int
+    average_rating: float
+    rating_number: int
+
+
+@dataclass(frozen=True)
+class AmazonReviewsSeqRecPreprocessedResult:
+    """Container for preprocessed sequential recommendation artifacts."""
+
+    train_df: pl.DataFrame
+    val_df: pl.DataFrame
+    test_df: pl.DataFrame
+    indices: AmazonReviewsIndices
+    item_index_2_metadata: dict[int, AmazonReviewsItemMetadata]
+
+
 def seq_rec_preprocess_dataset(
     dataset_dict: D.DatasetDict, metadata: D.Dataset, filter_no_history: bool = True
-) -> tuple[
-    pl.DataFrame,
-    pl.DataFrame,
-    pl.DataFrame,
-    dict[str, int],
-    dict[str, int],
-    dict[str, int],
-    dict[int, dict[str, Any]],
-]:
+) -> AmazonReviewsSeqRecPreprocessedResult:
     """Preprocess the dataset for Sequential Recommendation.
 
     This function performs common preprocessing (converting to Polars, joining metadata, filtering)
@@ -46,25 +60,22 @@ def seq_rec_preprocess_dataset(
         filter_no_history: If True, filters out users with no interaction history. Defaults to True.
 
     Returns:
-        A tuple containing:
-            - train_df: Preprocessed training DataFrame.
-            - val_df: Preprocessed validation DataFrame.
-            - test_df: Preprocessed test DataFrame.
-            - user2index: Mapping from user ID to integer index.
-            - item2index: Mapping from item ID (parent_asin) to integer index.
-            - category2index: Mapping from category name to integer index.
-            - item_index_2_metadata: Mapping from item integer index to its metadata dict
-                (containing 'category_index', 'average_rating', 'rating_number').
+        AmazonReviewsSeqRecPreprocessedResult: Container for preprocessed
+            train/validation/test dataframes, feature indices, and item metadata.
     """
-    (
-        (train_df, val_df, test_df),
-        meta_df,
-        (user2index, item2index, category2index, item_index_2_category_index),
-        (user2index_df, item2index_df, category2index_df),
-    ) = common_preprocess_dataset(
+    processed = common_preprocess_dataset(
         dataset_dict=dataset_dict,
         metadata=metadata,
         filter_no_history=filter_no_history,
+    )
+    train_df, val_df, test_df = processed.train_df, processed.val_df, processed.test_df
+    meta_df = processed.meta_df
+    indices = processed.indices
+    item_index_2_category_index = indices.item_index_2_category_index
+    user2index_df, item2index_df, category2index_df = (
+        processed.user2index_df,
+        processed.item2index_df,
+        processed.category2index_df,
     )
 
     # preprocess
@@ -228,30 +239,23 @@ def seq_rec_preprocess_dataset(
     )
 
     metadata_map = {
-        row["item_index"]: {
-            "average_rating": row["average_rating"],
-            "rating_number": row["rating_number"],
-        }
+        row["item_index"]: AmazonReviewsItemMetadata(
+            category_index=item_index_2_category_index.get(
+                row["item_index"],
+                int(SpecialCategoryIndex.UNK),
+            ),
+            average_rating=row["average_rating"],
+            rating_number=row["rating_number"],
+        )
         for row in item_metadata_df.iter_rows(named=True)
     }
 
-    item_index_2_metadata: dict[int, dict[str, Any]] = {}
-    for item_index, category_index in item_index_2_category_index.items():
-        meta = metadata_map.get(item_index, {"average_rating": 0.0, "rating_number": 0})
-        item_index_2_metadata[item_index] = {
-            "category_index": category_index,
-            "average_rating": meta["average_rating"],
-            "rating_number": meta["rating_number"],
-        }
-
-    return (
-        train_df,
-        val_df,
-        test_df,
-        user2index,
-        item2index,
-        category2index,
-        item_index_2_metadata,
+    return AmazonReviewsSeqRecPreprocessedResult(
+        train_df=train_df,
+        val_df=val_df,
+        test_df=test_df,
+        indices=indices,
+        item_index_2_metadata=metadata_map,
     )
 
 
@@ -440,14 +444,17 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
         """Amazon Reviews Data Module for Sequential Recommendation
 
         Args:
-            save_dir: save directory for preprocessed dataset
-            batch_size: batch size. Defaults to 32.
-            num_workers: number of workers. Defaults to 2.
-            max_seq_len: maximum sequence length. Defaults to 50.
-            neg_sample_size: negative sample size. Defaults to 1.
-            sampling_val_test: whether to sample validation and test dataset. Defaults to False.
-            eval_negative_sample_size: negative sample size for evaluation. Defaults to 100.
-            filter_no_history: whether to filter out the dataset which has no history. Defaults to True.
+            save_dir: Save directory for preprocessed dataset.
+            batch_size: Batch size. Defaults to 32.
+            num_workers: Number of workers. Defaults to 2.
+            max_seq_len: Maximum sequence length. Defaults to 50.
+            neg_sample_size: Negative sample size. Defaults to 1.
+            sampling_val_test: Whether to sample validation and test dataset.
+                Defaults to False.
+            eval_negative_sample_size: Negative sample size for evaluation.
+                Defaults to 100.
+            filter_no_history: Whether to filter out the dataset which has no
+                history. Defaults to True.
         """
         super().__init__()
         self.save_dir = save_dir
@@ -566,7 +573,7 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
             with open(category2index_path, "rb") as f:
                 self.category2index: dict[str, int] = pickle.load(f)
             with open(item_index_2_metadata_path, "rb") as f:
-                self.item_index_2_metadata: dict[int, dict[str, Any]] = pickle.load(f)
+                self.item_index_2_metadata: dict[int, AmazonReviewsItemMetadata] = pickle.load(f)
         else:
             if not self.save_dir.exists():
                 self.save_dir.mkdir(parents=True)
@@ -574,17 +581,16 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
             logger.info("Preprocessed dataset not found")
             dataset_dict = fetch_dataset()
             metadata = fetch_metadata()
-            (
-                self.train_df,
-                self.val_df,
-                self.test_df,
-                self.user2index,
-                self.item2index,
-                self.category2index,
-                self.item_index_2_metadata,
-            ) = seq_rec_preprocess_dataset(
+            processed = seq_rec_preprocess_dataset(
                 dataset_dict, metadata, filter_no_history=self.filter_no_history
             )
+            self.train_df = processed.train_df
+            self.val_df = processed.val_df
+            self.test_df = processed.test_df
+            self.user2index = processed.indices.user2index
+            self.item2index = processed.indices.item2index
+            self.category2index = processed.indices.category2index
+            self.item_index_2_metadata = processed.item_index_2_metadata
 
             # save
             self.train_df.write_parquet(train_path)
@@ -609,13 +615,13 @@ class AmazonReviewsSeqRecDataModule(L.LightningDataModule):
             {
                 "item_index": list(self.item_index_2_metadata.keys()),
                 "category_index": [
-                    meta["category_index"] for meta in self.item_index_2_metadata.values()
+                    meta.category_index for meta in self.item_index_2_metadata.values()
                 ],
                 "average_rating": [
-                    meta["average_rating"] for meta in self.item_index_2_metadata.values()
+                    meta.average_rating for meta in self.item_index_2_metadata.values()
                 ],
                 "rating_number": [
-                    meta["rating_number"] for meta in self.item_index_2_metadata.values()
+                    meta.rating_number for meta in self.item_index_2_metadata.values()
                 ],
             }
         )

@@ -2,9 +2,7 @@ import pathlib
 
 import pytest
 
-from ml_sandbox_libs.data.amazon_reviews_dataset.bipartite_graph import (
-    AmazonReviewsBipartiteGraphDataModule,
-)
+from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsBipartiteGraphDataModule
 
 
 def test_bipartite_graph_datamodule_num_users_and_num_items_require_initialized_indices(

@@ -6,6 +6,10 @@ import torch
 from pytest_mock import MockerFixture
 
 from ml_sandbox_libs.data.amazon_reviews_dataset import (
+    AmazonReviewsIndices,
+    AmazonReviewsItemMetadata,
+    AmazonReviewsPreprocessedResult,
+    AmazonReviewsSeqRecPreprocessedResult,
     SpecialCategoryIndex,
     SpecialItemIndex,
     SpecialUserIndex,
@@ -146,11 +150,20 @@ def test_seq_rec_preprocess_dataset(mocker: MockerFixture) -> None:
     )
 
     # Mock common_preprocess_dataset
-    mock_common_preprocess_return = (
-        (mock_train_df, mock_val_df, mock_test_df),
-        mock_meta_df,
-        (mock_user2index, mock_item2index, mock_category2index, mock_item_index_2_category_index),
-        (mock_user2index_df, mock_item2index_df, mock_category2index_df),
+    mock_common_preprocess_return = AmazonReviewsPreprocessedResult(
+        train_df=mock_train_df,
+        val_df=mock_val_df,
+        test_df=mock_test_df,
+        meta_df=mock_meta_df,
+        indices=AmazonReviewsIndices(
+            user2index=mock_user2index,
+            item2index=mock_item2index,
+            category2index=mock_category2index,
+            item_index_2_category_index=mock_item_index_2_category_index,
+        ),
+        user2index_df=mock_user2index_df,
+        item2index_df=mock_item2index_df,
+        category2index_df=mock_category2index_df,
     )
 
     mock_common_preprocess_func = mocker.patch(
@@ -161,15 +174,11 @@ def test_seq_rec_preprocess_dataset(mocker: MockerFixture) -> None:
     # Test with filter_no_history=True (default)
     result = seq_rec_preprocess_dataset(mock_dataset_dict, mock_metadata, filter_no_history=True)
 
-    (
-        train_df,
-        val_df,
-        test_df,
-        user2index,
-        item2index,
-        category2index,
-        item_index_2_metadata,
-    ) = result
+    train_df, val_df, test_df = result.train_df, result.val_df, result.test_df
+    user2index = result.indices.user2index
+    item2index = result.indices.item2index
+    category2index = result.indices.category2index
+    item_index_2_metadata = result.item_index_2_metadata
 
     # Verify return types
     assert isinstance(train_df, pl.DataFrame)
@@ -183,8 +192,8 @@ def test_seq_rec_preprocess_dataset(mocker: MockerFixture) -> None:
     # Verify that indices are returned correctly
     assert user2index == mock_user2index
     assert item2index == mock_item2index
-    assert item_index_2_metadata[2]["category_index"] == mock_item_index_2_category_index[2]
-    assert item_index_2_metadata[2]["category_index"] == mock_item_index_2_category_index[2]
+    assert item_index_2_metadata[2].category_index == mock_item_index_2_category_index[2]
+    assert item_index_2_metadata[2].average_rating == 4.5
 
     # Verify expected columns in output DataFrames
     expected_columns = [
@@ -269,23 +278,29 @@ def test_negative_sampling_has_average_rating(
     dummy_item2index = {"i1": 2, "i2": 3, "h1": 4, "h2": 5, "h3": 6}
     dummy_category2index = {"c1": 2, "c2": 3, "c3": 4, "c4": 5, "c5": 6}
     dummy_item_index_2_metadata = {
-        2: {"category_index": 2, "average_rating": 4.5, "rating_number": 10},
-        3: {"category_index": 3, "average_rating": 3.5, "rating_number": 5},
-        4: {"category_index": 4, "average_rating": 3.0, "rating_number": 5},
-        5: {"category_index": 5, "average_rating": 4.0, "rating_number": 2},
-        6: {"category_index": 6, "average_rating": 2.5, "rating_number": 1},
+        2: AmazonReviewsItemMetadata(category_index=2, average_rating=4.5, rating_number=10),
+        3: AmazonReviewsItemMetadata(category_index=3, average_rating=3.5, rating_number=5),
+        4: AmazonReviewsItemMetadata(category_index=4, average_rating=3.0, rating_number=5),
+        5: AmazonReviewsItemMetadata(category_index=5, average_rating=4.0, rating_number=2),
+        6: AmazonReviewsItemMetadata(category_index=6, average_rating=2.5, rating_number=1),
     }
 
     mocker.patch(
         "ml_sandbox_libs.data.amazon_reviews_dataset.seq_rec.seq_rec_preprocess_dataset",
-        return_value=(
-            dummy_df,  # train
-            dummy_df,  # val
-            dummy_df,  # test
-            dummy_user2index,
-            dummy_item2index,
-            dummy_category2index,
-            dummy_item_index_2_metadata,
+        return_value=AmazonReviewsSeqRecPreprocessedResult(
+            train_df=dummy_df,
+            val_df=dummy_df,
+            test_df=dummy_df,
+            indices=AmazonReviewsIndices(
+                user2index=dummy_user2index,
+                item2index=dummy_item2index,
+                category2index=dummy_category2index,
+                item_index_2_category_index={
+                    item_index: metadata.category_index
+                    for item_index, metadata in dummy_item_index_2_metadata.items()
+                },
+            ),
+            item_index_2_metadata=dummy_item_index_2_metadata,
         ),
     )
 

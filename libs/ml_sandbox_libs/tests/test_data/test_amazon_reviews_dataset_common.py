@@ -1,4 +1,7 @@
+import datasets as D
 import polars as pl
+import pytest
+from pytest_mock import MockerFixture
 
 from ml_sandbox_libs.data.amazon_reviews_dataset import (
     SpecialCategoryIndex,
@@ -7,6 +10,8 @@ from ml_sandbox_libs.data.amazon_reviews_dataset import (
 )
 from ml_sandbox_libs.data.amazon_reviews_dataset.common import (
     build_feature_indices,
+    fetch_dataset,
+    fetch_metadata,
     unk_filter_by_count,
 )
 
@@ -48,9 +53,10 @@ def test_build_feature_indices() -> None:
     meta_df = pl.from_dict(metadata_data)
 
     # Call the function with DataFrames directly
-    user2index, item2index, category2index, item_index_2_category_index = build_feature_indices(
-        train_df, meta_df, threshold=0.8
-    )
+    indices = build_feature_indices(train_df, meta_df, threshold=0.8)
+    user2index, item2index = indices.user2index, indices.item2index
+    category2index = indices.category2index
+    item_index_2_category_index = indices.item_index_2_category_index
 
     # Verify results
     # Check that special indices are included
@@ -80,3 +86,53 @@ def test_build_feature_indices() -> None:
     # Check that special indices map correctly
     assert item_index_2_category_index[item2index["#UNK"]] == SpecialCategoryIndex.UNK
     assert item_index_2_category_index[item2index["#PAD"]] == SpecialCategoryIndex.PAD
+
+
+def test_fetch_dataset_returns_dataset_dict(mocker: MockerFixture) -> None:
+    """Return a DatasetDict when datasets.load_dataset provides the expected type."""
+    dataset_dict = D.DatasetDict({"train": D.Dataset.from_dict({"value": [1]})})
+    load_dataset_mock = mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.common.D.load_dataset",
+        return_value=dataset_dict,
+    )
+
+    result = fetch_dataset()
+
+    assert result is dataset_dict
+    load_dataset_mock.assert_called_once()
+
+
+def test_fetch_dataset_raises_for_unexpected_dataset_type(mocker: MockerFixture) -> None:
+    """Reject non-DatasetDict values returned by datasets.load_dataset."""
+    mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.common.D.load_dataset",
+        return_value=D.Dataset.from_dict({"value": [1]}),
+    )
+
+    with pytest.raises(TypeError, match="Expected DatasetDict"):
+        fetch_dataset()
+
+
+def test_fetch_metadata_returns_dataset(mocker: MockerFixture) -> None:
+    """Return a Dataset when datasets.load_dataset provides the expected type."""
+    dataset = D.Dataset.from_dict({"value": [1]})
+    load_dataset_mock = mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.common.D.load_dataset",
+        return_value=dataset,
+    )
+
+    result = fetch_metadata()
+
+    assert result is dataset
+    load_dataset_mock.assert_called_once()
+
+
+def test_fetch_metadata_raises_for_unexpected_dataset_type(mocker: MockerFixture) -> None:
+    """Reject non-Dataset values returned by datasets.load_dataset."""
+    mocker.patch(
+        "ml_sandbox_libs.data.amazon_reviews_dataset.common.D.load_dataset",
+        return_value=D.DatasetDict({"train": D.Dataset.from_dict({"value": [1]})}),
+    )
+
+    with pytest.raises(TypeError, match="Expected Dataset"):
+        fetch_metadata()
