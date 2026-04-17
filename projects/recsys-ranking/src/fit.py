@@ -66,7 +66,8 @@ def prepare_datamodule(
         save_dir: Base save directory for the experiment.
 
     Returns:
-        Prepared datamodule instance.
+        Instantiated datamodule instance; data preparation happens later in
+        ``build_module``.
     """
     return create_seq_rec_datamodule(
         save_dir=save_dir,
