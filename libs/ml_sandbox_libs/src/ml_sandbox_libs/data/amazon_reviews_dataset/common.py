@@ -66,11 +66,14 @@ def fetch_dataset(
     logger.info("Fetching Amazon Reviews 2023 dataset")
     # NOTE: According to the benchmark script, last_out is widely used in research. But, it is not realistic.
     # https://github.com/hyp1231/AmazonReviews2023/tree/main/benchmark_scripts#rating_only---timestamp
-    dataset_dict: D.DatasetDict = D.load_dataset(
+    dataset_dict = D.load_dataset(
         "McAuley-Lab/Amazon-Reviews-2023",
         f"{dataset_type}_{category}",
         trust_remote_code=True,
     )
+    if not isinstance(dataset_dict, D.DatasetDict):
+        msg = f"Expected DatasetDict from load_dataset, got {type(dataset_dict).__name__}"
+        raise TypeError(msg)
     return dataset_dict
 
 
@@ -84,12 +87,15 @@ def fetch_metadata(category: str = "Video_Games") -> D.Dataset:
         datasets.Dataset, Dataset Schema is the following: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-item-metadata
     """
     logger.info("Fetching Amazon Reviews 2023 metadata")
-    metadata: D.Dataset = D.load_dataset(
+    metadata = D.load_dataset(
         "McAuley-Lab/Amazon-Reviews-2023",
         f"raw_meta_{category}",
         split="full",
         trust_remote_code=True,
     )
+    if not isinstance(metadata, D.Dataset):
+        msg = f"Expected Dataset from load_dataset, got {type(metadata).__name__}"
+        raise TypeError(msg)
     return metadata
 
 
