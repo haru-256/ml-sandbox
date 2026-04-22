@@ -4,7 +4,6 @@
   "timezone": "Asia/Tokyo",
   "schedule": ["before 8am every 2 weeks on monday"],
   "minimumReleaseAge": "14 days",
-  "ignoreDeps": ["python"],
   "lockFileMaintenance": {
     "enabled": true,
     "automerge": false
@@ -28,6 +27,16 @@
       ],
       "matchUpdateTypes": ["major"],
       "groupName": "{{{parentDir}}} major dependencies",
+      "automerge": false
+    },
+    {
+      "matchFileNames": [
+        "projects/*/**",
+        "libs/*/**",
+        "apps/*/**"
+      ],
+      "matchDepNames": ["python"],
+      "groupName": "{{{parentDir}}} python runtime",
       "automerge": false
     }
   ]
