@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Library for the ml-sandbox project"
 readme = "README.md"
 authors = [{ name = "haru256", email = "yohei.kuro48@gmail.com" }]
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.14,<3.15"
 classifiers = ["Private :: Do Not Upload"]
 dependencies = [
   "lightning>=2.5.0.post0",
@@ -23,7 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 cpu = [
-  "torch==2.10.0",
+  "torch==2.11.0",
   "pyg_lib",
   "torch_scatter",
   "torch_sparse",
@@ -31,7 +31,7 @@ cpu = [
   "torch_spline_conv",
 ]
 gpu = [
-  "torch==2.10.0",
+  "torch==2.11.0",
   "pyg_lib",
   "torch_scatter",
   "torch_sparse",
@@ -45,11 +45,11 @@ dev = [
   "pytest~=9.0.3",
   "pytest-mock~=3.15.1",
   "deepdiff~=8.6.2",
-  "mypy~=1.14.0",
+  "mypy~=1.20.0",
   "ipywidgets>=8.1.5",
   "tqdm~=4.67.1",
 ]
-lint = ["ruff~=0.11.4"]
+lint = ["ruff~=0.15.9"]
 
 [tool.uv]
 package = true
