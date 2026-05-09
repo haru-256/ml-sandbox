@@ -6,7 +6,7 @@ from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecBatch
 from ml_sandbox_libs.loss import ScoreLossFn
 from ml_sandbox_libs.models.base import BaseModule
-from ml_sandbox_libs.models.modules import MLP, FeatureEmbeddingDict
+from ml_sandbox_libs.models.modules import MLP, FactorizationMachine, FeatureEmbeddingDict
 from ml_sandbox_libs.models.types import ActivationType, FeatureSpec, FeatureType, NormalizeType
 from ml_sandbox_libs.optimizer import Optimizer
 from ml_sandbox_libs.training import ExperimentMonitor, summarize_pos_neg_scores
@@ -20,7 +20,6 @@ from torchinfo import ModelStatistics, summary
 from torchmetrics.classification import BinaryAccuracy
 
 from .base import RankingModelBase
-from .modules.interaction import FactorizationMachine
 
 
 class DeepFM(RankingModelBase):

@@ -16,8 +16,10 @@ from typing import Any, cast
 
 import torch
 import torch.nn as nn
-from ml_sandbox_libs.models.modules.base import build_activation, build_normalization
+
 from ml_sandbox_libs.models.types import ActivationType, NormalizeType
+
+from .base import build_activation, build_normalization
 
 
 def _build_cross_activation(

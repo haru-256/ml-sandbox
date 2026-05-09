@@ -27,7 +27,7 @@ def test_build_module_prepares_datamodule_before_creating_dependencies(
     module = object()
 
     create_optimizer = mocker.patch("fit.create_optimizer", return_value=optimizer)
-    create_loss = mocker.patch("fit.create_loss", return_value=loss_fn)
+    create_score_loss = mocker.patch("fit.create_score_loss", return_value=loss_fn)
     create_model_module = mocker.patch("fit.create_model_module", return_value=module)
 
     result = fit.build_module(cfg, datamodule)
@@ -35,7 +35,7 @@ def test_build_module_prepares_datamodule_before_creating_dependencies(
     assert result is module
     datamodule.prepare_data.assert_called_once_with()
     create_optimizer.assert_called_once_with(cfg)
-    create_loss.assert_called_once_with(
+    create_score_loss.assert_called_once_with(
         cfg,
         num_items=len(datamodule.item2index),
         neg_sample_size=cfg.data.neg_sample_size,
