@@ -40,6 +40,7 @@ def test_create_retrieval_inputs() -> None:
     torch.testing.assert_close(actual_logits, expected_logits)
     torch.testing.assert_close(actual_target, excepted_target)
     torch.testing.assert_close(actual_indexes, expected_indexes)
+    assert actual_indexes.device == actual_logits.device
 
 
 def test_mrr() -> None:

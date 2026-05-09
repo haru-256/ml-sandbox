@@ -19,9 +19,9 @@ from .retrieval import (
 )
 
 __all__ = [
-    "HitRate",
     "MRR",
     "NDCG",
+    "HitRate",
     "RetrievalMetrics",
     "create_classification_inputs",
     "create_retrieval_inputs",

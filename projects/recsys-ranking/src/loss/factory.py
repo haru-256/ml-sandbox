@@ -6,7 +6,7 @@ def create_score_loss(cfg: DictConfig, *, num_items: int, neg_sample_size: int) 
     """Create a score-based loss for ranking models.
 
     Args:
-        cfg: Configuration dictionary (cfg.loss)
+        cfg: Full Hydra configuration object with a ``loss`` section.
         num_items: Number of items (required for gBCE)
         neg_sample_size: Negative sample size (required for gBCE)
 
