@@ -36,5 +36,5 @@ def create_retrieval_inputs(
     score = torch.cat([positive, negative], dim=1)
     target = torch.cat([torch.ones_like(positive), torch.zeros_like(negative)], dim=1).long()
     batch_size, num_samples = score.size()
-    indexes = torch.arange(batch_size, device=score.device).reshape(batch_size, 1).expand(batch_size, num_samples).long()
+    indexes = torch.arange(batch_size, device=score.device).unsqueeze(1).expand(batch_size, num_samples)
     return score, target, indexes
