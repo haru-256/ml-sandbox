@@ -815,11 +815,11 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 lint = [
-    { name = "mypy", specifier = "~=1.14.1" },
+    { name = "mypy", specifier = "~=2.1.0" },
     { name = "ruff", specifier = "~=0.8.4" },
 ]
 test = [
-    { name = "pytest", specifier = "~=8.3.4" },
+    { name = "pytest", specifier = "~=9.0.3" },
     { name = "pytest-console-scripts", specifier = "~=1.4.1" },
 ]
 
