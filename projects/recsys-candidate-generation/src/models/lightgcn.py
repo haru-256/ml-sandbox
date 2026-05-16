@@ -5,19 +5,20 @@ from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from ml_sandbox_libs.data.amazon_reviews_dataset import (
     AmazonReviewsBipartiteGraphBatch,
     SpecialItemIndex,
+    to_bipartite_graph_batch,
 )
 from ml_sandbox_libs.loss import EmbeddingLossFn
 from ml_sandbox_libs.models.base import BaseModule
 from ml_sandbox_libs.models.modules import IdEmbedding
 from ml_sandbox_libs.optimizer import Optimizer
-from ml_sandbox_libs.training import ExperimentMonitor
-from ml_sandbox_libs.utils.metrics import RetrievalMetrics
+from ml_sandbox_libs.training import ExperimentMonitor, summarize_pos_neg_scores
+from ml_sandbox_libs.utils.metrics import RetrievalMetrics, create_retrieval_inputs
 from timm.scheduler.cosine_lr import CosineLRScheduler
 from torch import nn
+from torch_geometric.data import HeteroData
 from torch_geometric.nn.conv import LGConv
 from torchinfo import ModelStatistics, summary
 
-from ._graph_step_mixin import GraphStepMixin
 from .base import CandidateGenerationModelBase
 
 
@@ -295,7 +296,7 @@ class LightGCN(CandidateGenerationModelBase):
         return user_emb, pos_item_emb, neg_item_emb
 
 
-class LightGCNModule(GraphStepMixin, BaseModule):
+class LightGCNModule(BaseModule):
     """LightningModule wrapper for LightGCN training and evaluation.
 
     Args:
@@ -397,6 +398,38 @@ class LightGCNModule(GraphStepMixin, BaseModule):
         loss = self.loss_fn(user_emb, pos_item_emb, neg_item_emb)
 
         return loss, pos_scores, neg_scores
+
+    @override
+    def training_step(self, batch: HeteroData, batch_idx: int) -> torch.Tensor:
+        """Perform a single training step."""
+        typed_batch = to_bipartite_graph_batch(batch)
+        loss, pos_scores, neg_scores = self._compute_step_outputs(typed_batch)
+        self.monitor.logging_step(
+            {"loss": loss.item(), **summarize_pos_neg_scores(pos_scores, neg_scores)},
+            stage="train",
+            batch_idx=batch_idx,
+            batch_size=typed_batch.src_index.size(0),
+        )
+        return loss
+
+    @override
+    def validation_step(self, batch: HeteroData, batch_idx: int) -> torch.Tensor:
+        """Perform a single validation step and update retrieval metrics."""
+        typed_batch = to_bipartite_graph_batch(batch)
+        loss, pos_scores, neg_scores = self._compute_step_outputs(typed_batch)
+        scores, target, _ = create_retrieval_inputs(pos_scores, neg_scores)
+        self.retrieval_metrics.update(scores, target)
+        self.monitor.logging_step(
+            {
+                "loss": loss.item(),
+                **summarize_pos_neg_scores(pos_scores, neg_scores),
+                **self.retrieval_metrics.metric_dict(),
+            },
+            stage="val",
+            batch_idx=batch_idx,
+            batch_size=typed_batch.src_index.size(0),
+        )
+        return loss
 
     @override
     def configure_optimizers(self) -> OptimizerLRSchedulerConfig:

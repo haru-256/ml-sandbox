@@ -14,14 +14,16 @@ def _require_positive_scalar(cfg: DictConfig, field_name: str) -> None:
     """Require `cfg.model.<field_name>` to be greater than zero."""
     value = cfg.model[field_name]
     if value <= 0:
-        raise ValueError(f"UltraGCN requires positive {field_name}, got {value}.")
+        model_name = cfg.model.get("name", "Unknown model")
+        raise ValueError(f"{model_name} requires positive {field_name}, got {value}.")
 
 
 def _require_non_negative_scalar(cfg: DictConfig, field_name: str) -> None:
     """Require `cfg.model.<field_name>` to be greater than or equal to zero."""
     value = cfg.model[field_name]
     if value < 0:
-        raise ValueError(f"UltraGCN requires non-negative {field_name}, got {value}.")
+        model_name = cfg.model.get("name", "Unknown model")
+        raise ValueError(f"{model_name} requires non-negative {field_name}, got {value}.")
 
 
 def validate_lightgcn_neighbor_config(cfg: DictConfig) -> None:

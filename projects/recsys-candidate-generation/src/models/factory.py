@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import TypeVar
 
 import polars as pl
@@ -235,6 +236,28 @@ def create_lightgcn_module(
     )
 
 
+def _extract_ultragcn_train_edge_index(
+    datamodule: AmazonReviewsBipartiteGraphDataModule,
+) -> torch.Tensor:
+    """Extract train split user-item edges for UltraGCN constraints.
+
+    Args:
+        datamodule: Prepared bipartite graph datamodule whose `all_df` contains
+            `split`, `user_index`, and `item_index` columns.
+
+    Returns:
+        Edge index tensor with shape `(2, E)` and dtype `torch.long`.
+    """
+    train_df = datamodule.all_df.filter(pl.col("split") == "train")
+    return torch.stack(
+        [
+            train_df["user_index"].to_torch().to(torch.long),
+            train_df["item_index"].to_torch().to(torch.long),
+        ],
+        dim=0,
+    )
+
+
 def create_ultragcn_module(
     cfg: DictConfig,
     datamodule: AmazonReviewsBipartiteGraphDataModule,
@@ -251,14 +274,7 @@ def create_ultragcn_module(
         Initialized UltraGCNModule.
     """
     validate_ultragcn_config(cfg)
-    train_df = datamodule.all_df.filter(pl.col("split") == "train")
-    edge_index = torch.stack(
-        [
-            train_df["user_index"].to_torch().to(torch.long),
-            train_df["item_index"].to_torch().to(torch.long),
-        ],
-        dim=0,
-    )
+    edge_index = _extract_ultragcn_train_edge_index(datamodule)
     constraint_weights = build_ultragcn_constraint_weights(
         edge_index=edge_index,
         num_users=datamodule.num_users,
@@ -279,6 +295,19 @@ def create_ultragcn_module(
     )
 
 
+_SEQ_REC_CREATORS: dict[str, Callable[..., BaseModule]] = {
+    "TwoTower": create_two_tower_module,
+    "SASRec": create_sasrec_module,
+    "gSASRec": create_gsasrec_module,
+    "SimpleX": create_simplex_module,
+}
+
+_GRAPH_CREATORS: dict[str, Callable[..., BaseModule]] = {
+    "LightGCN": create_lightgcn_module,
+    "UltraGCN": create_ultragcn_module,
+}
+
+
 def create_model_module(
     cfg: DictConfig,
     datamodule: Datamodule,
@@ -297,57 +326,23 @@ def create_model_module(
     Raises:
         NotImplementedError: If model name is not supported
     """
-    match cfg.model.name:
-        case "TwoTower":
-            seq_rec_datamodule = _require_datamodule_type(
-                datamodule,
-                AmazonReviewsSeqRecDataModule,
-                "AmazonReviewsSeqRecDataModule",
-                model_name="TwoTower",
-            )
-            return create_two_tower_module(cfg, seq_rec_datamodule, optimizer)
-        case "SASRec":
-            seq_rec_datamodule = _require_datamodule_type(
-                datamodule,
-                AmazonReviewsSeqRecDataModule,
-                "AmazonReviewsSeqRecDataModule",
-                model_name="SASRec",
-            )
-            return create_sasrec_module(cfg, seq_rec_datamodule, optimizer)
-        case "gSASRec":
-            seq_rec_datamodule = _require_datamodule_type(
-                datamodule,
-                AmazonReviewsSeqRecDataModule,
-                "AmazonReviewsSeqRecDataModule",
-                model_name="gSASRec",
-            )
-            return create_gsasrec_module(cfg, seq_rec_datamodule, optimizer)
-        case "SimpleX":
-            seq_rec_datamodule = _require_datamodule_type(
-                datamodule,
-                AmazonReviewsSeqRecDataModule,
-                "AmazonReviewsSeqRecDataModule",
-                model_name="SimpleX",
-            )
-            return create_simplex_module(cfg, seq_rec_datamodule, optimizer)
-        case "LightGCN":
-            bipartite_datamodule = _require_datamodule_type(
-                datamodule,
-                AmazonReviewsBipartiteGraphDataModule,
-                "AmazonReviewsBipartiteGraphDataModule",
-                model_name="LightGCN",
-            )
-            return create_lightgcn_module(cfg, bipartite_datamodule, optimizer)
-        case "UltraGCN":
-            bipartite_datamodule = _require_datamodule_type(
-                datamodule,
-                AmazonReviewsBipartiteGraphDataModule,
-                "AmazonReviewsBipartiteGraphDataModule",
-                model_name="UltraGCN",
-            )
-            return create_ultragcn_module(cfg, bipartite_datamodule, optimizer)
-        case _:
-            raise NotImplementedError(
-                f"Model '{cfg.model.name}' is not supported. "
-                "Available models: ['TwoTower', 'SASRec', 'gSASRec', 'SimpleX', 'LightGCN', 'UltraGCN']"
-            )
+    if cfg.model.name in _SEQ_REC_CREATORS:
+        seq_rec_datamodule = _require_datamodule_type(
+            datamodule,
+            AmazonReviewsSeqRecDataModule,
+            "AmazonReviewsSeqRecDataModule",
+            model_name=cfg.model.name,
+        )
+        return _SEQ_REC_CREATORS[cfg.model.name](cfg, seq_rec_datamodule, optimizer)
+    if cfg.model.name in _GRAPH_CREATORS:
+        bipartite_datamodule = _require_datamodule_type(
+            datamodule,
+            AmazonReviewsBipartiteGraphDataModule,
+            "AmazonReviewsBipartiteGraphDataModule",
+            model_name=cfg.model.name,
+        )
+        return _GRAPH_CREATORS[cfg.model.name](cfg, bipartite_datamodule, optimizer)
+    available_models = [*_SEQ_REC_CREATORS, *_GRAPH_CREATORS]
+    raise NotImplementedError(
+        f"Model '{cfg.model.name}' is not supported. Available models: {available_models}"
+    )

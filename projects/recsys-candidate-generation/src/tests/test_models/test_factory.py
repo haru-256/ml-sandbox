@@ -19,20 +19,19 @@ class _DummyModule:
 
 
 @pytest.mark.parametrize(
-    ("model_name", "creator_name"),
+    "model_name",
     [
-        ("TwoTower", "create_two_tower_module"),
-        ("SASRec", "create_sasrec_module"),
-        ("gSASRec", "create_gsasrec_module"),
-        ("SimpleX", "create_simplex_module"),
-        ("LightGCN", "create_lightgcn_module"),
-        ("UltraGCN", "create_ultragcn_module"),
+        "TwoTower",
+        "SASRec",
+        "gSASRec",
+        "SimpleX",
+        "LightGCN",
+        "UltraGCN",
     ],
 )
 def test_create_model_module_dispatches_to_matching_creator(
     monkeypatch: pytest.MonkeyPatch,
     model_name: str,
-    creator_name: str,
 ) -> None:
     """Dispatches to the expected creator based on the configured model name."""
     sentinel = object()
@@ -40,13 +39,8 @@ def test_create_model_module_dispatches_to_matching_creator(
     optimizer = cast(Any, SimpleNamespace())
     cfg = OmegaConf.create({"model": {"name": model_name}})
 
-    def fake_creator(cfg_arg: object, datamodule_arg: object, optimizer_arg: object) -> object:
-        assert cfg_arg is cfg
-        assert datamodule_arg is datamodule
-        assert optimizer_arg is optimizer
-        return sentinel
-
-    monkeypatch.setattr(factory, creator_name, fake_creator)
+    monkeypatch.setitem(factory._SEQ_REC_CREATORS, model_name, lambda *_: sentinel)
+    monkeypatch.setitem(factory._GRAPH_CREATORS, model_name, lambda *_: sentinel)
     monkeypatch.setattr(factory, "_require_datamodule_type", lambda dm, *_args, **_kwargs: dm)
 
     assert factory.create_model_module(cfg, datamodule, optimizer) is sentinel
@@ -95,17 +89,15 @@ def test_create_lightgcn_module_rejects_neighbor_count_mismatch() -> None:
         ("create_sasrec_module", "SASRecModule", "create_score_loss"),
         ("create_gsasrec_module", "gSASRecModule", "create_score_loss"),
         ("create_simplex_module", "SimpleXModule", "create_embedding_loss"),
-        ("create_lightgcn_module", "LightGCNModule", "create_embedding_loss"),
-        ("create_ultragcn_module", "UltraGCNModule", None),
     ],
 )
-def test_model_creators_use_pad_idx_from_datamodule(
+def test_seqrec_model_creators_use_pad_idx_from_datamodule(
     monkeypatch: pytest.MonkeyPatch,
     creator_name: str,
     module_name: str,
-    loss_factory_name: str | None,
+    loss_factory_name: str,
 ) -> None:
-    """Use the datamodule public API for padding indices instead of enum constants."""
+    """Seq-rec creators use the datamodule padding index and configured loss."""
     cfg = OmegaConf.create(
         {
             "data": {
@@ -129,13 +121,6 @@ def test_model_creators_use_pad_idx_from_datamodule(
                 "ffn_dropout": 0.1,
                 "user_id_weight": 0.5,
                 "user_history_pooling": "mean",
-                "num_layers": 2,
-                "num_neighbors": [9, 4],
-                "constraint_weight": 1.0,
-                "negative_weight": 1.0,
-                "item_constraint_weight": 0.1,
-                "item_constraint_top_k": 2,
-                "l2_weight": 1e-4,
             },
         }
     )
@@ -150,31 +135,6 @@ def test_model_creators_use_pad_idx_from_datamodule(
             item_pad_idx=17,
         ),
     )
-    if creator_name == "create_lightgcn_module":
-        datamodule = cast(
-            Any,
-            SimpleNamespace(
-                user2index={"u": 0},
-                item2index={"i": 0},
-                num_users=1,
-                num_items=1,
-            ),
-        )
-    elif creator_name == "create_ultragcn_module":
-        datamodule = cast(
-            Any,
-            SimpleNamespace(
-                num_users=1,
-                num_items=1,
-                all_df=__import__("polars").DataFrame(
-                    {
-                        "split": ["train"],
-                        "user_index": [0],
-                        "item_index": [0],
-                    }
-                ),
-            ),
-        )
     sentinel_loss = object()
     captured_kwargs: dict[str, Any] = {}
 
@@ -186,34 +146,110 @@ def test_model_creators_use_pad_idx_from_datamodule(
         captured_kwargs.update(module.kwargs)
         return module
 
-    if loss_factory_name is not None:
-        monkeypatch.setattr(factory, loss_factory_name, fake_loss_factory)
+    monkeypatch.setattr(factory, loss_factory_name, fake_loss_factory)
     monkeypatch.setattr(factory, module_name, fake_module)
 
     creator = getattr(factory, creator_name)
     creator(cfg, datamodule, optimizer)
 
-    if creator_name == "create_lightgcn_module":
-        assert "pad_idx" not in captured_kwargs
-        assert captured_kwargs["loss_fn"] is sentinel_loss
-        assert captured_kwargs["num_users"] == datamodule.num_users
-        assert captured_kwargs["num_items"] == datamodule.num_items
-        assert captured_kwargs["out_dim"] == cfg.model.out_dim
-        assert captured_kwargs["num_layers"] == cfg.model.num_layers
-        assert captured_kwargs["eval_top_k"] == cfg.data.eval_top_k
-    elif creator_name == "create_ultragcn_module":
-        assert "pad_idx" not in captured_kwargs
-        assert "loss_fn" not in captured_kwargs
-        assert captured_kwargs["num_users"] == datamodule.num_users
-        assert captured_kwargs["num_items"] == datamodule.num_items
-        assert captured_kwargs["out_dim"] == cfg.model.out_dim
-        assert captured_kwargs["negative_weight"] == cfg.model.negative_weight
-        assert captured_kwargs["item_constraint_weight"] == cfg.model.item_constraint_weight
-        assert captured_kwargs["l2_weight"] == cfg.model.l2_weight
-        assert captured_kwargs["eval_top_k"] == cfg.data.eval_top_k
-    else:
-        assert captured_kwargs["pad_idx"] == datamodule.item_pad_idx
-        assert captured_kwargs["loss_fn"] is sentinel_loss
+    assert captured_kwargs["pad_idx"] == datamodule.item_pad_idx
+    assert captured_kwargs["loss_fn"] is sentinel_loss
+
+
+def test_lightgcn_creator_uses_graph_datamodule_kwargs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """LightGCN creator uses graph datamodule sizes and embedding loss."""
+    cfg = OmegaConf.create(
+        {
+            "data": {"eval_top_k": 10},
+            "loss": {"name": "ccl"},
+            "model": {
+                "name": "LightGCN",
+                "out_dim": 16,
+                "num_layers": 2,
+                "num_neighbors": [9, 4],
+            },
+        }
+    )
+    datamodule = cast(Any, SimpleNamespace(num_users=1, num_items=1))
+    optimizer = cast(Any, SimpleNamespace())
+    sentinel_loss = object()
+    captured_kwargs: dict[str, Any] = {}
+
+    def fake_create_embedding_loss(cfg_arg: object) -> object:
+        assert cfg_arg is cfg
+        return sentinel_loss
+
+    def fake_module(**kwargs: Any) -> _DummyModule:
+        module = _DummyModule(**kwargs)
+        captured_kwargs.update(module.kwargs)
+        return module
+
+    monkeypatch.setattr(factory, "create_embedding_loss", fake_create_embedding_loss)
+    monkeypatch.setattr(factory, "LightGCNModule", fake_module)
+
+    factory.create_lightgcn_module(cfg, datamodule, optimizer)
+
+    assert "pad_idx" not in captured_kwargs
+    assert captured_kwargs["loss_fn"] is sentinel_loss
+    assert captured_kwargs["num_users"] == datamodule.num_users
+    assert captured_kwargs["num_items"] == datamodule.num_items
+    assert captured_kwargs["out_dim"] == cfg.model.out_dim
+    assert captured_kwargs["num_layers"] == cfg.model.num_layers
+    assert captured_kwargs["eval_top_k"] == cfg.data.eval_top_k
+    assert captured_kwargs["optimizer"] is optimizer
+
+
+def test_ultragcn_creator_uses_graph_datamodule_kwargs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """UltraGCN creator uses graph datamodule sizes and internal loss settings."""
+    cfg = OmegaConf.create(
+        {
+            "data": {"eval_top_k": 10},
+            "model": {
+                "name": "UltraGCN",
+                "out_dim": 16,
+                "constraint_weight": 1.0,
+                "negative_weight": 1.0,
+                "item_constraint_weight": 0.1,
+                "item_constraint_top_k": 2,
+                "l2_weight": 1e-4,
+            },
+        }
+    )
+    datamodule = cast(
+        Any,
+        SimpleNamespace(
+            num_users=1,
+            num_items=1,
+            all_df=__import__("polars").DataFrame(
+                {"split": ["train"], "user_index": [0], "item_index": [0]}
+            ),
+        ),
+    )
+    optimizer = cast(Any, SimpleNamespace())
+    captured_kwargs: dict[str, Any] = {}
+
+    def fake_module(**kwargs: Any) -> _DummyModule:
+        module = _DummyModule(**kwargs)
+        captured_kwargs.update(module.kwargs)
+        return module
+
+    monkeypatch.setattr(factory, "UltraGCNModule", fake_module)
+
+    factory.create_ultragcn_module(cfg, datamodule, optimizer)
+
+    assert "pad_idx" not in captured_kwargs
+    assert "loss_fn" not in captured_kwargs
+    assert captured_kwargs["num_users"] == datamodule.num_users
+    assert captured_kwargs["num_items"] == datamodule.num_items
+    assert captured_kwargs["out_dim"] == cfg.model.out_dim
+    assert captured_kwargs["negative_weight"] == cfg.model.negative_weight
+    assert captured_kwargs["item_constraint_weight"] == cfg.model.item_constraint_weight
+    assert captured_kwargs["l2_weight"] == cfg.model.l2_weight
+    assert captured_kwargs["eval_top_k"] == cfg.data.eval_top_k
 
 
 def test_create_lightgcn_module_uses_embedding_loss_factory_with_bpr(
@@ -260,11 +296,6 @@ def test_create_lightgcn_module_uses_embedding_loss_factory_with_bpr(
     factory.create_lightgcn_module(cfg, datamodule, optimizer)
 
     assert captured_kwargs["loss_fn"] is sentinel_loss
-    assert captured_kwargs["num_users"] == datamodule.num_users
-    assert captured_kwargs["num_items"] == datamodule.num_items
-    assert captured_kwargs["out_dim"] == cfg.model.out_dim
-    assert captured_kwargs["num_layers"] == cfg.model.num_layers
-    assert captured_kwargs["eval_top_k"] == cfg.data.eval_top_k
     assert captured_kwargs["optimizer"] is optimizer
 
 
