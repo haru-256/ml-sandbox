@@ -1,11 +1,21 @@
 version: 2
 updates:
   # python
-  # uv is not supported by dependabot yet https://docs.astral.sh/uv/guides/integration/dependency-bots/#dependabot
-  - package-ecosystem: "pip"
-    directory: "/"
+  - package-ecosystem: "uv"
+    directories:
+      - "/libs/*"
+      - "/projects/*"
+      - "/apps/*"
+      - "/apps/*/samples"
     schedule:
       interval: "monthly"
+    groups:
+      minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
   # github actions
   - package-ecosystem: "github-actions"
     directory: "/"
