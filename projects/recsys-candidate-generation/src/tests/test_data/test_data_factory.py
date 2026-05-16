@@ -1,5 +1,6 @@
 """Tests for candidate-generation datamodule factory dispatch."""
 
+import pathlib
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -120,3 +121,38 @@ def test_create_datamodule_builds_seqrec_datamodule_for_non_lightgcn_models(
         "num_workers": cfg.device.num_workers,
         "eval_negative_sample_size": 100,
     }
+
+
+def test_create_datamodule_uses_bipartite_graph_datamodule_for_ultragcn(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: pathlib.Path,
+) -> None:
+    """Routes UltraGCN to the shared bipartite graph datamodule."""
+    captured_kwargs: dict[str, Any] = {}
+
+    class DummyGraphDataModule:
+        def __init__(self, **kwargs: Any) -> None:
+            captured_kwargs.update(kwargs)
+
+    monkeypatch.setattr(factory, "AmazonReviewsBipartiteGraphDataModule", DummyGraphDataModule)
+    cfg = OmegaConf.create(
+        {
+            "model": {"name": "UltraGCN", "num_neighbors": [4, 2]},
+            "data": {"batch_size": 8, "neg_sample_size": 3, "max_seq_len": 10},
+            "device": {"num_workers": 0},
+        }
+    )
+
+    datamodule = factory.create_datamodule(
+        cfg=cfg,
+        save_dir=tmp_path,
+        eval_negative_sample_size=11,
+    )
+
+    assert isinstance(datamodule, DummyGraphDataModule)
+    assert captured_kwargs["save_dir"] == tmp_path / "dataset"
+    assert captured_kwargs["batch_size"] == 8
+    assert captured_kwargs["neg_sample_size"] == 3
+    assert captured_kwargs["num_workers"] == 0
+    assert captured_kwargs["eval_negative_sample_size"] == 11
+    assert captured_kwargs["num_neighbors"] == (4, 2)

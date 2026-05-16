@@ -29,7 +29,7 @@
     - 例: `TwoTower`, `SimpleX`
 - **Graph-based Collaborative Filtering**
     - user-item bipartite graph 上で message passing を行い、高次近傍を取り込んだ retrieval を学習
-    - 例: `LightGCN`
+    - 例: `LightGCN`, `UltraGCN`
 
 共通化できる data preprocessing、型、optimizer、学習 utility は `libs/ml_sandbox_libs` に寄せ、
 project 固有の model composition や training flow はこの directory 配下に置きます。
@@ -55,7 +55,7 @@ project 固有の model composition や training flow はこの directory 配下
 
 - `TwoTower` / `SASRec` / `gSASRec` / `SimpleX`
   - `ml_sandbox_libs` 側の sequential recommendation 用 DataModule を利用
-- `LightGCN`
+- `LightGCN` / `UltraGCN`
   - `ml_sandbox_libs` 側の Amazon Reviews bipartite graph DataModule を利用
 
 project 内では factory の切り替えのみを持ち、前処理や DataModule 本体は `ml_sandbox_libs` の共通実装を参照します。
@@ -69,6 +69,7 @@ project 内では factory の切り替えのみを持ち、前処理や DataModu
 - [x] `gSASRec`
 - [x] `SimpleX`
 - [x] `LightGCN`
+- [x] `UltraGCN`
 
 `src/models/factory.py` では設定に応じて以下の model module を生成します。
 
@@ -77,6 +78,7 @@ project 内では factory の切り替えのみを持ち、前処理や DataModu
 - `gSASRec`
 - `SimpleX`
 - `LightGCN`
+- `UltraGCN`
 
 ## Project Structure
 
@@ -147,7 +149,10 @@ uv run python src/fit.py model=SASRec
 uv run python src/fit.py model=gSASRec
 uv run python src/fit.py model=SimpleX
 uv run python src/fit.py model=LightGCN loss=bpr
+uv run python src/fit.py model=UltraGCN
 ```
+
+`UltraGCN` uses the graph datamodule for triplet sampling, but the model itself does not run message passing. It precomputes train-graph degree and item-item co-occurrence constraints from the prepared Amazon Reviews graph, then learns user/item embeddings for ANN-style retrieval.
 
 ## Configuration
 

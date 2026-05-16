@@ -1,0 +1,11 @@
+name: "UltraGCN"
+
+out_dim: 64
+constraint_weight: 1.0
+negative_weight: 1.0
+item_constraint_weight: 0.1
+item_constraint_top_k: 10
+l2_weight: 0.0001
+# Used by the shared bipartite graph DataModule / LinkNeighborLoader for batch sampling.
+# UltraGCN itself does not run message passing; graph constraints are precomputed from train edges.
+num_neighbors: [10, 5]

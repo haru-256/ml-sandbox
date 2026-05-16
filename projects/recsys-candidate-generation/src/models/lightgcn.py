@@ -401,23 +401,11 @@ class LightGCNModule(BaseModule):
 
     @override
     def training_step(self, batch: HeteroData, batch_idx: int) -> torch.Tensor:
-        """Perform a single training step.
-
-        Args:
-            batch: Sampled heterogeneous graph batch from ``LinkNeighborLoader``.
-            batch_idx: Index of the current batch.
-
-        Returns:
-            Scalar training loss.
-        """
+        """Perform a single training step."""
         typed_batch = to_bipartite_graph_batch(batch)
         loss, pos_scores, neg_scores = self._compute_step_outputs(typed_batch)
-
         self.monitor.logging_step(
-            {
-                "loss": loss.item(),
-                **summarize_pos_neg_scores(pos_scores, neg_scores),
-            },
+            {"loss": loss.item(), **summarize_pos_neg_scores(pos_scores, neg_scores)},
             stage="train",
             batch_idx=batch_idx,
             batch_size=typed_batch.src_index.size(0),
@@ -426,23 +414,11 @@ class LightGCNModule(BaseModule):
 
     @override
     def validation_step(self, batch: HeteroData, batch_idx: int) -> torch.Tensor:
-        """Perform a single validation step.
-
-        Args:
-            batch: Sampled heterogeneous graph batch from ``LinkNeighborLoader``.
-            batch_idx: Index of the current batch.
-
-        Returns:
-            Scalar validation loss.
-        """
+        """Perform a single validation step and update retrieval metrics."""
         typed_batch = to_bipartite_graph_batch(batch)
         loss, pos_scores, neg_scores = self._compute_step_outputs(typed_batch)
-
-        scores, target, _ = create_retrieval_inputs(
-            pos_scores, neg_scores
-        )  # (B, 1 + N), (B, 1 + N), (B, 1 + N)
+        scores, target, _ = create_retrieval_inputs(pos_scores, neg_scores)
         self.retrieval_metrics.update(scores, target)
-
         self.monitor.logging_step(
             {
                 "loss": loss.item(),

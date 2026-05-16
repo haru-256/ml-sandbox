@@ -8,7 +8,7 @@ from ml_sandbox_libs.data.amazon_reviews_dataset import (
 )
 from omegaconf import DictConfig
 
-from config.validation import validate_lightgcn_neighbor_config
+from config.validation import is_graph_model, validate_lightgcn_neighbor_config
 
 
 def create_datamodule(
@@ -27,8 +27,9 @@ def create_datamodule(
     Returns:
         The datamodule used by the configured model.
     """
-    if cfg.model.name == "LightGCN":
-        validate_lightgcn_neighbor_config(cfg)
+    if is_graph_model(cfg.model.name):
+        if cfg.model.name == "LightGCN":
+            validate_lightgcn_neighbor_config(cfg)
         return AmazonReviewsBipartiteGraphDataModule(
             save_dir=save_dir / "dataset",
             batch_size=cfg.data.batch_size,
