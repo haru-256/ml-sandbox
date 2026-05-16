@@ -1,0 +1,9 @@
+name: "UltraGCN"
+
+out_dim: 64
+constraint_weight: 1.0
+negative_weight: 1.0
+item_constraint_weight: 0.1
+item_constraint_top_k: 10
+l2_weight: 0.0001
+num_neighbors: [10, 5]
