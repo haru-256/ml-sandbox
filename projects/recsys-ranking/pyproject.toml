@@ -20,8 +20,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cpu = ["torch==2.10.0", "torchvision==0.25.0"]
-gpu = ["torch==2.10.0", "torchvision==0.25.0"]
+cpu = ["torch==2.11.0", "torchvision==0.26.0"]
+gpu = ["torch==2.11.0", "torchvision==0.26.0"]
 
 [dependency-groups]
 dev = ["notebook~=7.5.5", "ipywidgets>=8.1.5", "tqdm~=4.67.1"]

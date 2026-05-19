@@ -345,6 +345,49 @@ wheels = [
 ]
 
 [[package]]
+name = "cuda-toolkit"
+version = "12.8.1"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d4/c8/7dce3a0b15b42a3b58e7d96eb22a687d3bf2c44e01d149a6874629cd9938/cuda_toolkit-12.8.1-py2.py3-none-any.whl", hash = "sha256:adc7906af4ecbf9a352f9dca5734eceb21daec281ccfcf5675e1d2f724fc2cba", size = 2283, upload-time = "2025-08-13T02:03:07.842Z" },
+]
+
+[package.optional-dependencies]
+cublas = [
+    { name = "nvidia-cublas-cu12", version = "12.8.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+cudart = [
+    { name = "nvidia-cuda-runtime-cu12", version = "12.8.90", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+cufft = [
+    { name = "nvidia-cufft-cu12", version = "11.3.3.83", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+cufile = [
+    { name = "nvidia-cufile-cu12", marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+cupti = [
+    { name = "nvidia-cuda-cupti-cu12", version = "12.8.90", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+curand = [
+    { name = "nvidia-curand-cu12", version = "10.3.9.90", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+cusolver = [
+    { name = "nvidia-cusolver-cu12", version = "11.7.3.90", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+cusparse = [
+    { name = "nvidia-cusparse-cu12", version = "12.5.8.93", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+nvjitlink = [
+    { name = "nvidia-nvjitlink-cu12", version = "12.8.93", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+nvrtc = [
+    { name = "nvidia-cuda-nvrtc-cu12", version = "12.8.93", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+nvtx = [
+    { name = "nvidia-nvtx-cu12", version = "12.8.90", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+]
+
+[[package]]
 name = "datasets"
 version = "3.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1239,10 +1282,10 @@ dependencies = [
     { name = "pytorch-lightning" },
     { name = "pyyaml" },
     { name = "torch", version = "2.6.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
     { name = "torchmetrics" },
     { name = "tqdm" },
     { name = "typing-extensions" },
@@ -1375,27 +1418,24 @@ requires-dist = [
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "numpy", specifier = ">=2.2.1" },
     { name = "polars", specifier = ">=1.18.0" },
-    { name = "pyg-lib", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210-cp312-cp312-macosx_11_0_arm64.whl" },
-    { name = "pyg-lib", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
-    { name = "pyg-lib", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcu128/pyg_lib-0.6.0.dev20260313%2Bpt210cu128-cp312-cp312-manylinux_2_28_x86_64.whl" },
+    { name = "pyg-lib", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/pyg_lib-0.6.0%2Bpt211-cp312-cp312-macosx_11_0_arm64.whl" },
+    { name = "pyg-lib", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/pyg_lib-0.6.0%2Bpt211cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { name = "pyg-lib", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/pyg_lib-0.6.0%2Bpt211cu128-cp312-cp312-manylinux_2_28_x86_64.whl" },
     { name = "tensorboard", specifier = ">=2.18.0" },
     { name = "timm", specifier = ">=1.0.0" },
-    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'cpu'", specifier = "==2.10.0", index = "https://pypi.python.org/simple", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
-    { name = "torch", marker = "sys_platform != 'darwin' and extra == 'cpu'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
-    { name = "torch", marker = "extra == 'gpu'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "ml-sandbox-libs", extra = "gpu" } },
-    { name = "torch-cluster", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-cluster", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-cluster", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_cluster-1.6.3%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'cpu'", specifier = "==2.11.0", index = "https://pypi.python.org/simple", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
+    { name = "torch", marker = "sys_platform != 'darwin' and extra == 'cpu'", specifier = "==2.11.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "ml-sandbox-libs", extra = "cpu" } },
+    { name = "torch", marker = "extra == 'gpu'", specifier = "==2.11.0", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "ml-sandbox-libs", extra = "gpu" } },
+    { name = "torch-cluster", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" },
+    { name = "torch-cluster", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_cluster-1.6.3%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-cluster", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_cluster-1.6.3%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" },
     { name = "torch-geometric", specifier = ">=2.7.0" },
-    { name = "torch-scatter", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-scatter", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-scatter", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_scatter-2.1.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-sparse", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" },
-    { name = "torch-sparse", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-sparse", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_sparse-0.6.18%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-spline-conv", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-spline-conv", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-spline-conv", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_spline_conv-1.2.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-scatter", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" },
+    { name = "torch-scatter", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_scatter-2.1.2%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-scatter", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_scatter-2.1.2%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-sparse", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" },
+    { name = "torch-sparse", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_sparse-0.6.18%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-sparse", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_sparse-0.6.18%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" },
     { name = "torchinfo", specifier = ">=1.8.0" },
     { name = "torchmetrics", specifier = ">=1.7.3" },
 ]
@@ -1405,13 +1445,13 @@ provides-extras = ["cpu", "gpu"]
 dev = [
     { name = "deepdiff", specifier = "~=8.6.2" },
     { name = "ipywidgets", specifier = ">=8.1.5" },
-    { name = "mypy", specifier = "~=1.14.0" },
+    { name = "mypy", specifier = "~=1.20.2" },
     { name = "notebook", specifier = "~=7.5.5" },
     { name = "pytest", specifier = "~=9.0.3" },
     { name = "pytest-mock", specifier = "~=3.15.1" },
     { name = "tqdm", specifier = "~=4.67.1" },
 ]
-lint = [{ name = "ruff", specifier = "~=0.11.4" }]
+lint = [{ name = "ruff", specifier = "~=0.15.12" }]
 
 [[package]]
 name = "mpmath"
@@ -1733,7 +1773,7 @@ wheels = [
 
 [[package]]
 name = "nvidia-cudnn-cu12"
-version = "9.10.2.21"
+version = "9.19.0.56"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "sys_platform == 'linux'",
@@ -1742,9 +1782,9 @@ dependencies = [
     { name = "nvidia-cublas-cu12", version = "12.8.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fa/41/e79269ce215c857c935fd86bcfe91a451a584dfc27f1e068f568b9ad1ab7/nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:c9132cc3f8958447b4910a1720036d9eff5928cc3179b0a51fb6d167c6cc87d8", size = 705026878, upload-time = "2025-06-06T21:52:51.348Z" },
-    { url = "https://files.pythonhosted.org/packages/ba/51/e123d997aa098c61d029f76663dedbfb9bc8dcf8c60cbd6adbe42f76d049/nvidia_cudnn_cu12-9.10.2.21-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:949452be657fa16687d0930933f032835951ef0892b37d2d53824d1a84dc97a8", size = 706758467, upload-time = "2025-06-06T21:54:08.597Z" },
-    { url = "https://files.pythonhosted.org/packages/3d/90/0bd6e586701b3a890fd38aa71c387dab4883d619d6e5ad912ccbd05bfd67/nvidia_cudnn_cu12-9.10.2.21-py3-none-win_amd64.whl", hash = "sha256:c6288de7d63e6cf62988f0923f96dc339cea362decb1bf5b3141883392a7d65e", size = 692992268, upload-time = "2025-06-06T21:55:18.114Z" },
+    { url = "https://files.pythonhosted.org/packages/09/b8/277c51962ee46fa3e5b203ac5f76107c650f781d6891e681e28e6f3e9fe6/nvidia_cudnn_cu12-9.19.0.56-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:08caaf27fe556aca82a3ee3b5aa49a77e7de0cfcb7ff4e5c29da426387a8267e", size = 656910700, upload-time = "2026-02-03T20:40:25.508Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/41/65225d42fba06fb3dd3972485ea258e7dd07a40d6e01c95da6766ad87354/nvidia_cudnn_cu12-9.19.0.56-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:ac6ad90a075bb33a94f2b4cf4622eac13dd4dc65cf6dd9c7572a318516a36625", size = 657906812, upload-time = "2026-02-03T20:44:12.638Z" },
+    { url = "https://files.pythonhosted.org/packages/a7/a5/48f07449fc9c6cc146dcafe6149fa5d69630137d2ec5b7d9e09f255fadd7/nvidia_cudnn_cu12-9.19.0.56-py3-none-win_amd64.whl", hash = "sha256:cec70596b9ce878fab83810c3f5a2e606d35f510e5fee579759e4cbc68a23750", size = 644003014, upload-time = "2026-02-03T20:46:25.768Z" },
 ]
 
 [[package]]
@@ -1921,14 +1961,14 @@ wheels = [
 
 [[package]]
 name = "nvidia-nccl-cu12"
-version = "2.27.5"
+version = "2.28.9"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "sys_platform == 'linux'",
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/bb/1c/857979db0ef194ca5e21478a0612bcdbbe59458d7694361882279947b349/nvidia_nccl_cu12-2.27.5-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:31432ad4d1fb1004eb0c56203dc9bc2178a1ba69d1d9e02d64a6938ab5e40e7a", size = 322400625, upload-time = "2025-06-26T04:11:04.496Z" },
-    { url = "https://files.pythonhosted.org/packages/6e/89/f7a07dc961b60645dbbf42e80f2bc85ade7feb9a491b11a1e973aa00071f/nvidia_nccl_cu12-2.27.5-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:ad730cf15cb5d25fe849c6e6ca9eb5b76db16a80f13f425ac68d8e2e55624457", size = 322348229, upload-time = "2025-06-26T04:11:28.385Z" },
+    { url = "https://files.pythonhosted.org/packages/08/c4/120d2dfd92dff2c776d68f361ff8705fdea2ca64e20b612fab0fd3f581ac/nvidia_nccl_cu12-2.28.9-py3-none-manylinux_2_18_aarch64.whl", hash = "sha256:50a36e01c4a090b9f9c47d92cec54964de6b9fcb3362d0e19b8ffc6323c21b60", size = 296766525, upload-time = "2025-11-18T05:49:16.094Z" },
+    { url = "https://files.pythonhosted.org/packages/4a/4e/44dbb46b3d1b0ec61afda8e84837870f2f9ace33c564317d59b70bc19d3e/nvidia_nccl_cu12-2.28.9-py3-none-manylinux_2_18_x86_64.whl", hash = "sha256:485776daa8447da5da39681af455aa3b2c2586ddcf4af8772495e7c532c7e5ab", size = 296782137, upload-time = "2025-11-18T05:49:34.248Z" },
 ]
 
 [[package]]
@@ -2366,13 +2406,13 @@ wheels = [
 
 [[package]]
 name = "pyg-lib"
-version = "0.6.0.dev20260313+pt210"
-source = { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210-cp312-cp312-macosx_11_0_arm64.whl" }
+version = "0.6.0+pt211"
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/pyg_lib-0.6.0%2Bpt211-cp312-cp312-macosx_11_0_arm64.whl" }
 resolution-markers = [
     "sys_platform == 'darwin'",
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:81d377f53e07d084fee52ee6eb714ed33d2803520f5ba6244ef814ba58e8f204" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/pyg_lib-0.6.0%2Bpt211-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:1efcd79821bd6301e7340047e8a810ff827dc063ca678c208867ebcf840be9d2" },
 ]
 
 [package.metadata]
@@ -2382,18 +2422,18 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'test'" },
     { name = "triton", marker = "extra == 'triton'" },
 ]
-provides-extras = ["triton", "test", "dev"]
+provides-extras = ["dev", "test", "triton"]
 
 [[package]]
 name = "pyg-lib"
-version = "0.6.0.dev20260313+pt210cpu"
-source = { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }
+version = "0.6.0+pt211cpu"
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/pyg_lib-0.6.0%2Bpt211cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }
 resolution-markers = [
     "sys_platform == 'linux'",
     "sys_platform != 'darwin' and sys_platform != 'linux'",
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:183e4abc082ca1682fc441292df1a0ca5ab0e743091fcdcbe7e5a2160dab013e" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/pyg_lib-0.6.0%2Bpt211cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:c9c167b71876d6f1d3e08535ab98c5664d5031eafc507cc9fc877c5e59e4226a" },
 ]
 
 [package.metadata]
@@ -2403,18 +2443,18 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'test'" },
     { name = "triton", marker = "extra == 'triton'" },
 ]
-provides-extras = ["triton", "test", "dev"]
+provides-extras = ["dev", "test", "triton"]
 
 [[package]]
 name = "pyg-lib"
-version = "0.6.0.dev20260313+pt210cu128"
-source = { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcu128/pyg_lib-0.6.0.dev20260313%2Bpt210cu128-cp312-cp312-manylinux_2_28_x86_64.whl" }
+version = "0.6.0+pt211cu128"
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/pyg_lib-0.6.0%2Bpt211cu128-cp312-cp312-manylinux_2_28_x86_64.whl" }
 resolution-markers = [
     "sys_platform == 'linux'",
     "sys_platform != 'linux'",
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcu128/pyg_lib-0.6.0.dev20260313%2Bpt210cu128-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:3d948393cd37887544ff2e37d2399fccdcf92120fe8db70674d8eca2dfba36d1" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/pyg_lib-0.6.0%2Bpt211cu128-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:904aa145abb9c8da3adc106ffee71742a47dc7438d51cd4e2ce040600d5b35a7" },
 ]
 
 [package.metadata]
@@ -2424,7 +2464,7 @@ requires-dist = [
     { name = "pytest-cov", marker = "extra == 'test'" },
     { name = "triton", marker = "extra == 'triton'" },
 ]
-provides-extras = ["triton", "test", "dev"]
+provides-extras = ["dev", "test", "triton"]
 
 [[package]]
 name = "pygments"
@@ -2512,10 +2552,10 @@ dependencies = [
     { name = "packaging" },
     { name = "pyyaml" },
     { name = "torch", version = "2.6.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
     { name = "torchmetrics" },
     { name = "tqdm" },
     { name = "typing-extensions" },
@@ -2612,26 +2652,23 @@ dependencies = [
 
 [package.optional-dependencies]
 cpu = [
-    { name = "pyg-lib", version = "0.6.0.dev20260313+pt210", source = { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210-cp312-cp312-macosx_11_0_arm64.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "pyg-lib", version = "0.6.0.dev20260313+pt210cpu", source = { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch-cluster", version = "1.6.3", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch-cluster", version = "1.6.3+pt210cpu", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch-scatter", version = "2.1.2", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch-scatter", version = "2.1.2+pt210cpu", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch-sparse", version = "0.6.18", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch-sparse", version = "0.6.18+pt210cpu", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch-spline-conv", version = "1.2.2", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch-spline-conv", version = "1.2.2+pt210cpu", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "pyg-lib", version = "0.6.0+pt211", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/pyg_lib-0.6.0%2Bpt211-cp312-cp312-macosx_11_0_arm64.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "pyg-lib", version = "0.6.0+pt211cpu", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/pyg_lib-0.6.0%2Bpt211cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch-cluster", version = "1.6.3", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch-cluster", version = "1.6.3+pt211cpu", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_cluster-1.6.3%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch-scatter", version = "2.1.2", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch-scatter", version = "2.1.2+pt211cpu", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_scatter-2.1.2%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch-sparse", version = "0.6.18", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch-sparse", version = "0.6.18+pt211cpu", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_sparse-0.6.18%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
 ]
 gpu = [
-    { name = "pyg-lib", version = "0.6.0.dev20260313+pt210cu128", source = { url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcu128/pyg_lib-0.6.0.dev20260313%2Bpt210cu128-cp312-cp312-manylinux_2_28_x86_64.whl" } },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" } },
-    { name = "torch-cluster", version = "1.6.3+pt210cu128", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_cluster-1.6.3%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" } },
-    { name = "torch-scatter", version = "2.1.2+pt210cu128", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_scatter-2.1.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" } },
-    { name = "torch-sparse", version = "0.6.18+pt210cu128", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_sparse-0.6.18%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" } },
-    { name = "torch-spline-conv", version = "1.2.2+pt210cu128", source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_spline_conv-1.2.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" } },
+    { name = "pyg-lib", version = "0.6.0+pt211cu128", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/pyg_lib-0.6.0%2Bpt211cu128-cp312-cp312-manylinux_2_28_x86_64.whl" } },
+    { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" } },
+    { name = "torch-cluster", version = "1.6.3+pt211cu128", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_cluster-1.6.3%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" } },
+    { name = "torch-scatter", version = "2.1.2+pt211cu128", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_scatter-2.1.2%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" } },
+    { name = "torch-sparse", version = "0.6.18+pt211cu128", source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_sparse-0.6.18%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" } },
 ]
 
 [package.dev-dependencies]
@@ -2658,25 +2695,22 @@ requires-dist = [
     { name = "ml-sandbox-libs", editable = "../../libs/ml_sandbox_libs" },
     { name = "numpy", specifier = "~=2.4.4" },
     { name = "polars", specifier = "~=1.39.3" },
-    { name = "pyg-lib", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210-cp312-cp312-macosx_11_0_arm64.whl" },
-    { name = "pyg-lib", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcpu/pyg_lib-0.6.0.dev20260313%2Bpt210cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
-    { name = "pyg-lib", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/nightly/torch-2.10.0%2Bcu128/pyg_lib-0.6.0.dev20260313%2Bpt210cu128-cp312-cp312-manylinux_2_28_x86_64.whl" },
+    { name = "pyg-lib", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/pyg_lib-0.6.0%2Bpt211-cp312-cp312-macosx_11_0_arm64.whl" },
+    { name = "pyg-lib", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/pyg_lib-0.6.0%2Bpt211cpu-cp312-cp312-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl" },
+    { name = "pyg-lib", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/pyg_lib-0.6.0%2Bpt211cu128-cp312-cp312-manylinux_2_28_x86_64.whl" },
     { name = "timm", specifier = "~=1.0.15" },
-    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'cpu'", specifier = "==2.10.0", index = "https://pypi.python.org/simple", conflict = { package = "recsys-candidate-generation", extra = "cpu" } },
-    { name = "torch", marker = "sys_platform != 'darwin' and extra == 'cpu'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "recsys-candidate-generation", extra = "cpu" } },
-    { name = "torch", marker = "extra == 'gpu'", specifier = "==2.10.0", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "recsys-candidate-generation", extra = "gpu" } },
-    { name = "torch-cluster", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-cluster", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-cluster", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_cluster-1.6.3%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-scatter", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-scatter", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-scatter", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_scatter-2.1.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-sparse", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" },
-    { name = "torch-sparse", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-sparse", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_sparse-0.6.18%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-spline-conv", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" },
-    { name = "torch-spline-conv", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" },
-    { name = "torch-spline-conv", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_spline_conv-1.2.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch", marker = "sys_platform == 'darwin' and extra == 'cpu'", specifier = "==2.11.0", index = "https://pypi.python.org/simple", conflict = { package = "recsys-candidate-generation", extra = "cpu" } },
+    { name = "torch", marker = "sys_platform != 'darwin' and extra == 'cpu'", specifier = "==2.11.0", index = "https://download.pytorch.org/whl/cpu", conflict = { package = "recsys-candidate-generation", extra = "cpu" } },
+    { name = "torch", marker = "extra == 'gpu'", specifier = "==2.11.0", index = "https://download.pytorch.org/whl/cu128", conflict = { package = "recsys-candidate-generation", extra = "gpu" } },
+    { name = "torch-cluster", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" },
+    { name = "torch-cluster", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_cluster-1.6.3%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-cluster", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_cluster-1.6.3%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-scatter", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" },
+    { name = "torch-scatter", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_scatter-2.1.2%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-scatter", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_scatter-2.1.2%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-sparse", marker = "sys_platform == 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" },
+    { name = "torch-sparse", marker = "sys_platform != 'darwin' and extra == 'cpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_sparse-0.6.18%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" },
+    { name = "torch-sparse", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_sparse-0.6.18%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" },
     { name = "torchinfo", specifier = "~=1.8.0" },
     { name = "torchmetrics", specifier = "~=1.9.0" },
     { name = "vertex-job-runner", editable = "../../apps/vertex-job-runner" },
@@ -3061,12 +3095,12 @@ dependencies = [
     { name = "pyyaml" },
     { name = "safetensors" },
     { name = "torch", version = "2.6.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
     { name = "torchvision", version = "0.21.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torchvision", version = "0.25.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux' or extra == 'extra-27-recsys-candidate-generation-cpu' or extra == 'extra-27-recsys-candidate-generation-gpu'" },
+    { name = "torchvision", version = "0.26.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux' or extra == 'extra-27-recsys-candidate-generation-cpu' or extra == 'extra-27-recsys-candidate-generation-gpu'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/bc/0c/66b0f9b4a4cb9ffdac7b52b17b37c7d3c4f75623b469e388b0c6d89b4e88/timm-1.0.15.tar.gz", hash = "sha256:756a3bc30c96565f056e608a9b559daed904617eaadb6be536f96874879b1055", size = 2230258, upload-time = "2025-02-23T05:05:55.959Z" }
 wheels = [
@@ -3124,7 +3158,7 @@ wheels = [
 
 [[package]]
 name = "torch"
-version = "2.10.0"
+version = "2.11.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "sys_platform != 'linux'",
@@ -3139,17 +3173,15 @@ dependencies = [
     { name = "typing-extensions", marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/54/a2ba279afcca44bbd320d4e73675b282fcee3d81400ea1b53934efca6462/torch-2.10.0-2-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:13ec4add8c3faaed8d13e0574f5cd4a323c11655546f91fbe6afa77b57423574", size = 79498202, upload-time = "2026-02-10T21:44:52.603Z" },
-    { url = "https://files.pythonhosted.org/packages/b3/7a/abada41517ce0011775f0f4eacc79659bc9bc6c361e6bfe6f7052a6b9363/torch-2.10.0-3-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:98c01b8bb5e3240426dcde1446eed6f40c778091c8544767ef1168fc663a05a6", size = 915622781, upload-time = "2026-03-11T14:17:11.354Z" },
-    { url = "https://files.pythonhosted.org/packages/cc/af/758e242e9102e9988969b5e621d41f36b8f258bb4a099109b7a4b4b50ea4/torch-2.10.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:5fd4117d89ffd47e3dcc71e71a22efac24828ad781c7e46aaaf56bf7f2796acf", size = 145996088, upload-time = "2026-01-21T16:24:44.171Z" },
-    { url = "https://files.pythonhosted.org/packages/23/8e/3c74db5e53bff7ed9e34c8123e6a8bfef718b2450c35eefab85bb4a7e270/torch-2.10.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:787124e7db3b379d4f1ed54dd12ae7c741c16a4d29b49c0226a89bea50923ffb", size = 915711952, upload-time = "2026-01-21T16:23:53.503Z" },
-    { url = "https://files.pythonhosted.org/packages/6e/01/624c4324ca01f66ae4c7cd1b74eb16fb52596dce66dbe51eff95ef9e7a4c/torch-2.10.0-cp312-cp312-win_amd64.whl", hash = "sha256:2c66c61f44c5f903046cc696d088e21062644cbe541c7f1c4eaae88b2ad23547", size = 113757972, upload-time = "2026-01-21T16:24:39.516Z" },
-    { url = "https://files.pythonhosted.org/packages/c9/5c/dee910b87c4d5c0fcb41b50839ae04df87c1cfc663cf1b5fca7ea565eeaa/torch-2.10.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:6d3707a61863d1c4d6ebba7be4ca320f42b869ee657e9b2c21c736bf17000294", size = 79498198, upload-time = "2026-01-21T16:24:34.704Z" },
+    { url = "https://files.pythonhosted.org/packages/6f/8b/69e3008d78e5cee2b30183340cc425081b78afc5eff3d080daab0adda9aa/torch-2.11.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:4b5866312ee6e52ea625cd211dcb97d6a2cdc1131a5f15cc0d87eec948f6dd34", size = 80606338, upload-time = "2026-03-23T18:11:34.781Z" },
+    { url = "https://files.pythonhosted.org/packages/13/16/42e5915ebe4868caa6bac83a8ed59db57f12e9a61b7d749d584776ed53d5/torch-2.11.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:f99924682ef0aa6a4ab3b1b76f40dc6e273fca09f367d15a524266db100a723f", size = 419731115, upload-time = "2026-03-23T18:11:06.944Z" },
+    { url = "https://files.pythonhosted.org/packages/1a/c9/82638ef24d7877510f83baf821f5619a61b45568ce21c0a87a91576510aa/torch-2.11.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:0f68f4ac6d95d12e896c3b7a912b5871619542ec54d3649cf48cc1edd4dd2756", size = 530712279, upload-time = "2026-03-23T18:10:31.481Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/ff/6756f1c7ee302f6d202120e0f4f05b432b839908f9071157302cedfc5232/torch-2.11.0-cp312-cp312-win_amd64.whl", hash = "sha256:fbf39280699d1b869f55eac536deceaa1b60bd6788ba74f399cc67e60a5fab10", size = 114556047, upload-time = "2026-03-23T18:10:55.931Z" },
 ]
 
 [[package]]
 name = "torch"
-version = "2.10.0"
+version = "2.11.0"
 source = { registry = "https://pypi.python.org/simple" }
 resolution-markers = [
     "sys_platform == 'darwin'",
@@ -3164,17 +3196,15 @@ dependencies = [
     { name = "typing-extensions", marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d3/54/a2ba279afcca44bbd320d4e73675b282fcee3d81400ea1b53934efca6462/torch-2.10.0-2-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:13ec4add8c3faaed8d13e0574f5cd4a323c11655546f91fbe6afa77b57423574", size = 79498202, upload-time = "2026-02-10T21:44:52.603Z" },
-    { url = "https://files.pythonhosted.org/packages/b3/7a/abada41517ce0011775f0f4eacc79659bc9bc6c361e6bfe6f7052a6b9363/torch-2.10.0-3-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:98c01b8bb5e3240426dcde1446eed6f40c778091c8544767ef1168fc663a05a6", size = 915622781, upload-time = "2026-03-11T14:17:11.354Z" },
-    { url = "https://files.pythonhosted.org/packages/cc/af/758e242e9102e9988969b5e621d41f36b8f258bb4a099109b7a4b4b50ea4/torch-2.10.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:5fd4117d89ffd47e3dcc71e71a22efac24828ad781c7e46aaaf56bf7f2796acf", size = 145996088, upload-time = "2026-01-21T16:24:44.171Z" },
-    { url = "https://files.pythonhosted.org/packages/23/8e/3c74db5e53bff7ed9e34c8123e6a8bfef718b2450c35eefab85bb4a7e270/torch-2.10.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:787124e7db3b379d4f1ed54dd12ae7c741c16a4d29b49c0226a89bea50923ffb", size = 915711952, upload-time = "2026-01-21T16:23:53.503Z" },
-    { url = "https://files.pythonhosted.org/packages/6e/01/624c4324ca01f66ae4c7cd1b74eb16fb52596dce66dbe51eff95ef9e7a4c/torch-2.10.0-cp312-cp312-win_amd64.whl", hash = "sha256:2c66c61f44c5f903046cc696d088e21062644cbe541c7f1c4eaae88b2ad23547", size = 113757972, upload-time = "2026-01-21T16:24:39.516Z" },
-    { url = "https://files.pythonhosted.org/packages/c9/5c/dee910b87c4d5c0fcb41b50839ae04df87c1cfc663cf1b5fca7ea565eeaa/torch-2.10.0-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:6d3707a61863d1c4d6ebba7be4ca320f42b869ee657e9b2c21c736bf17000294", size = 79498198, upload-time = "2026-01-21T16:24:34.704Z" },
+    { url = "https://files.pythonhosted.org/packages/6f/8b/69e3008d78e5cee2b30183340cc425081b78afc5eff3d080daab0adda9aa/torch-2.11.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:4b5866312ee6e52ea625cd211dcb97d6a2cdc1131a5f15cc0d87eec948f6dd34", size = 80606338, upload-time = "2026-03-23T18:11:34.781Z" },
+    { url = "https://files.pythonhosted.org/packages/13/16/42e5915ebe4868caa6bac83a8ed59db57f12e9a61b7d749d584776ed53d5/torch-2.11.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:f99924682ef0aa6a4ab3b1b76f40dc6e273fca09f367d15a524266db100a723f", size = 419731115, upload-time = "2026-03-23T18:11:06.944Z" },
+    { url = "https://files.pythonhosted.org/packages/1a/c9/82638ef24d7877510f83baf821f5619a61b45568ce21c0a87a91576510aa/torch-2.11.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:0f68f4ac6d95d12e896c3b7a912b5871619542ec54d3649cf48cc1edd4dd2756", size = 530712279, upload-time = "2026-03-23T18:10:31.481Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/ff/6756f1c7ee302f6d202120e0f4f05b432b839908f9071157302cedfc5232/torch-2.11.0-cp312-cp312-win_amd64.whl", hash = "sha256:fbf39280699d1b869f55eac536deceaa1b60bd6788ba74f399cc67e60a5fab10", size = 114556047, upload-time = "2026-03-23T18:10:55.931Z" },
 ]
 
 [[package]]
 name = "torch"
-version = "2.10.0+cpu"
+version = "2.11.0+cpu"
 source = { registry = "https://download.pytorch.org/whl/cpu" }
 resolution-markers = [
     "sys_platform == 'linux'",
@@ -3190,17 +3220,15 @@ dependencies = [
     { name = "typing-extensions", marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
 ]
 wheels = [
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.10.0%2Bcpu-cp312-cp312-linux_aarch64.whl", hash = "sha256:8de5a36371b775e2d4881ed12cc7f2de400b1ad3d728aa74a281f649f87c9b8c" },
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.10.0%2Bcpu-cp312-cp312-linux_s390x.whl", hash = "sha256:9accc30b56cb6756d4a9d04fcb8ebc0bb68c7d55c1ed31a8657397d316d31596" },
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.10.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:179451716487f8cb09b56459667fa1f5c4c0946c1e75fbeae77cfc40a5768d87" },
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.10.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:ee40b8a4b4b2cf0670c6fd4f35a7ef23871af956fecb238fbf5da15a72650b1d" },
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.10.0%2Bcpu-cp312-cp312-win_amd64.whl", hash = "sha256:21cb5436978ef47c823b7a813ff0f8c2892e266cfe0f1d944879b5fba81bf4e1" },
-    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.10.0%2Bcpu-cp312-cp312-win_arm64.whl", hash = "sha256:3eaa727e6a73affa61564d86b9d03191df45c8650d0666bd3d57c8597ef61e78" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.11.0%2Bcpu-cp312-cp312-linux_s390x.whl", hash = "sha256:2db3ae5404e32cb42b5fcbd94f13607761eaec0cf1687fde95095289d1e26cfb", upload-time = "2026-04-28T00:06:06Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.11.0%2Bcpu-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:70ecb2659af6373b7c5336e692e665605b0201ea21ff51aaea47e1d75ea6b5aa", upload-time = "2026-04-28T00:06:14Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.11.0%2Bcpu-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:f82e2ae20c1545bb03997d1cc3143d94e14b800038669ee1aca45808a9acc338", upload-time = "2026-04-28T00:06:24Z" },
+    { url = "https://download-r2.pytorch.org/whl/cpu/torch-2.11.0%2Bcpu-cp312-cp312-win_amd64.whl", hash = "sha256:1abeaa46fa7532ed35ed79146f4de5d7a9d4b30462c98052ea4ddfe781ea3eca", upload-time = "2026-04-28T00:06:34Z" },
 ]
 
 [[package]]
 name = "torch"
-version = "2.10.0+cu128"
+version = "2.11.0+cu128"
 source = { registry = "https://download.pytorch.org/whl/cu128" }
 resolution-markers = [
     "sys_platform == 'linux'",
@@ -3208,40 +3236,30 @@ resolution-markers = [
 ]
 dependencies = [
     { name = "cuda-bindings", marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "cuda-toolkit", extra = ["cublas", "cudart", "cufft", "cufile", "cupti", "curand", "cusolver", "cusparse", "nvjitlink", "nvrtc", "nvtx"], marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
     { name = "filelock", marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
     { name = "fsspec", marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
     { name = "jinja2", marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
     { name = "networkx", marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
-    { name = "nvidia-cublas-cu12", version = "12.8.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-cuda-cupti-cu12", version = "12.8.90", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-cuda-nvrtc-cu12", version = "12.8.93", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-cuda-runtime-cu12", version = "12.8.90", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-cudnn-cu12", version = "9.10.2.21", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-cufft-cu12", version = "11.3.3.83", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-cufile-cu12", marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-curand-cu12", version = "10.3.9.90", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-cusolver-cu12", version = "11.7.3.90", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-cusparse-cu12", version = "12.5.8.93", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "nvidia-cudnn-cu12", version = "9.19.0.56", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
     { name = "nvidia-cusparselt-cu12", version = "0.7.1", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-nccl-cu12", version = "2.27.5", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-nvjitlink-cu12", version = "12.8.93", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "nvidia-nccl-cu12", version = "2.28.9", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
     { name = "nvidia-nvshmem-cu12", marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "nvidia-nvtx-cu12", version = "12.8.90", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
     { name = "setuptools", marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
     { name = "sympy", version = "1.14.0", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
     { name = "triton", version = "3.6.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra == 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
     { name = "typing-extensions", marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
 ]
 wheels = [
-    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.10.0%2Bcu128-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:6f09cdf2415516be028ae82e6b985bcfc3eac37bc52ab401142689f6224516ca" },
-    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.10.0%2Bcu128-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:628e89bd5110ced7debee2a57c69959725b7fbc64eab81a39dd70e46c7e28ba5" },
-    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.10.0%2Bcu128-cp312-cp312-win_amd64.whl", hash = "sha256:fbde8f6a9ec8c76979a0d14df21c10b9e5cab6f0d106a73ca73e2179bc597cae" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.11.0%2Bcu128-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:9c8f38efee365cb9d334de8a83ce52fc7e5fc9e5a7b0853285efa1b69e00b0f2", upload-time = "2026-04-27T17:41:30Z" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.11.0%2Bcu128-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:d252cf975fb18c94a85336323ad425f473df56dab35a44b00399bd70c7a3b997", upload-time = "2026-04-27T17:42:06Z" },
+    { url = "https://download-r2.pytorch.org/whl/cu128/torch-2.11.0%2Bcu128-cp312-cp312-win_amd64.whl", hash = "sha256:7c78215c3af4f62e63f2b2e360f1722fc719b0853c7ac22666483d9810613a4c", upload-time = "2026-04-27T17:43:49Z" },
 ]
 
 [[package]]
 name = "torch-cluster"
 version = "1.6.3"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" }
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl" }
 resolution-markers = [
     "sys_platform == 'darwin'",
 ]
@@ -3249,7 +3267,7 @@ dependencies = [
     { name = "scipy", marker = "sys_platform == 'darwin'" },
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:b3d91b925f80af1fe59490a3f800fce2aab22544d0d86e6d04f2cb7b622974d9" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_cluster-1.6.3-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:49b55d6bf7af143ba4bf8fb3a330251e19b4217d80b1482de49c2dfea9f0f1bb" },
 ]
 
 [package.metadata]
@@ -3262,8 +3280,8 @@ provides-extras = ["test"]
 
 [[package]]
 name = "torch-cluster"
-version = "1.6.3+pt210cpu"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" }
+version = "1.6.3+pt211cpu"
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_cluster-1.6.3%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" }
 resolution-markers = [
     "sys_platform == 'linux'",
     "sys_platform != 'darwin' and sys_platform != 'linux'",
@@ -3272,7 +3290,7 @@ dependencies = [
     { name = "scipy", marker = "sys_platform != 'darwin'" },
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_cluster-1.6.3%2Bpt210cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:c939d78b9b6013845411e272aa68ba8bd7f8557cad5b2f83e0a6bdee3efa83e8" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_cluster-1.6.3%2Bpt211cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:8acc2444f1f2a74eb1eaa1c30727993b3e73d9827a781e42125cd9134b256c2b" },
 ]
 
 [package.metadata]
@@ -3285,8 +3303,8 @@ provides-extras = ["test"]
 
 [[package]]
 name = "torch-cluster"
-version = "1.6.3+pt210cu128"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_cluster-1.6.3%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" }
+version = "1.6.3+pt211cu128"
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_cluster-1.6.3%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" }
 resolution-markers = [
     "sys_platform == 'linux'",
     "sys_platform != 'linux'",
@@ -3295,7 +3313,7 @@ dependencies = [
     { name = "scipy" },
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_cluster-1.6.3%2Bpt210cu128-cp312-cp312-linux_x86_64.whl", hash = "sha256:08f24bf62e039295db39d4caad35cad584c62d4920892c47ed934a6adeb1f848" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_cluster-1.6.3%2Bpt211cu128-cp312-cp312-linux_x86_64.whl", hash = "sha256:2de261f12e6d0a27807bf8835a062305b0cc5a76af00c99063ba8b5403ed4db2" },
 ]
 
 [package.metadata]
@@ -3329,12 +3347,12 @@ wheels = [
 [[package]]
 name = "torch-scatter"
 version = "2.1.2"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" }
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl" }
 resolution-markers = [
     "sys_platform == 'darwin'",
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:4cf747ba9cc4fd5802c96a5477b79af1308ef592a17096e976099c9b7fde33b8" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_scatter-2.1.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:4d741050c0b06550f98c38e36676d320018170f2bc8e9f540422503f585def7a" },
 ]
 
 [package.metadata]
@@ -3346,14 +3364,14 @@ provides-extras = ["test"]
 
 [[package]]
 name = "torch-scatter"
-version = "2.1.2+pt210cpu"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" }
+version = "2.1.2+pt211cpu"
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_scatter-2.1.2%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" }
 resolution-markers = [
     "sys_platform == 'linux'",
     "sys_platform != 'darwin' and sys_platform != 'linux'",
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_scatter-2.1.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:464df72fa44fc76f5617d39144765bfb60393f596412111d78a625b1cdc474d6" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_scatter-2.1.2%2Bpt211cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:8b694e7b069442e379618d64260f3290a97eb9dd3931019122881aa3ac6d3f83" },
 ]
 
 [package.metadata]
@@ -3365,14 +3383,14 @@ provides-extras = ["test"]
 
 [[package]]
 name = "torch-scatter"
-version = "2.1.2+pt210cu128"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_scatter-2.1.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" }
+version = "2.1.2+pt211cu128"
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_scatter-2.1.2%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" }
 resolution-markers = [
     "sys_platform == 'linux'",
     "sys_platform != 'linux'",
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_scatter-2.1.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl", hash = "sha256:5863dc0ee3a76ffb88278ff901eae4fd2c208a12b52044095096623a8d1fe40b" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_scatter-2.1.2%2Bpt211cu128-cp312-cp312-linux_x86_64.whl", hash = "sha256:04f27281c6598a5747cab1e57e7e1ffd38e53ed11aee73499328094f14412c15" },
 ]
 
 [package.metadata]
@@ -3385,7 +3403,7 @@ provides-extras = ["test"]
 [[package]]
 name = "torch-sparse"
 version = "0.6.18"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" }
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl" }
 resolution-markers = [
     "sys_platform == 'darwin'",
 ]
@@ -3393,7 +3411,7 @@ dependencies = [
     { name = "scipy", marker = "sys_platform == 'darwin'" },
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl", hash = "sha256:c4964593c86d8e1a1410ee0ff801d8810504d3e30a009cd2a6e55e2c0c316786" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_sparse-0.6.18-cp312-cp312-macosx_11_0_universal2.whl", hash = "sha256:8e199207e21a0545994e027e7fb8c3c5c9fa0e57ecbaac99c020dc25248e34c1" },
 ]
 
 [package.metadata]
@@ -3406,8 +3424,8 @@ provides-extras = ["test"]
 
 [[package]]
 name = "torch-sparse"
-version = "0.6.18+pt210cpu"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" }
+version = "0.6.18+pt211cpu"
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_sparse-0.6.18%2Bpt211cpu-cp312-cp312-linux_x86_64.whl" }
 resolution-markers = [
     "sys_platform == 'linux'",
     "sys_platform != 'darwin' and sys_platform != 'linux'",
@@ -3416,7 +3434,7 @@ dependencies = [
     { name = "scipy", marker = "sys_platform != 'darwin'" },
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_sparse-0.6.18%2Bpt210cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:615a1d645860380b2809f01dee18f3f8adcb8ac0bd5ffa20624c06f20ad9f289" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcpu/torch_sparse-0.6.18%2Bpt211cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:ff3ede5991f9022c2bc61fd584ecf5cae11a0fadaf8c444bffe0e5cb755ba83a" },
 ]
 
 [package.metadata]
@@ -3429,8 +3447,8 @@ provides-extras = ["test"]
 
 [[package]]
 name = "torch-sparse"
-version = "0.6.18+pt210cu128"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_sparse-0.6.18%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" }
+version = "0.6.18+pt211cu128"
+source = { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_sparse-0.6.18%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" }
 resolution-markers = [
     "sys_platform == 'linux'",
     "sys_platform != 'linux'",
@@ -3439,7 +3457,7 @@ dependencies = [
     { name = "scipy" },
 ]
 wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_sparse-0.6.18%2Bpt210cu128-cp312-cp312-linux_x86_64.whl", hash = "sha256:8e1ed656818e25222953e0964f6ac0e6c7cf58a09830423880797785c6f1225f" },
+    { url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_sparse-0.6.18%2Bpt211cu128-cp312-cp312-linux_x86_64.whl", hash = "sha256:57e2924bb9191940faac8ec923a07e32f40cce348512ec5e5a7dd88ad4f9249e" },
 ]
 
 [package.metadata]
@@ -3447,62 +3465,6 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'test'" },
     { name = "pytest-cov", marker = "extra == 'test'" },
     { name = "scipy" },
-]
-provides-extras = ["test"]
-
-[[package]]
-name = "torch-spline-conv"
-version = "1.2.2"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl" }
-resolution-markers = [
-    "sys_platform == 'darwin'",
-]
-wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2-cp312-cp312-macosx_10_13_universal2.whl", hash = "sha256:e9e8c54f002b7cefb9a08fec60b2db5246a2b2c7f4458e7237b9e2c1608ca6d3" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pytest", marker = "extra == 'test'" },
-    { name = "pytest-cov", marker = "extra == 'test'" },
-]
-provides-extras = ["test"]
-
-[[package]]
-name = "torch-spline-conv"
-version = "1.2.2+pt210cpu"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl" }
-resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'darwin' and sys_platform != 'linux'",
-]
-wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcpu/torch_spline_conv-1.2.2%2Bpt210cpu-cp312-cp312-linux_x86_64.whl", hash = "sha256:fc6e128b0cf06dedc659d519cba5cc377508720f78b69437e407419903213365" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pytest", marker = "extra == 'test'" },
-    { name = "pytest-cov", marker = "extra == 'test'" },
-]
-provides-extras = ["test"]
-
-[[package]]
-name = "torch-spline-conv"
-version = "1.2.2+pt210cu128"
-source = { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_spline_conv-1.2.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl" }
-resolution-markers = [
-    "sys_platform == 'linux'",
-    "sys_platform != 'linux'",
-]
-wheels = [
-    { url = "https://data.pyg.org/whl/torch-2.10.0%2Bcu128/torch_spline_conv-1.2.2%2Bpt210cu128-cp312-cp312-linux_x86_64.whl", hash = "sha256:d12015a3af48eea8b478c3739e4efd9cbf40c888788af11804b69717aff3375f" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "pytest", marker = "extra == 'test'" },
-    { name = "pytest-cov", marker = "extra == 'test'" },
 ]
 provides-extras = ["test"]
 
@@ -3524,10 +3486,10 @@ dependencies = [
     { name = "numpy" },
     { name = "packaging" },
     { name = "torch", version = "2.6.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform == 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/81/34/39b8b749333db56c0585d7a11fa62a283c087bb1dfc897d69fb8cedbefb1/torchmetrics-1.9.0.tar.gz", hash = "sha256:a488609948600df52d3db4fcdab02e62aab2a85ef34da67037dc3e65b8512faa", size = 581765, upload-time = "2026-03-09T17:41:22.443Z" }
 wheels = [
@@ -3556,7 +3518,7 @@ wheels = [
 
 [[package]]
 name = "torchvision"
-version = "0.25.0"
+version = "0.26.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "sys_platform == 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu'",
@@ -3569,16 +3531,16 @@ resolution-markers = [
 dependencies = [
     { name = "numpy", marker = "sys_platform != 'linux' or extra == 'extra-27-recsys-candidate-generation-cpu' or extra == 'extra-27-recsys-candidate-generation-gpu'" },
     { name = "pillow", marker = "sys_platform != 'linux' or extra == 'extra-27-recsys-candidate-generation-cpu' or extra == 'extra-27-recsys-candidate-generation-gpu'" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
-    { name = "torch", version = "2.10.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.org/simple" }, marker = "(sys_platform != 'linux' and extra != 'extra-27-recsys-candidate-generation-cpu' and extra != 'extra-27-recsys-candidate-generation-gpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0", source = { registry = "https://pypi.python.org/simple" }, marker = "(sys_platform == 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "(sys_platform != 'darwin' and extra == 'extra-27-recsys-candidate-generation-cpu') or (extra == 'extra-27-recsys-candidate-generation-cpu' and extra == 'extra-27-recsys-candidate-generation-gpu')" },
+    { name = "torch", version = "2.11.0+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "extra == 'extra-27-recsys-candidate-generation-gpu'" },
 ]
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/56/3a/6ea0d73f49a9bef38a1b3a92e8dd455cea58470985d25635beab93841748/torchvision-0.25.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c2abe430c90b1d5e552680037d68da4eb80a5852ebb1c811b2b89d299b10573b", size = 1874920, upload-time = "2026-01-21T16:27:45.348Z" },
-    { url = "https://files.pythonhosted.org/packages/51/f8/c0e1ef27c66e15406fece94930e7d6feee4cb6374bbc02d945a630d6426e/torchvision-0.25.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:b75deafa2dfea3e2c2a525559b04783515e3463f6e830cb71de0fb7ea36fe233", size = 2344556, upload-time = "2026-01-21T16:27:40.125Z" },
-    { url = "https://files.pythonhosted.org/packages/68/2f/f24b039169db474e8688f649377de082a965fbf85daf4e46c44412f1d15a/torchvision-0.25.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:f25aa9e380865b11ea6e9d99d84df86b9cc959f1a007cd966fc6f1ab2ed0e248", size = 8072351, upload-time = "2026-01-21T16:27:21.074Z" },
-    { url = "https://files.pythonhosted.org/packages/ad/16/8f650c2e288977cf0f8f85184b90ee56ed170a4919347fc74ee99286ed6f/torchvision-0.25.0-cp312-cp312-win_amd64.whl", hash = "sha256:f9c55ae8d673ab493325d1267cbd285bb94d56f99626c00ac4644de32a59ede3", size = 4303059, upload-time = "2026-01-21T16:27:11.08Z" },
+    { url = "https://files.pythonhosted.org/packages/ae/e7/56b47cc3b132aea90ccce22bcb8975dec688b002150012acc842846039d0/torchvision-0.26.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:c409e1c3fdebec7a3834465086dbda8bf7680eff79abf7fd2f10c6b59520a7a4", size = 1863502, upload-time = "2026-03-23T18:12:57.326Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/ec/5c31c92c08b65662fe9604a4067ae8232582805949f11ddc042cebe818ed/torchvision-0.26.0-cp312-cp312-manylinux_2_28_aarch64.whl", hash = "sha256:406557718e62fdf10f5706e88d8a5ec000f872da913bf629aab9297622585547", size = 7767944, upload-time = "2026-03-23T18:12:42.805Z" },
+    { url = "https://files.pythonhosted.org/packages/f5/d8/cb6ccda1a1f35a6597645818641701207b3e8e13553e75fce5d86bac74b2/torchvision-0.26.0-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:d61a5abb6b42a0c0c311996c2ac4b83a94418a97182c83b055a2a4ae985e05aa", size = 7522205, upload-time = "2026-03-23T18:12:54.654Z" },
+    { url = "https://files.pythonhosted.org/packages/1c/a9/c272623a0f735c35f0f6cd6dc74784d4f970e800cf063bb76687895a2ab9/torchvision-0.26.0-cp312-cp312-win_amd64.whl", hash = "sha256:7993c01648e7c61d191b018e84d38fe0825c8fcb2720cd0f37caf7ba14404aa1", size = 4255155, upload-time = "2026-03-23T18:12:32.652Z" },
 ]
 
 [[package]]
