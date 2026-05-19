@@ -3,7 +3,6 @@
 import os
 from collections.abc import Callable
 from pathlib import Path
-from typing import TypeVar
 
 import lightning as L
 import torch
@@ -13,8 +12,6 @@ from omegaconf import DictConfig
 from ml_sandbox_libs.models.base import BaseModule
 from ml_sandbox_libs.utils import setup_logger
 
-DataModuleT = TypeVar("DataModuleT", bound=L.LightningDataModule)
-
 
 def _should_log_model_summary() -> bool:
     """Return whether the current process should emit shared summary logs."""
@@ -22,7 +19,7 @@ def _should_log_model_summary() -> bool:
     return rank in (None, "", "0")
 
 
-def run_training(
+def run_training[DataModuleT: L.LightningDataModule](
     cfg: DictConfig,
     *,
     prepare_datamodule: Callable[[DictConfig, Path], DataModuleT],
