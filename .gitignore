@@ -5,6 +5,9 @@
 .direnv
 .envrc
 
+# Git worktrees
+.worktrees/
+
 ### macOS ###
 # General
 .DS_Store
