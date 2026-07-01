@@ -130,7 +130,7 @@ make install
 標準の training は以下で実行します。
 
 ```sh
-make train
+uv run python src/fit.py
 ```
 
 Hydra override を使って model や data 設定を切り替えることもできます。

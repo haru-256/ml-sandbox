@@ -153,7 +153,7 @@ make test
 基本の学習実行は次の通りです。
 
 ```sh
-make train
+uv run python src/fit.py
 ```
 
 Hydra の override を使って個別設定を変更することもできます。
