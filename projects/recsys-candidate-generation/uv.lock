@@ -2646,7 +2646,6 @@ dependencies = [
     { name = "timm" },
     { name = "torchinfo" },
     { name = "torchmetrics" },
-    { name = "vertex-job-runner" },
     { name = "wandb" },
 ]
 
@@ -2686,6 +2685,9 @@ test = [
     { name = "pytest" },
     { name = "pytest-mock" },
 ]
+vertex = [
+    { name = "vertex-job-runner" },
+]
 
 [package.metadata]
 requires-dist = [
@@ -2713,7 +2715,6 @@ requires-dist = [
     { name = "torch-sparse", marker = "extra == 'gpu'", url = "https://data.pyg.org/whl/torch-2.11.0%2Bcu128/torch_sparse-0.6.18%2Bpt211cu128-cp312-cp312-linux_x86_64.whl" },
     { name = "torchinfo", specifier = "~=1.8.0" },
     { name = "torchmetrics", specifier = "~=1.9.0" },
-    { name = "vertex-job-runner", editable = "../../apps/vertex-job-runner" },
     { name = "wandb", specifier = "~=0.25.1" },
 ]
 provides-extras = ["cpu", "gpu"]
@@ -2733,6 +2734,7 @@ test = [
     { name = "pytest", specifier = "~=9.0.3" },
     { name = "pytest-mock", specifier = "~=3.15.1" },
 ]
+vertex = [{ name = "vertex-job-runner", editable = "../../apps/vertex-job-runner" }]
 
 [[package]]
 name = "referencing"
@@ -3700,8 +3702,8 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 lint = [
-    { name = "mypy", specifier = "~=1.14.1" },
-    { name = "ruff", specifier = "~=0.8.4" },
+    { name = "mypy", specifier = "~=1.20.2" },
+    { name = "ruff", specifier = "~=0.15.12" },
 ]
 test = [
     { name = "pytest", specifier = "~=9.0.3" },
