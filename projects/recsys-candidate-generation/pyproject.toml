@@ -20,6 +20,7 @@ dependencies = [
 [project.optional-dependencies]
 cpu = [
     "torch==2.11.0",
+    "torchvision==0.26.0",
     "pyg_lib",
     "torch_scatter",
     "torch_sparse",
@@ -27,6 +28,7 @@ cpu = [
 ]
 gpu = [
   "torch==2.11.0",
+  "torchvision==0.26.0",
   "pyg_lib",
   "torch_scatter",
   "torch_sparse",
@@ -46,6 +48,11 @@ conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
 ml-sandbox-libs = { path = "../../libs/ml_sandbox_libs", editable = true }
 vertex-job-runner = { path = "../../apps/vertex-job-runner", editable = true }
 torch = [
+  { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'Darwin'" },
+  { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'Darwin'" },
+  { index = "pytorch-gpu", extra = "gpu" },
+]
+torchvision = [
   { index = "pytorch-cpu-mac", extra = "cpu", marker = "platform_system == 'Darwin'" },
   { index = "pytorch-cpu", extra = "cpu", marker = "platform_system != 'Darwin'" },
   { index = "pytorch-gpu", extra = "gpu" },

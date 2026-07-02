@@ -26,5 +26,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # Copy project source
 COPY ./src ./src
 
+# Disable runtime uv sync to prevent uv from checking missing editable dependencies at runtime.
+ENV UV_NO_SYNC=1
+
 WORKDIR /workspace/projects/recsys-candidate-generation/src
 CMD ["uv", "run", "fit.py"]
