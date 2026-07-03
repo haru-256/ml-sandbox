@@ -11,9 +11,6 @@ services:
     environment:
       - WANDB_API_KEY=${WANDB_API_KEY:?WANDB_API_KEY is required}
       - EXPERIMENT_NAME=${EXPERIMENT_NAME:-local-experiment}
-      - GCS_PATH=${GCS_PATH:-/tmp/gcs}
-    volumes:
-      - ${MOUNTED_GCS_PATH:-/tmp/gcs}:${GCS_PATH:-/tmp/gcs}
     deploy:
       resources:
         reservations:

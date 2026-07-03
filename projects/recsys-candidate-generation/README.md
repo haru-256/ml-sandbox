@@ -197,13 +197,13 @@ make docker-down        # 停止
 | `WANDB_API_KEY` | yes | wandb 認証用 API key |
 | `IMAGE_URI` | optional | Docker image 名（default: `recsys-candidate-generation:latest`。`make docker-run` では `DOCKER_IMAGE` 変数を使用） |
 | `EXPERIMENT_NAME` | optional | Cloud Logging 用（ローカル Docker では使用されない） |
-| `GCS_PATH` | optional | コンテナ内の GCS マウントパス（学習コードは未使用） |
-| `MOUNTED_GCS_PATH` | optional | host 側の GCS マウントパス（`compose.yaml` の volume source） |
 
 ## Configuration
 
 training entrypoint は `src/fit.py` です。
 Hydra を使って `src/config/` 配下の設定を読み込みます。
+model checkpoint は default では保存しません。
+必要な場合は `enable_checkpointing=true` を指定すると、`save_dir` 配下の `checkpoints/` に保存します。
 
 主な flow は以下です。
 
