@@ -4,7 +4,7 @@ from typing import cast
 
 import hydra
 import lightning as L
-from lightning.pytorch.callbacks import EarlyStopping
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 from ml_sandbox_libs.data.amazon_reviews_dataset import AmazonReviewsSeqRecDataModule
 from ml_sandbox_libs.data.factory import create_seq_rec_datamodule
@@ -37,13 +37,27 @@ def create_trainer(cfg: DictConfig, save_dir: pathlib.Path) -> L.Trainer:
 
     devices = [cfg.device.accelerator_no] if cfg.device.accelerator == "gpu" else "auto"
 
+    enable_checkpointing = cfg.enable_checkpointing
+    callbacks: list[L.Callback] = [
+        EarlyStopping(monitor="val_ndcg", mode="max", patience=3),
+    ]
+    if enable_checkpointing:
+        callbacks.append(
+            ModelCheckpoint(
+                dirpath=save_dir / "checkpoints",
+                monitor="val_ndcg",
+                mode="max",
+                save_top_k=1,
+            )
+        )
+
     return L.Trainer(
         max_epochs=10,
         accelerator=cfg.device.accelerator,
         devices=devices,
-        callbacks=[
-            EarlyStopping(monitor="val_ndcg", mode="max", patience=3),
-        ],
+        callbacks=callbacks,
+        enable_checkpointing=enable_checkpointing,
+        default_root_dir=save_dir,
         detect_anomaly=True,
         fast_dev_run=10 if cfg.debug else False,
         enable_progress_bar=False,

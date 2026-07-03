@@ -2,7 +2,6 @@ include ../../make/help.mk
 include ../../make/python.mk
 
 .PHONY: install
-
 install: ## Setup the project
 	@if [ $(HAS_CUDA) -eq 1 ]; then \
 		echo "=== Install with GPU support ==="; \
@@ -15,11 +14,11 @@ install: ## Setup the project
 # ─── Docker ───────────────────────────────────────────
 DOCKER_IMAGE ?= recsys-candidate-generation:latest
 # Additional build context for monorepo local path dep (required by Dockerfile)
-DOCKER_BUILD_CONTEXTS := --build-context ml_sandbox_libs=../../libs/ml_sandbox_libs
+DOCKER_BUILD_CONTEXTS := ml_sandbox_libs=../../libs/ml_sandbox_libs
 
 .PHONY: docker-build
 docker-build: ## Build the Docker image for local training
-	docker build --platform linux/amd64 $(DOCKER_BUILD_CONTEXTS) -t $(DOCKER_IMAGE) .
+	docker build --platform linux/amd64 --build-context $(DOCKER_BUILD_CONTEXTS) -t $(DOCKER_IMAGE) .
 
 .PHONY: docker-run
 docker-run: ## Run training directly in Docker (requires WANDB_API_KEY; Hydra args via DOCKER_ARGS)

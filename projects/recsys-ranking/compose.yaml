@@ -1,0 +1,20 @@
+services:
+  job:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      additional_contexts:
+        - ml_sandbox_libs=../../libs/ml_sandbox_libs
+    command: ["tail", "-f", "/dev/null"]
+    platform: linux/amd64
+    image: ${IMAGE_URI:-recsys-ranking:latest}
+    environment:
+      - WANDB_API_KEY=${WANDB_API_KEY:?WANDB_API_KEY is required}
+      - EXPERIMENT_NAME=${EXPERIMENT_NAME:-local-experiment}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
