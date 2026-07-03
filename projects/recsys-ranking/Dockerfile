@@ -7,27 +7,20 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 # Replicate monorepo structure so pyproject.toml's relative path deps resolve.
 # pyproject.toml references ../../libs/ml_sandbox_libs, which is outside the build
-# context. It is provided via an additional build context (see compose.yaml
-# additional_contexts / Makefile docker-build --build-context).
-# Note: vertex-job-runner is in the 'vertex' dependency group and excluded from
-# Docker builds, so it does not need to be copied.
-WORKDIR /workspace/projects/recsys-candidate-generation
+# context. It is provided via an additional build context.
+# vertex-job-runner is in the 'vertex' dependency group and excluded from Docker builds.
+WORKDIR /workspace/projects/recsys-ranking
 
-# Copy local dependency source (needed by uv sync for editable install)
 COPY --from=ml_sandbox_libs . /workspace/libs/ml_sandbox_libs
-
-# Copy project metadata for dependency resolution
 COPY pyproject.toml uv.lock .python-version ./
 
-# Install Python dependencies (project itself is installed at runtime by `uv run`)
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev --extra=gpu
 
-# Copy project source
 COPY ./src ./src
 
 # Disable runtime uv sync to prevent uv from checking missing editable dependencies at runtime.
 ENV UV_NO_SYNC=1
 
-WORKDIR /workspace/projects/recsys-candidate-generation/src
+WORKDIR /workspace/projects/recsys-ranking/src
 CMD ["uv", "run", "fit.py"]

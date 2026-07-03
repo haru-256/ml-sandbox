@@ -2,7 +2,7 @@
 
 [![Python CI](https://github.com/haru-256/ml-sandbox/actions/workflows/python-ci.yml/badge.svg)](https://github.com/haru-256/ml-sandbox/actions/workflows/python-ci.yml)
 
-`ml-sandbox` は、推薦システムを中心に機械学習モデルの実装、実験、基盤整備を進める Python monorepo です。主な対象は `projects/recsys-candidate-generation` と `projects/recsys-ranking` で、候補生成とランキングを別 project として切り出し、その下支えとなる前処理、DataModule、共通 model module、optimizer、学習 utility は `libs/ml_sandbox_libs` に集約しています。実験の実行基盤は `apps/vertex-job-runner` に分離しており、model 実装だけでなく shared library 化とクラウド実行まで含めて設計しています。
+`ml-sandbox` は、推薦システムを中心に機械学習モデルの実装、実験、基盤整備を進める Python monorepo です。推薦系は `projects/recsys-candidate-generation` と `projects/recsys-ranking` で候補生成とランキングを別 project として切り出し、その下支えとなる前処理、DataModule、共通 model module、optimizer、学習 utility は `libs/ml_sandbox_libs` に集約しています。実験の実行基盤は `apps/vertex-job-runner` に分離しており、model 実装だけでなく shared library 化とクラウド実行まで含めて設計しています。推薦系以外に、Transformer Encoder をフルスクラッチで実装する `projects/sentiment_analysis` も独立 project として含んでいます。
 
 技術スタックは Python 3.12 を前提に、`uv` と Makefile で package ごとに開発し、PyTorch、Lightning、Hydra、Polars、NumPy、TorchMetrics、PyTorch Geometric、Google Cloud / Vertex AI を中心に組み立てています。コードベースとしては、project ごとの関心を分けつつ shared component を明確に切り出し、型注釈、`mypy`、`ruff`、`pytest`、GitHub Actions を前提に保守している repo です。
 
@@ -238,6 +238,7 @@ flowchart LR
 
 ここがこのリポジトリの中心です。
 特に推薦システム領域において、検索・候補生成・ランキングという構成に近い問題設定を扱っています。
+推薦系以外にも、Transformer Encoder をフルスクラッチ実装する `projects/sentiment_analysis` を独立 project として含んでいます。
 
 ### Recsys Candidate Generation
 
@@ -373,6 +374,17 @@ Ranking では、candidate generation よりも豊かな特徴量相互作用を
 
 詳細は [`projects/recsys-ranking/README.md`](projects/recsys-ranking/README.md) を参照してください。
 
+### Sentiment Analysis
+
+`projects/sentiment_analysis`
+
+IMDB の映画レビューを用いて、Transformer Encoder をフルスクラッチ実装で学習・評価する project です。
+PyTorch / Lightning ベースで、前処理、語彙構築、データセット実装、Self-Attention、Encoder block、分類ヘッドまでを一通り含んでいます。
+
+`libs/ml_sandbox_libs` に依存しない独立 project で、推薦系 project とは異なり Hydra を使わず `train.py` を直接実行する構成です。
+
+詳細は [`projects/sentiment_analysis/README.md`](projects/sentiment_analysis/README.md) を参照してください。
+
 ## 共通ライブラリ
 
 ### ml_sandbox_libs
@@ -467,6 +479,7 @@ Python 関連コマンドは package root で `uv` 前提の Makefile を使い�
 cd libs/ml_sandbox_libs && make install && make lint && make test
 cd projects/recsys-ranking && make install && make lint && make test
 cd projects/recsys-candidate-generation && make install && make lint && make test
+cd projects/sentiment_analysis && make install && make lint && make test
 cd apps/vertex-job-runner && make install && make lint && make test
 ```
 

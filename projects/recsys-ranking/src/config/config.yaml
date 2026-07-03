@@ -6,6 +6,7 @@ defaults:
 
 save_dir: ./results/
 debug: true
+enable_checkpointing: false
 
 device:
   accelerator: gpu

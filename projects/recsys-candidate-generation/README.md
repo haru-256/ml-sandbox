@@ -130,7 +130,7 @@ make install
 標準の training は以下で実行します。
 
 ```sh
-make train
+uv run python src/fit.py
 ```
 
 Hydra override を使って model や data 設定を切り替えることもできます。
@@ -149,10 +149,61 @@ uv run python src/fit.py model=SimpleX
 uv run python src/fit.py model=LightGCN loss=bpr
 ```
 
+## Local Docker
+
+Dockerfile から image を build して、ローカルで学習を実行できます。
+
+### 前提
+
+- Docker（GPU アクセスのため `--gpus all` をサポート）
+- `WANDB_API_KEY` 環境変数（[wandb.ai/authorize](https://wandb.ai/authorize) から取得）
+- Dev shell では `WANDB_API_KEY` を `.env` に設定するか、`make docker-up` 実行時の shell で export してください。
+
+### image を build して学習を直接実行
+
+```sh
+# 1. wandb API key を設定
+export WANDB_API_KEY=your-api-key
+
+# 2. image を build
+make docker-build
+
+# 3. 学習を直接実行（コンテナ内で fit.py が走る）
+make docker-run
+```
+
+Hydra override も渡せます:
+
+```sh
+make docker-run DOCKER_ARGS="model=SASRec data.batch_size=64"
+```
+
+### Dev shell としての利用
+
+コンテナを起動したまま `exec` で入ってデバッグすることもできます:
+
+```sh
+cp .env.example .env
+# .env の WANDB_API_KEY を設定
+make docker-up          # dev shell 起動
+make docker-exec        # コンテナ内で学習実行
+make docker-down        # 停止
+```
+
+### 環境変数
+
+| 変数 | 必須 | 説明 |
+|------|------|------|
+| `WANDB_API_KEY` | yes | wandb 認証用 API key |
+| `IMAGE_URI` | optional | Docker image 名（default: `recsys-candidate-generation:latest`。`make docker-run` では `DOCKER_IMAGE` 変数を使用） |
+| `EXPERIMENT_NAME` | optional | Cloud Logging 用（ローカル Docker では使用されない） |
+
 ## Configuration
 
 training entrypoint は `src/fit.py` です。
 Hydra を使って `src/config/` 配下の設定を読み込みます。
+model checkpoint は default では保存しません。
+必要な場合は `enable_checkpointing=true` を指定すると、`save_dir` 配下の `checkpoints/` に保存します。
 
 主な flow は以下です。
 

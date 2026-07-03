@@ -153,7 +153,7 @@ make test
 基本の学習実行は次の通りです。
 
 ```sh
-make train
+uv run python src/fit.py
 ```
 
 Hydra の override を使って個別設定を変更することもできます。
@@ -171,6 +171,57 @@ uv run python src/fit.py model=DeepFM data.batch_size=32
 
 使用可能な設定名は `src/config` と `src/models/factory` の対応に従います。
 
+### Checkpoint
+
+model checkpoint は default では保存しません。
+必要な場合は `enable_checkpointing=true` を指定すると、`save_dir` 配下の `checkpoints/` に保存します。
+
+```sh
+uv run python src/fit.py enable_checkpointing=true
+```
+
+## Local Docker
+
+Dockerfile から image を build して、ローカルで学習を実行できます。
+
+### 前提
+
+- Docker（GPU アクセスのため `--gpus all` をサポート）
+- `WANDB_API_KEY` 環境変数（[wandb.ai/authorize](https://wandb.ai/authorize) から取得）
+- Dev shell では `WANDB_API_KEY` を `.env` に設定するか、`make docker-up` 実行時の shell で export してください。
+
+### image を build して学習を直接実行
+
+```sh
+export WANDB_API_KEY=your-api-key
+make docker-build
+make docker-run
+```
+
+Hydra override も渡せます:
+
+```sh
+make docker-run DOCKER_ARGS="model=DeepFM data.batch_size=32"
+```
+
+### Dev shell としての利用
+
+```sh
+cp .env.example .env
+# .env の WANDB_API_KEY を設定
+make docker-up
+make docker-exec
+make docker-down
+```
+
+### 環境変数
+
+| 変数 | 必須 | 説明 |
+|------|------|------|
+| `WANDB_API_KEY` | yes | wandb 認証用 API key |
+| `IMAGE_URI` | optional | Docker image 名（default: `recsys-ranking:latest`。`make docker-run` では `DOCKER_IMAGE` 変数を使用） |
+| `EXPERIMENT_NAME` | optional | Cloud Logging 用（ローカル Docker では使用されない） |
+
 ## Dependencies
 
 この package は主に以下の依存を利用します。
@@ -183,13 +234,13 @@ uv run python src/fit.py model=DeepFM data.batch_size=32
 - `wandb`
 - `timm`
 - `ml-sandbox-libs`
-- `vertex-job-runner`
 
 また、`cpu` / `gpu` の optional dependency を通じて PyTorch と torchvision を切り替える構成です。
+Vertex AI custom training job 連携が必要な場合は `vertex` dependency group で `vertex-job-runner` を追加します。
 
 ## Relationship with Shared Libraries
 
-共通化されたコンポーネントは主に `libs/ml_sandbox_libs` と `apps/vertex-job-runner` から参照します。
+共通化されたコンポーネントは主に `libs/ml_sandbox_libs` と `apps/vertex-job-runner`（`vertex` dependency group）から参照します。
 
 - `ml_sandbox_libs`: DataModule、shared datamodule factory、共通 model module、optimizer、training utility
 - `vertex-job-runner`: Vertex AI 上での job 実行補助

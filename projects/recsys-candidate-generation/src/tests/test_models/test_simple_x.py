@@ -114,7 +114,7 @@ def test_simplex_forward_returns_expected_shapes(simplex: SimpleX) -> None:
 @pytest.mark.parametrize("user_id_weight", [-0.1, 1.1])
 def test_simplex_validates_user_id_weight(user_id_weight: float) -> None:
     """Rejects user ID fusion weights outside the valid range."""
-    with pytest.raises(ValueError, match="between 0.0 and 1.0"):
+    with pytest.raises(ValueError, match=r"between 0.0 and 1.0"):
         SimpleX(
             out_dim=8,
             num_users=20,
