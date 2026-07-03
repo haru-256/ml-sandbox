@@ -35,7 +35,6 @@ docker-up: ## Start a dev shell container (use 'make docker-exec' to run trainin
 
 .PHONY: docker-exec
 docker-exec: ## Run training inside the dev shell container
-	@test -n "$$WANDB_API_KEY" || (echo "ERROR: WANDB_API_KEY is not set" && exit 1)
 	docker compose exec job uv run fit.py
 
 .PHONY: docker-down

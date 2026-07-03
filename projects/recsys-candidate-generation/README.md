@@ -157,6 +157,7 @@ Dockerfile から image を build して、ローカルで学習を実行でき�
 
 - Docker（GPU アクセスのため `--gpus all` をサポート）
 - `WANDB_API_KEY` 環境変数（[wandb.ai/authorize](https://wandb.ai/authorize) から取得）
+- Dev shell では `WANDB_API_KEY` を `.env` に設定するか、`make docker-up` 実行時の shell で export してください。
 
 ### image を build して学習を直接実行
 
@@ -182,6 +183,8 @@ make docker-run DOCKER_ARGS="model=SASRec data.batch_size=64"
 コンテナを起動したまま `exec` で入ってデバッグすることもできます:
 
 ```sh
+cp .env.example .env
+# .env の WANDB_API_KEY を設定
 make docker-up          # dev shell 起動
 make docker-exec        # コンテナ内で学習実行
 make docker-down        # 停止
@@ -192,9 +195,10 @@ make docker-down        # 停止
 | 変数 | 必須 | 説明 |
 |------|------|------|
 | `WANDB_API_KEY` | yes | wandb 認証用 API key |
-| `IMAGE_URI` | compose のみ | Docker image 名（`make docker-run` では `DOCKER_IMAGE` 変数を使用） |
+| `IMAGE_URI` | optional | Docker image 名（default: `recsys-candidate-generation:latest`。`make docker-run` では `DOCKER_IMAGE` 変数を使用） |
 | `EXPERIMENT_NAME` | optional | Cloud Logging 用（ローカル Docker では使用されない） |
-| `GCS_PATH` | optional | GCS マウントパス（学習コードは未使用） |
+| `GCS_PATH` | optional | コンテナ内の GCS マウントパス（学習コードは未使用） |
+| `MOUNTED_GCS_PATH` | optional | host 側の GCS マウントパス（`compose.yaml` の volume source） |
 
 ## Configuration
 
