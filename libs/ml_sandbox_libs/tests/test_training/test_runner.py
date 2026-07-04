@@ -46,7 +46,9 @@ def test_run_training_executes_steps_in_order(mocker: MockerFixture, tmp_path: P
 
     setup_logger = mocker.patch("ml_sandbox_libs.training.runner.setup_logger")
     mkdir = mocker.patch("pathlib.Path.mkdir")
-    set_matmul_precision = mocker.patch("ml_sandbox_libs.training.runner.torch.set_float32_matmul_precision")
+    set_matmul_precision = mocker.patch(
+        "ml_sandbox_libs.training.runner.torch.set_float32_matmul_precision"
+    )
     logger = mocker.patch("ml_sandbox_libs.training.runner.logger")
 
     run_training(
