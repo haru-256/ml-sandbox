@@ -1,7 +1,7 @@
 import shlex
 from typing import Any, List, Optional, Tuple, Type
 
-from pydantic import Field, field_validator
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, PyprojectTomlConfigSettingsSource, SettingsConfigDict
 
 
@@ -27,6 +27,10 @@ class Settings(BaseSettings):
         default=..., description="The service account email to run the job"
     )
     experiment_name: str = Field(default=..., description="The name of the Vertex AI experiment")
+    wandb_api_key: SecretStr | None = Field(
+        default=None,
+        description="The W&B API key to pass to the training container",
+    )
     command: List[str] = Field(default=..., description="The command to run inside the container")
 
     # Items overridable by arguments

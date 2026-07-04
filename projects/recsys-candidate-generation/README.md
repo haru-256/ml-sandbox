@@ -235,6 +235,17 @@ accelerator_type = "NVIDIA_L4"
 accelerator_count = 1
 ```
 
+W&B を使う Vertex AI job では、API key を `pyproject.toml` に書かず、実行時に `VRUN_WANDB_API_KEY` として渡します。
+
+```sh
+export VRUN_WANDB_API_KEY="your-wandb-api-key"
+uv run vrun run
+```
+
+`vertex-job-runner` はこの値を training container の `WANDB_API_KEY` として設定します。
+
+なお、container 環境変数として渡された `WANDB_API_KEY` は Vertex AI の job 詳細や監査ログ上で参照可能です。より高いセキュリティが必要な場合は、Secret Manager 経由で取得するなどの代替手段を検討してください。
+
 実際の job 実行時は `apps/vertex-job-runner` 側の README も参照してください。
 
 ## Development Workflow
