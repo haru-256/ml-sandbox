@@ -19,7 +19,6 @@ def run_custom_training_job(settings: Settings) -> str:
     Returns:
         The Vertex AI training pipeline resource name.
     """
-    # This function would contain the logic to submit the job using the Google Cloud AI Platform SDK.
     suffix = datetime.now().strftime("%Y%m%d%H%M%S")
     job = aiplatform.CustomContainerTrainingJob(
         display_name=f"{settings.experiment_name}_{suffix}",

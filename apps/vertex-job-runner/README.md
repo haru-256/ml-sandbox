@@ -197,6 +197,7 @@ make test
 
 - Vertex AI や GCS を利用するため、Google Cloud 側の認証設定が必要です。
 - `service_account`、`project`、SDK staging/output 用の `gcs_uri` は実際の環境に合わせて設定してください。
+- `gcs_uri` は Vertex AI SDK の `staging_bucket` / `base_output_dir` 用であり、training container の環境変数 `GCS_URI` としては渡されません（破壊的変更）。container 内で GCS パスを参照する必要がある場合は、別途コマンド引数などで渡してください。
 - W&B を使う training container では、実行前に `VRUN_WANDB_API_KEY` を設定してください。これは container 内では `WANDB_API_KEY` として参照されます。
 - 本番用途では `image_uri` に固定タグ付きイメージを使うと再現性を保ちやすくなります。
 - 機密情報を `pyproject.toml` に直接書かないようにし、必要に応じて環境変数や Secret Manager を利用してください。

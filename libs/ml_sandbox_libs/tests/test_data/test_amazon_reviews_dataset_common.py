@@ -361,5 +361,3 @@ def test_common_preprocess_accepts_direct_loader_schema() -> None:
     assert "price" in result.val_df.columns
     assert "price" in result.test_df.columns
     assert result.train_df["price"].dtype == pl.Float64
-
-

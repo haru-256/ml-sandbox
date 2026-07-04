@@ -119,9 +119,12 @@ def test_env_var_override(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("VRUN_PROJECT", "env-project")
     monkeypatch.setenv("VRUN_MACHINE_TYPE", "n1-standard-8")
     monkeypatch.setenv("VRUN_ACCELERATOR_COUNT", "2")
+    monkeypatch.setenv("VRUN_WANDB_API_KEY", "env-wandb-key")
 
     settings = Settings()
 
     assert settings.project == "env-project"
     assert settings.machine_type == "n1-standard-8"
     assert settings.accelerator_count == 2
+    assert settings.wandb_api_key is not None
+    assert settings.wandb_api_key.get_secret_value() == "env-wandb-key"

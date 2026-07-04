@@ -169,7 +169,6 @@ def fetch_dataset(
         return _read_csv_splits(urls)
     if dataset_type == "raw_review":
         return D.DatasetDict({"full": _read_json_dataset(urls["full"])})
-    raise ValueError(f"Unsupported Amazon Reviews dataset_type: {dataset_type}")
 
 
 def fetch_metadata(category: str = "Video_Games") -> D.Dataset:
@@ -387,7 +386,7 @@ def common_preprocess_dataset(
 
     Args:
         dataset_dict: The dataset dictionary containing train, validation, and test splits (from HuggingFace Datasets).
-        metadata: The metadata dataset containing item information (from HuggingFace Datasets).
+        metadata: The metadata dataset containing item information (from UCSD source files via fetch_metadata).
         filter_no_history: If True, filters out users with no interaction history. Defaults to True.
 
     Returns:
