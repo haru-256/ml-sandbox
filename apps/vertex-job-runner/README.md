@@ -86,7 +86,7 @@ args = ["trainer.max_epochs=10", "data.num_workers=4"]
 - `project`: GCP project ID
 - `location`: Vertex AI のリージョン
 - `image_uri`: 実行するコンテナイメージ
-- `gcs_uri`: staging や成果物出力に利用する GCS URI
+- `gcs_uri`: Vertex AI SDK の staging bucket と base output dir に利用する GCS URI
 - `service_account`: ジョブ実行に利用するサービスアカウント
 - `experiment_name`: Vertex AI 上のジョブ名プレフィックス
 - `command`: コンテナ内で実行するコマンド
@@ -104,7 +104,12 @@ export VRUN_PROJECT="my-project"
 export VRUN_LOCATION="us-central1"
 export VRUN_MACHINE_TYPE="n1-highmem-8"
 export VRUN_ACCELERATOR_COUNT="2"
+export VRUN_WANDB_API_KEY="your-wandb-api-key"
 ```
+
+`VRUN_WANDB_API_KEY` を設定すると、Vertex AI の training container には `WANDB_API_KEY` として渡されます。`pyproject.toml` には API key を書かず、shell・CI secret・Secret Manager などから環境変数として渡してください。
+
+なお、container 環境変数として渡された `WANDB_API_KEY` は Vertex AI の job 詳細や監査ログ上で参照可能です。より高いセキュリティが必要な場合は、Secret Manager 経由で取得するなどの代替手段を検討してください。
 
 たとえば CI やローカル検証で project や machine type だけを差し替えたいときに便利です。
 
@@ -191,7 +196,9 @@ make test
 ## 注意事項
 
 - Vertex AI や GCS を利用するため、Google Cloud 側の認証設定が必要です。
-- `service_account`、`project`、`gcs_uri` は実際の環境に合わせて設定してください。
+- `service_account`、`project`、SDK staging/output 用の `gcs_uri` は実際の環境に合わせて設定してください。
+- `gcs_uri` は Vertex AI SDK の `staging_bucket` / `base_output_dir` 用であり、training container の環境変数 `GCS_URI` としては渡されません（破壊的変更）。container 内で GCS パスを参照する必要がある場合は、別途コマンド引数などで渡してください。
+- W&B を使う training container では、実行前に `VRUN_WANDB_API_KEY` を設定してください。これは container 内では `WANDB_API_KEY` として参照されます。
 - 本番用途では `image_uri` に固定タグ付きイメージを使うと再現性を保ちやすくなります。
 - 機密情報を `pyproject.toml` に直接書かないようにし、必要に応じて環境変数や Secret Manager を利用してください。
 

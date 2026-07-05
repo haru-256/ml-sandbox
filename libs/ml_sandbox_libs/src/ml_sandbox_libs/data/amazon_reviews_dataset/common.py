@@ -45,58 +45,143 @@ class AmazonReviewsPreprocessedResult:
     category2index_df: pl.DataFrame
 
 
+AMAZON_REVIEWS_BASE_URL = "https://mcauleylab.ucsd.edu/public_datasets/data/amazon_2023"
+
+
+def _dataset_urls(category: str, dataset_type: str) -> dict[str, str]:
+    """Build source URLs for Amazon Reviews 2023 interaction datasets.
+
+    Args:
+        category: Amazon Reviews category name such as ``"Video_Games"``.
+        dataset_type: Existing dataset type accepted by ``fetch_dataset``.
+
+    Returns:
+        Mapping from split name to source file URL.
+
+    Raises:
+        ValueError: If ``dataset_type`` is not supported by the direct loader.
+    """
+    if dataset_type == "0core_timestamp_w_his":
+        base = f"{AMAZON_REVIEWS_BASE_URL}/benchmark/0core/timestamp_w_his/{category}"
+        return {
+            "train": f"{base}.train.csv.gz",
+            "valid": f"{base}.valid.csv.gz",
+            "test": f"{base}.test.csv.gz",
+        }
+    if dataset_type == "0core_last_out_w_his":
+        base = f"{AMAZON_REVIEWS_BASE_URL}/benchmark/0core/last_out_w_his/{category}"
+        return {
+            "train": f"{base}.train.csv.gz",
+            "valid": f"{base}.valid.csv.gz",
+            "test": f"{base}.test.csv.gz",
+        }
+    if dataset_type == "raw_review":
+        return {
+            "full": f"{AMAZON_REVIEWS_BASE_URL}/raw/review_categories/{category}.jsonl.gz",
+        }
+    raise ValueError(f"Unsupported Amazon Reviews dataset_type: {dataset_type}")
+
+
+def _metadata_url(category: str) -> str:
+    """Build the source URL for Amazon Reviews 2023 item metadata.
+
+    Args:
+        category: Amazon Reviews category name such as ``"Video_Games"``.
+
+    Returns:
+        Source file URL for compressed item metadata JSONL.
+    """
+    return f"{AMAZON_REVIEWS_BASE_URL}/raw/meta_categories/meta_{category}.jsonl.gz"
+
+
+def _read_csv_splits(urls: dict[str, str]) -> D.DatasetDict:
+    """Read CSV split files into a DatasetDict.
+
+    Args:
+        urls: Mapping from split name to CSV URL or local path.
+
+    Returns:
+        Dataset dictionary with the same split keys.
+    """
+    return D.DatasetDict({split: D.Dataset.from_csv(url) for split, url in urls.items()})
+
+
+def _read_json_dataset(url: str) -> D.Dataset:
+    """Read a JSONL or JSONL.GZ file into a Dataset.
+
+    Args:
+        url: JSON file URL or local path.
+
+    Returns:
+        Dataset containing parsed rows.
+    """
+    return D.Dataset.from_json(url)
+
+
+def _read_metadata_dataset(url: str) -> D.Dataset:
+    """Read item metadata JSONL/JSONL.GZ into a Dataset.
+
+    The UCSD metadata file mixes float, string, and null values in the
+    ``price`` column. Polars coerces ``price`` to string while parsing, then
+    the column is cast to ``Float64`` with non-castable values becoming null.
+    The required metadata columns plus ``price`` are returned as a
+    ``datasets.Dataset``.
+
+    Args:
+        url: Metadata file URL or local path.
+
+    Returns:
+        Dataset containing the required metadata columns including ``price``.
+
+    Raises:
+        pl.exceptions.ComputeError: If the JSONL cannot be parsed.
+        pl.exceptions.ColumnNotFoundError: If a required column is missing.
+    """
+    df = pl.read_ndjson(url, schema_overrides={"price": pl.String})
+    df = df.with_columns(pl.col("price").cast(pl.Float64, strict=False))
+    return D.Dataset.from_polars(
+        df.select("parent_asin", "categories", "average_rating", "rating_number", "price")
+    )
+
+
 def fetch_dataset(
     category: str = "Video_Games",
     dataset_type: Literal[
         "0core_timestamp_w_his", "0core_last_out_w_his", "raw_review"
     ] = "0core_timestamp_w_his",
 ) -> D.DatasetDict:
-    """Fetch Amazon Reviews 2023 dataset from the datasets library.
+    """Fetch Amazon Reviews 2023 interactions without Hugging Face loading scripts.
 
     Args:
-        category: category name. Defaults to "Video_Games". Please refer to the dataset card for more details: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#grouped-by-category
-        dataset_type: dataset type. Defaults to "0core_last_out_w_his"
-            - "0core_last_out_w_his": user x product with reviewed history. https://amazon-reviews-2023.github.io/data_processing/0core.html
-            - "0core_timestamp_w_his": user x product with reviewed history. https://github.com/hyp1231/AmazonReviews2023/tree/main/benchmark_scripts#rating_only---timestamp
-            - "raw_review": user x product pair simply. https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-user-reviews
+        category: Category name such as ``"Video_Games"``.
+        dataset_type: Dataset type to read. Benchmark ``0core_*_w_his`` datasets
+            are read as CSV split files. ``raw_review`` is read as compressed JSONL.
 
     Returns:
-        datasets.DatasetDict, keys: ["train", "test", "unsupervised"]. Dataset Schema is the following: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-user-reviews
+        Dataset dictionary keyed by split name.
+
+    Raises:
+        ValueError: If the dataset type is unsupported.
     """
-    logger.info("Fetching Amazon Reviews 2023 dataset")
-    # NOTE: According to the benchmark script, last_out is widely used in research. But, it is not realistic.
-    # https://github.com/hyp1231/AmazonReviews2023/tree/main/benchmark_scripts#rating_only---timestamp
-    dataset_dict = D.load_dataset(
-        "McAuley-Lab/Amazon-Reviews-2023",
-        f"{dataset_type}_{category}",
-        trust_remote_code=True,
-    )
-    if not isinstance(dataset_dict, D.DatasetDict):
-        msg = f"Expected DatasetDict from load_dataset, got {type(dataset_dict).__name__}"
-        raise TypeError(msg)
-    return dataset_dict
+    logger.info("Fetching Amazon Reviews 2023 dataset from source files")
+    urls = _dataset_urls(category=category, dataset_type=dataset_type)
+    if dataset_type in {"0core_timestamp_w_his", "0core_last_out_w_his"}:
+        return _read_csv_splits(urls)
+    if dataset_type == "raw_review":
+        return D.DatasetDict({"full": _read_json_dataset(urls["full"])})
 
 
 def fetch_metadata(category: str = "Video_Games") -> D.Dataset:
-    """Fetch Amazon Reviews 2023 metadata from the datasets library.
+    """Fetch Amazon Reviews 2023 metadata without Hugging Face loading scripts.
 
     Args:
-        category: category name. Defaults to "Video_Games". Please refer to the dataset card for more details: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#grouped-by-category
+        category: Category name such as ``"Video_Games"``.
 
     Returns:
-        datasets.Dataset, Dataset Schema is the following: https://huggingface.co/datasets/McAuley-Lab/Amazon-Reviews-2023#for-item-metadata
+        Dataset containing item metadata rows.
     """
-    logger.info("Fetching Amazon Reviews 2023 metadata")
-    metadata = D.load_dataset(
-        "McAuley-Lab/Amazon-Reviews-2023",
-        f"raw_meta_{category}",
-        split="full",
-        trust_remote_code=True,
-    )
-    if not isinstance(metadata, D.Dataset):
-        msg = f"Expected Dataset from load_dataset, got {type(metadata).__name__}"
-        raise TypeError(msg)
-    return metadata
+    logger.info("Fetching Amazon Reviews 2023 metadata from source files")
+    return _read_metadata_dataset(_metadata_url(category))
 
 
 def unk_filter_by_count(df: pl.DataFrame, id_column_name: str, threshold: float) -> pl.DataFrame:
@@ -301,7 +386,7 @@ def common_preprocess_dataset(
 
     Args:
         dataset_dict: The dataset dictionary containing train, validation, and test splits (from HuggingFace Datasets).
-        metadata: The metadata dataset containing item information (from HuggingFace Datasets).
+        metadata: The metadata dataset containing item information (from UCSD source files via fetch_metadata).
         filter_no_history: If True, filters out users with no interaction history. Defaults to True.
 
     Returns:
@@ -319,13 +404,14 @@ def common_preprocess_dataset(
     test_df: pl.DataFrame = dataset_dict["test"].to_polars(schema_overrides=schema_overrides)  # type: ignore
     meta_df: pl.DataFrame = metadata.to_polars()  # type: ignore
     meta_df = meta_df[
-        ["parent_asin", "categories", "average_rating", "rating_number"]
+        ["parent_asin", "categories", "average_rating", "rating_number", "price"]
     ].with_columns(
         pl.when(pl.col("categories").list.len() > 0)
         .then(pl.col("categories").list.join("/"))
         .otherwise(None)
         .alias("category")
-    )[["parent_asin", "category", "average_rating", "rating_number"]]
+    )
+    meta_df = meta_df[["parent_asin", "category", "average_rating", "rating_number", "price"]]
 
     # join metadata
     train_df = train_df.join(meta_df, on="parent_asin", how="left", validate="m:1")

@@ -222,6 +222,21 @@ make docker-down
 | `IMAGE_URI` | optional | Docker image 名（default: `recsys-ranking:latest`。`make docker-run` では `DOCKER_IMAGE` 変数を使用） |
 | `EXPERIMENT_NAME` | optional | Cloud Logging 用（ローカル Docker では使用されない） |
 
+## Vertex AI
+
+Vertex AI custom training job で W&B を使う場合は、API key を `pyproject.toml` に書かず、`vertex-job-runner` 実行時の環境変数として渡します。
+
+```sh
+export VRUN_WANDB_API_KEY="your-wandb-api-key"
+uv run vrun run
+```
+
+`vertex-job-runner` はこの値を training container の `WANDB_API_KEY` として設定します。`[tool.vrun]` の project 固有設定を追加する場合も、secret は設定ファイルに保存しないでください。
+
+なお、container 環境変数として渡された `WANDB_API_KEY` は Vertex AI の job 詳細や監査ログ上で参照可能です。より高いセキュリティが必要な場合は、Secret Manager 経由で取得するなどの代替手段を検討してください。
+
+実際の job 実行時は `apps/vertex-job-runner` 側の README も参照してください。
+
 ## Dependencies
 
 この package は主に以下の依存を利用します。
