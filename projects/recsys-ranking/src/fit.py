@@ -14,7 +14,7 @@ from ml_sandbox_libs.training import run_training
 from omegaconf import DictConfig
 
 from const import EVAL_NEG_SAMPLE_SIZE
-from loss import create_loss
+from loss import create_score_loss
 from models.factory import create_model_module
 
 
@@ -106,7 +106,7 @@ def build_module(cfg: DictConfig, datamodule: L.LightningDataModule) -> BaseModu
     datamodule = cast(AmazonReviewsSeqRecDataModule, datamodule)
     datamodule.prepare_data()
     optimizer = create_optimizer(cfg)
-    loss_fn = create_loss(
+    loss_fn = create_score_loss(
         cfg,
         num_items=len(datamodule.item2index),
         neg_sample_size=cfg.data.neg_sample_size,

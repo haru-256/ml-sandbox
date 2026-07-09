@@ -37,6 +37,8 @@ def test_create_model_module_dispatches_to_matching_creator(
         return sentinel
 
     monkeypatch.setattr(factory, creator_name, fake_creator)
+    monkeypatch.setattr(factory, "_require_seq_rec_datamodule", lambda dm, **_: dm)
+    monkeypatch.setattr(factory, "_require_bipartite_graph_datamodule", lambda dm, **_: dm)
 
     assert factory.create_model_module(cfg, datamodule, optimizer) is sentinel
 
@@ -221,3 +223,47 @@ def test_create_lightgcn_module_uses_embedding_loss_factory_with_bpr(
     assert captured_kwargs["num_layers"] == cfg.model.num_layers
     assert captured_kwargs["eval_top_k"] == cfg.data.eval_top_k
     assert captured_kwargs["optimizer"] is optimizer
+
+
+def test_create_model_module_rejects_bipartite_datamodule_for_seq_rec_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rejects graph datamodules for sequential candidate-generation models."""
+
+    class FakeSeqRecDataModule:
+        pass
+
+    class FakeGraphDataModule:
+        pass
+
+    monkeypatch.setattr(factory, "AmazonReviewsSeqRecDataModule", FakeSeqRecDataModule)
+    monkeypatch.setattr(factory, "AmazonReviewsBipartiteGraphDataModule", FakeGraphDataModule)
+
+    cfg = OmegaConf.create({"model": {"name": "TwoTower"}})
+    datamodule = FakeGraphDataModule()
+    optimizer = cast(Any, SimpleNamespace())
+
+    with pytest.raises(TypeError, match="TwoTower requires AmazonReviewsSeqRecDataModule"):
+        factory.create_model_module(cfg, cast(Any, datamodule), optimizer)
+
+
+def test_create_model_module_rejects_seq_rec_datamodule_for_lightgcn(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Rejects sequential datamodules for LightGCN."""
+
+    class FakeSeqRecDataModule:
+        pass
+
+    class FakeGraphDataModule:
+        pass
+
+    monkeypatch.setattr(factory, "AmazonReviewsSeqRecDataModule", FakeSeqRecDataModule)
+    monkeypatch.setattr(factory, "AmazonReviewsBipartiteGraphDataModule", FakeGraphDataModule)
+
+    cfg = OmegaConf.create({"model": {"name": "LightGCN"}})
+    datamodule = FakeSeqRecDataModule()
+    optimizer = cast(Any, SimpleNamespace())
+
+    with pytest.raises(TypeError, match="LightGCN requires AmazonReviewsBipartiteGraphDataModule"):
+        factory.create_model_module(cfg, cast(Any, datamodule), optimizer)

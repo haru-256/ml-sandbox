@@ -2,15 +2,11 @@
 
 import pytest
 import torch
-from ml_sandbox_libs.models.modules.base.activation import Dice
-from ml_sandbox_libs.models.types import ActivationType
 
-from models.modules.cross_net import (
-    CrossNetV2,
-    CrossNetV2MoE,
-    _CrossLayerV2,
-    _CrossLayerV2MoE,
-)
+from ml_sandbox_libs.models.modules import CrossNetV2, CrossNetV2MoE
+from ml_sandbox_libs.models.modules.base.activation import Dice
+from ml_sandbox_libs.models.modules.cross_net import _CrossLayerV2, _CrossLayerV2MoE
+from ml_sandbox_libs.models.types import ActivationType
 
 
 class TestCrossLayerV2:

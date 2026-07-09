@@ -40,6 +40,7 @@ def test_create_retrieval_inputs() -> None:
     torch.testing.assert_close(actual_logits, expected_logits)
     torch.testing.assert_close(actual_target, excepted_target)
     torch.testing.assert_close(actual_indexes, expected_indexes)
+    assert actual_indexes.device == actual_logits.device
 
 
 def test_mrr() -> None:
@@ -416,3 +417,17 @@ def test_retrieval_metrics() -> None:
     torch.testing.assert_close(metrics.hit_rate.compute(), expected_hr)
     torch.testing.assert_close(metrics.mrr.compute(), expected_mrr)
     torch.testing.assert_close(metrics.ndcg.compute(), expected_ndcg)
+
+
+def test_metric_import_paths_remain_compatible() -> None:
+    """Exports metric utilities from compatibility and focused module paths."""
+    from ml_sandbox_libs.utils.metrics import create_retrieval_inputs as compat_inputs
+    from ml_sandbox_libs.utils.metrics import format_metrics_dict as compat_formatting
+    from ml_sandbox_libs.utils.metrics import mrr as compat_mrr
+    from ml_sandbox_libs.utils.metrics.formatting import format_metrics_dict as focused_formatting
+    from ml_sandbox_libs.utils.metrics.inputs import create_retrieval_inputs as focused_inputs
+    from ml_sandbox_libs.utils.metrics.retrieval import mrr as focused_mrr
+
+    assert compat_inputs is focused_inputs
+    assert compat_formatting is focused_formatting
+    assert compat_mrr is focused_mrr
