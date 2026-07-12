@@ -19,7 +19,7 @@ vrun = "vertex_job_runner.cli:app"
 
 [dependency-groups]
 test = [
-    "pytest~=9.0.3",
+    "pytest~=9.1.1",
     "pytest-console-scripts~=1.4.1",
     "pytest-mock~=3.15",
 ]
