@@ -23,7 +23,7 @@ test = [
     "pytest-console-scripts~=1.4.1",
     "pytest-mock~=3.15",
 ]
-lint = ["ruff~=0.15.15", "mypy~=1.20.2"]
+lint = ["ruff~=0.15.15", "mypy~=2.3.0"]
 
 [tool.uv]
 package = true
