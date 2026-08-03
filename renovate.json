@@ -10,10 +10,16 @@
   },
   "packageRules": [
     {
+      "matchManagers": ["github-actions"],
+      "groupName": "github-actions",
+      "automerge": false
+    },
+    {
       "matchFileNames": [
         "projects/*/**",
         "libs/*/**",
-        "apps/*/**"
+        "apps/*/**",
+        "apps/*/samples/**"
       ],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "{{{parentDir}}} minor dependencies",
@@ -23,7 +29,8 @@
       "matchFileNames": [
         "projects/*/**",
         "libs/*/**",
-        "apps/*/**"
+        "apps/*/**",
+        "apps/*/samples/**"
       ],
       "matchUpdateTypes": ["major"],
       "groupName": "{{{parentDir}}} major dependencies",
@@ -33,7 +40,8 @@
       "matchFileNames": [
         "projects/*/**",
         "libs/*/**",
-        "apps/*/**"
+        "apps/*/**",
+        "apps/*/samples/**"
       ],
       "matchDepNames": ["python"],
       "groupName": "{{{parentDir}}} python runtime",
