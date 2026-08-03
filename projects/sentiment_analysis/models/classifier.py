@@ -1,6 +1,6 @@
 import lightning as L
 import torch
-import torch.nn as nn
+from torch import nn
 from torch.optim import Adam, Optimizer
 from torchmetrics.classification import BinaryAccuracy
 

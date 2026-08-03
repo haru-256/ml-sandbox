@@ -1,8 +1,8 @@
 from math import sqrt
 
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch import nn
 
 
 def scaled_dot_product_attention(

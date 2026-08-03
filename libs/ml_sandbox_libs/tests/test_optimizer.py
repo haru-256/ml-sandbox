@@ -5,9 +5,9 @@ from typing import Any, cast
 
 import pytest
 import torch
-import torch.nn as nn
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
 from pytest_mock import MockerFixture
+from torch import nn
 
 from ml_sandbox_libs.optimizer import AdamWCosine, Optimizer
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams

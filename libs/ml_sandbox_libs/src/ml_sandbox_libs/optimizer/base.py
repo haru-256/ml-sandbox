@@ -3,8 +3,8 @@
 from collections.abc import Iterator
 from typing import Any, Protocol, runtime_checkable
 
-import torch.nn as nn
 from lightning.pytorch.utilities.types import OptimizerLRSchedulerConfig
+from torch import nn
 
 
 @runtime_checkable

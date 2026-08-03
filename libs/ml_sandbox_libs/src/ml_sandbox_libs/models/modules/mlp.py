@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from typing import Any
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 from ml_sandbox_libs.models.types import ActivationType, LinearOpOrderType, NormalizeType
 

@@ -4,9 +4,9 @@ from collections.abc import Iterator
 from typing import Any
 
 import torch
-import torch.nn as nn
 from lightning.pytorch.utilities.types import LRSchedulerConfigType, OptimizerLRSchedulerConfig
 from timm.scheduler.cosine_lr import CosineLRScheduler
+from torch import nn
 
 from ml_sandbox_libs.optimizer.types import LRSchedulerParams
 
