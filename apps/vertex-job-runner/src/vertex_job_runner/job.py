@@ -1,4 +1,5 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from google.cloud import aiplatform
 
@@ -19,7 +20,7 @@ def run_custom_training_job(settings: Settings) -> str:
     Returns:
         The Vertex AI training pipeline resource name.
     """
-    suffix = datetime.now().strftime("%Y%m%d%H%M%S")
+    suffix = datetime.now(tz=ZoneInfo("Asia/Tokyo")).strftime("%Y%m%d%H%M%S")
     job = aiplatform.CustomContainerTrainingJob(
         display_name=f"{settings.experiment_name}_{suffix}",
         project=settings.project,

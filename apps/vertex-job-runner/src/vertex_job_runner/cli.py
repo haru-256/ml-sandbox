@@ -1,5 +1,4 @@
 import shlex
-from typing import List, Optional
 
 import typer
 from pydantic import ValidationError
@@ -26,10 +25,10 @@ def get_help(field_name: str) -> str:
 
 @app.command()
 def run(
-    machine_type: Optional[str] = typer.Option(None, help=get_help("machine_type")),
-    accelerator_type: Optional[str] = typer.Option(None, help=get_help("accelerator_type")),
-    accelerator_count: Optional[int] = typer.Option(None, help=get_help("accelerator_count")),
-    args: Optional[str] = typer.Option(
+    machine_type: str | None = typer.Option(None, help=get_help("machine_type")),
+    accelerator_type: str | None = typer.Option(None, help=get_help("accelerator_type")),
+    accelerator_count: int | None = typer.Option(None, help=get_help("accelerator_count")),
+    args: str | None = typer.Option(
         None,
         help=get_help("args") + " (space-separated strings, e.g., --param1=val1 param2)",
     ),
@@ -43,7 +42,7 @@ def run(
         "accelerator_count": accelerator_count,
         "args": shlex.split(args) if args is not None else None,
     }
-    cli_overrides: dict[str, str | int | List[str]] = {
+    cli_overrides: dict[str, str | int | list[str]] = {
         k: v for k, v in cli_args.items() if v is not None
     }
 
