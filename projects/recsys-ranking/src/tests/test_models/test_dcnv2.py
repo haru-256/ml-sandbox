@@ -11,13 +11,13 @@ from models.dcnv2 import DCNv2
 
 @pytest.fixture
 def base_params() -> dict[str, Any]:
-    return dict(
-        num_items=1000,
-        feature_embedding_dims=32,
-        cross_num_layers=2,
-        deep_hidden_dims=[64, 32],
-        item_pad_idx=0,
-    )
+    return {
+        "num_items": 1000,
+        "feature_embedding_dims": 32,
+        "cross_num_layers": 2,
+        "deep_hidden_dims": [64, 32],
+        "item_pad_idx": 0,
+    }
 
 
 @pytest.fixture

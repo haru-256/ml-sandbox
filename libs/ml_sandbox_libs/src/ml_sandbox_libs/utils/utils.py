@@ -2,7 +2,7 @@ import os
 from typing import Any
 
 import torch
-import torch.nn as nn
+from torch import nn
 
 
 def create_attn_padding_mask(

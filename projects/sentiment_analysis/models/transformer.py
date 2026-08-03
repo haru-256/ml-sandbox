@@ -1,5 +1,5 @@
 import torch
-import torch.nn as nn
+from torch import nn
 
 from utils import create_cross_attention_mask, create_self_attention_mask
 

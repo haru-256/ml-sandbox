@@ -7,7 +7,7 @@ from typing import Any, cast
 import pytest
 from omegaconf import OmegaConf
 
-import data.factory as factory
+from data import factory
 
 
 def _create_cfg(model_name: str) -> Any:

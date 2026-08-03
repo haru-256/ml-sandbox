@@ -6,7 +6,7 @@ from typing import Any, cast
 import pytest
 from omegaconf import OmegaConf
 
-import models.factory as factory
+from models import factory
 
 
 @pytest.mark.parametrize(

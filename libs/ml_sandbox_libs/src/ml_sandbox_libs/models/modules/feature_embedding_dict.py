@@ -57,7 +57,7 @@ class FeatureEmbeddingDict(nn.Module):
         elif isinstance(existing_encoder, nn.Linear):
             existing_dims = existing_encoder.out_features
         else:
-            raise ValueError(f"Unknown encoder type: {type(existing_encoder)}")
+            raise TypeError(f"Unknown encoder type: {type(existing_encoder)}")
 
         if existing_dims != feature_spec.embedding_dims:
             raise ValueError(

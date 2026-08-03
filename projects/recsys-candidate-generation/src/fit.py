@@ -1,6 +1,7 @@
 import pathlib
 from datetime import datetime
 from typing import cast
+from zoneinfo import ZoneInfo
 
 import hydra
 import lightning as L
@@ -34,7 +35,7 @@ def create_trainer(cfg: DictConfig, save_dir: pathlib.Path) -> L.Trainer:
         project="recsys-candidate-generation",
         name=cfg.model.name,
         save_dir=save_dir / "logs",
-        version=f"{cfg.model.name}_{datetime.now().strftime('%Y%m%dT%H%M%S')}",
+        version=f"{cfg.model.name}_{datetime.now(tz=ZoneInfo('Asia/Tokyo')).strftime('%Y%m%dT%H%M%S')}",
     )
 
     devices = [cfg.device.accelerator_no] if cfg.device.accelerator == "gpu" else "auto"
