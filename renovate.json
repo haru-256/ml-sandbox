@@ -11,12 +11,26 @@
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
-      "groupName": "github-actions",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "github-actions minor",
+      "automerge": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "github-actions major",
       "automerge": false
     },
     {
       "matchManagers": ["terraform"],
-      "groupName": "terraform",
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "terraform minor",
+      "automerge": false
+    },
+    {
+      "matchManagers": ["terraform"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "terraform major",
       "automerge": false
     },
     {
