@@ -1,5 +1,5 @@
 import shlex
-from typing import Any, List, Optional, Tuple, Type
+from typing import Any
 
 from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, PyprojectTomlConfigSettingsSource, SettingsConfigDict
@@ -31,7 +31,7 @@ class Settings(BaseSettings):
         default=None,
         description="The W&B API key to pass to the training container",
     )
-    command: List[str] = Field(default=..., description="The command to run inside the container")
+    command: list[str] = Field(default=..., description="The command to run inside the container")
 
     # Items overridable by arguments
     machine_type: str = Field(
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
         default=..., description="The type of accelerator to use for the Vertex AI job"
     )
     accelerator_count: int = Field(default=..., description="The number of accelerators to use")
-    args: Optional[List[str]] = Field(
+    args: list[str] | None = Field(
         default=None, description="The list of arguments for the command"
     )
 
@@ -52,12 +52,12 @@ class Settings(BaseSettings):
     @classmethod
     def settings_customise_sources(
         cls,
-        settings_cls: Type[BaseSettings],
+        settings_cls: type[BaseSettings],
         init_settings: Any,
         env_settings: Any,
         dotenv_settings: Any,
         file_secret_settings: Any,
-    ) -> Tuple[Any, ...]:
+    ) -> tuple[Any, ...]:
         """
         Define the priority of configuration sources.
 
@@ -74,7 +74,7 @@ class Settings(BaseSettings):
 
     @field_validator("command", mode="before")
     @classmethod
-    def validate_command(cls, v: str | List[str]) -> List[str]:
+    def validate_command(cls, v: str | list[str]) -> list[str]:
         """Validate and split the command if it's a string"""
 
         if isinstance(v, str):
