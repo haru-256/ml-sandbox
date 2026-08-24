@@ -37,6 +37,7 @@ module "vertex_ai_training" {
   source = "../../modules/vertex_ai_training"
 
   project_id = var.project_id
+  region     = var.default_region
   users      = [var.owner_email]
 
   depends_on = [module.required_project_services]
