@@ -16,5 +16,5 @@ lint: # lint terraform
 
 .PHONY: validate
 validate: # validate terraform without remote backend
-	terraform init -backend=false
+	terraform init -backend=false -input=false -lockfile=readonly
 	terraform validate

@@ -22,13 +22,13 @@
       "automerge": false
     },
     {
-      "matchManagers": ["terraform"],
+      "matchManagers": ["terraform", "terraformVersion"],
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "terraform minor",
       "automerge": false
     },
     {
-      "matchManagers": ["terraform"],
+      "matchManagers": ["terraform", "terraformVersion"],
       "matchUpdateTypes": ["major"],
       "groupName": "terraform major",
       "automerge": false
