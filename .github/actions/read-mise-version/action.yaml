@@ -4,10 +4,6 @@ inputs:
   tool:
     description: Key under [tools] (for example uv, fd, or terraform)
     required: true
-  file:
-    description: mise TOML path relative to the repository root
-    required: false
-    default: mise.toml
 outputs:
   version:
     description: Pinned version string for the requested tool
@@ -19,7 +15,6 @@ runs:
       id: read
       working-directory: ${{ github.workspace }}
       env:
-        MISE_FILE: ${{ github.workspace }}/${{ inputs.file }}
         MISE_TOOL: ${{ inputs.tool }}
       shell: bash
-      run: python3 "${{ github.action_path }}/read_version.py"
+      run: python3 "${{ github.action_path }}/../../scripts/read_mise_version.py"

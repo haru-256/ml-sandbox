@@ -38,6 +38,12 @@ jobs:
           max_depth: 2
           required_files: pyproject.toml, Makefile
           target_projects: ${{ github.event.inputs.target_projects }}
+          run_all_if_files: |
+            mise.toml
+            .github/workflows/python-ci.yml
+            .github/actions/**
+            .github/scripts/**
+            make/**
 
   lint-and-test:
     name: Lint and Test

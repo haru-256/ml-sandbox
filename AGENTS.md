@@ -16,6 +16,7 @@
     - `infra/`: Terraform などのインフラ定義を置きます。Python package と同じ前提では扱いません。
     - `make/`: 全 package の Makefile が共通して include する `help.mk`, `python.mk` を置きます。
     - `docs/`: 設計資料や plan など、ドキュメント類を置きます。Python package ではありません。
+    - `.github/scripts/`: GitHub Actions 用の glue を置きます。composite action は配線、ロジックはこのディレクトリです。
 - 共通化できる型、module、utility は `libs/ml_sandbox_libs` に寄せます。
 - project 固有の business logic、training flow、model composition は各 project 配下に残します。
 - monorepo 内の package 間依存は `pyproject.toml` の `[tool.uv.sources]` で local path を editable 指定します。recsys 系 project は `ml-sandbox-libs` と `vertex-job-runner` に依存します。`sentiment_analysis` は独立 project で shared library に依存しません。
@@ -83,7 +84,7 @@
     - `cd infra/terraform && make format-check`（`terraform fmt -check -recursive`）
     - `cd infra/terraform && make lint`（`tflint --init` + `tflint` + `trivy`）
     - `cd infra/terraform && make validate`（`terraform init -backend=false -lockfile=readonly` + `terraform validate` in `envs/dev`）
-- CI: GitHub Actions（`.github/workflows/python-ci.yml`）が `pyproject.toml` + `Makefile` を持つ package を自動検出し、`make install`, `make lint`, `make test` を実行します。`mise.toml`、`.github/workflows/python-ci.yml`、`.github/actions/**`、`make/**` の変更では、深さ 2 までの全 Python package を対象にします。PR 時は各 package でこれらが通ることを前提にします。Terraform CI（`.github/workflows/terraform-ci.yml`）は path filter なしで全 PR と `main` への push で `make format-check`, `make lint`, `make validate` を実行します。
+- CI: GitHub Actions（`.github/workflows/python-ci.yml`）が `pyproject.toml` + `Makefile` を持つ package を自動検出し、`make install`, `make lint`, `make test` を実行します。全 package 対象の glob は `python-ci.yml` の `run_all_if_files`（`mise.toml`、`python-ci.yml`、`.github/actions/**`、`.github/scripts/**`、`make/**`）です。finder にはハードコードしません。PR 時は各 package でこれらが通ることを前提にします。Terraform CI（`.github/workflows/terraform-ci.yml`）は path filter なしで全 PR と `main` への push で `make format-check`, `make lint`, `make validate` を実行します。
 - 変更した package では少なくとも `make lint` と `make test` を通します。
 - `libs/ml_sandbox_libs` を変更した場合は、必要に応じて関連 project の test も追加で実行します。
 
