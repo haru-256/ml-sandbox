@@ -27,7 +27,7 @@
 
 - 主言語は Python です。
 - Python は 3.12 系を前提にします。各 package の `pyproject.toml` で `requires-python` は 3.12 系で揃っています（`vertex-job-runner` のみ `>=3.12` で上限なし）。
-- ツール管理は `mise.toml` と `uv` を前提にします。`mise.toml` で `uv` と `fd` を管理します。現状の `uv` 管理バージョンは 0.11.6 です。
+- ツール管理は `mise.toml` を正とします。`[tools]` で `uv`、`fd`、Terraform CLI の exact pin を持ちます（現状 `uv = "0.11.32"`、`fd = "10.4.2"`、`terraform = "1.15.9"`）。GitHub Actions の `setup-uv` / `setup-terraform` は mise を自動では読まないため、`.github/actions/read-mise-version` 経由で version を渡します。
 - 多くの Python package は `pyproject.toml` と `Makefile` を持ち、依存管理・lint・test は package 単位で行います。各 Makefile は `make/help.mk` と `make/python.mk` を include し、共通の `lint`, `fmt`, `test`, `clean-cache`, `lock` target を提供します。
 - 中心となるライブラリ群は、PyTorch、Lightning、Hydra、Polars、NumPy、TorchMetrics、Loguru、Torch Geometric (PyG)、`datasets`、`tensorboard`、`timm` です。
 - project / app ごとの主な追加ライブラリ:
@@ -78,12 +78,12 @@
     - `cd apps/vertex-job-runner && make test`
     - README ベースで確認する場合も `uv sync`, `uv run pytest` を使います。
 - `infra/terraform` は Python package と切り離して扱い、変更時は Terraform 側の Makefile と構成を確認してから実行します。
-    - ローカルの Terraform CLI 版は `infra/terraform/.terraform-version` に pin します（tfenv / tenv 向け）。CI の `hashicorp/setup-terraform` はこのファイルを自動では読まないため、workflow が中身を `terraform_version` に渡します。
+    - ローカルの Terraform CLI 版は `mise.toml` の `[tools].terraform` に pin します。`mise install` または `mise exec -- terraform` で入れます（tfenv / tenv は使いません）。CI は `read-mise-version` で同じ値を `hashicorp/setup-terraform` の `terraform_version` に渡します。
     - `cd infra/terraform && make format`（`terraform fmt -recursive`）
     - `cd infra/terraform && make format-check`（`terraform fmt -check -recursive`）
     - `cd infra/terraform && make lint`（`tflint --init` + `tflint` + `trivy`）
     - `cd infra/terraform && make validate`（`terraform init -backend=false -lockfile=readonly` + `terraform validate` in `envs/dev`）
-- CI: GitHub Actions（`.github/workflows/python-ci.yml`）が `pyproject.toml` + `Makefile` を持つ package を自動検出し、`make install`, `make lint`, `make test` を実行します。PR 時は各 package でこれらが通ることを前提にします。Terraform CI（`.github/workflows/terraform-ci.yml`）は path filter なしで全 PR と `main` への push で `make format-check`, `make lint`, `make validate` を実行します。
+- CI: GitHub Actions（`.github/workflows/python-ci.yml`）が `pyproject.toml` + `Makefile` を持つ package を自動検出し、`make install`, `make lint`, `make test` を実行します。`mise.toml`、`.github/workflows/python-ci.yml`、`.github/actions/**`、`make/**` の変更では、深さ 2 までの全 Python package を対象にします。PR 時は各 package でこれらが通ることを前提にします。Terraform CI（`.github/workflows/terraform-ci.yml`）は path filter なしで全 PR と `main` への push で `make format-check`, `make lint`, `make validate` を実行します。
 - 変更した package では少なくとも `make lint` と `make test` を通します。
 - `libs/ml_sandbox_libs` を変更した場合は、必要に応じて関連 project の test も追加で実行します。
 

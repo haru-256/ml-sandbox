@@ -1,0 +1,25 @@
+name: Read mise version
+description: Read a pinned CLI version from a mise.toml [tools] table.
+inputs:
+  tool:
+    description: Key under [tools] (for example uv, fd, or terraform)
+    required: true
+  file:
+    description: mise TOML path relative to the repository root
+    required: false
+    default: mise.toml
+outputs:
+  version:
+    description: Pinned version string for the requested tool
+    value: ${{ steps.read.outputs.version }}
+runs:
+  using: composite
+  steps:
+    - name: Read mise tool version
+      id: read
+      working-directory: ${{ github.workspace }}
+      env:
+        MISE_FILE: ${{ github.workspace }}/${{ inputs.file }}
+        MISE_TOOL: ${{ inputs.tool }}
+      shell: bash
+      run: python3 "${{ github.action_path }}/read_version.py"
