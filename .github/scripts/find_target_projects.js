@@ -59,6 +59,10 @@ module.exports = async ({ core }) => {
     return Array.from(set);
   }
 
+  // First required file is only a marker to build a superset of candidate
+  // dirs. Directories that lack the remaining required files are dropped by
+  // isProject below. A true project always has requiredFiles[0], so this
+  // listing cannot miss one.
   function dirsUpTo(depth) {
     const marker = requiredFiles[0];
     const out = execFileSync('git', ['ls-files', '-z', '--', `:(glob)**/${marker}`], {
@@ -81,6 +85,8 @@ module.exports = async ({ core }) => {
 
   const runAll = process.env.RUN_ALL === 'true';
   const changedFiles = JSON.parse((process.env.CHANGED_FILES ?? '').trim() || '[]');
+  // Both sources are supersets: git-tracked marker dirs, or ancestors of
+  // changed paths. isProject is the only check that all required files exist.
   const candidates = runAll ? dirsUpTo(maxDepth) : ancestors(changedFiles);
   const projects = candidates.filter(isProject).sort();
   core.setOutput('projects', JSON.stringify(projects));
