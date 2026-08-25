@@ -103,3 +103,36 @@
 - `libs/ml_sandbox_libs` を変更したのに downstream 影響を無視しない。
 - brittle な test、内部実装に過度に依存する test、同じことを複数箇所で重複確認する test を増やしすぎない。
 - `make lint` や `make test` が落ちると分かる状態のまま作業完了にしない。
+
+## Cursor Cloud specific instructions
+
+This section captures non-obvious, durable caveats for running this repo inside the Cloud Agent VM. Standard per-package commands (`make install|fmt|lint|test`) are already documented above in section 3 / the READMEs — use those; only the gotchas are listed here.
+
+### Toolchain / environment
+
+- `uv` (0.11.32, matching `mise.toml`) is preinstalled at `/usr/local/bin/uv`. `mise` and `fd` are NOT installed; do not rely on `mise` — call `uv` / the `make` targets directly.
+- The VM is CPU-only (no CUDA/`nvcc`). `make install` therefore resolves the `cpu` extra.
+- Non-obvious: `make lint`, `make test`, and any bare `uv run …` re-sync the venv to the *default* (no-extra) resolution, which pulls the CUDA `torch` wheel (e.g. `torch 2.11.0+cu130` / `2.13.0+cu…`). This is expected and works fine on CPU (`torch.cuda.is_available()` is just `False`). Don't try to "fix" it back to the `+cpu` wheel; lint/test/CI depend on this default path. PyG extensions (`pyg_lib`, `torch_scatter`, …) installed by `make install` survive the re-sync.
+- The dependency-refresh update script runs `make -C <pkg> install` for all five packages; it does not download datasets or start services.
+
+### Running recsys training (`recsys-ranking`, `recsys-candidate-generation`)
+
+- Hydra config/model names are lowercase filenames: use `model=deepfm|dlrm|din|dcnv2` (ranking) and `model=two_tower|lightgcn|simplex|gsasrec` (candidate-generation). The `model=DeepFM`/`model=SASRec` examples elsewhere are the internal `name`, not the config key.
+- `config.yaml` defaults to `device.accelerator: gpu` and `debug: true`. On this VM always override `device.accelerator=cpu`. `debug=true` runs Lightning `fast_dev_run` (10 batches) — good for a smoke run.
+- Training uses `WandbLogger`; run with `WANDB_MODE=offline` to avoid W&B auth.
+- CRITICAL (Linux fork + polars stall): the shared datamodules build polars frames in the parent process, then `DataLoader(persistent_workers=True)` forks workers (Linux default), which stalls indefinitely inside polars in the workers. The author's macOS defaults to `spawn`, so this only bites on Linux. Force `spawn` before training, e.g. create a shim dir with `sitecustomize.py` containing `import torch.multiprocessing as mp; mp.set_start_method("spawn", force=True)` and run with `PYTHONPATH=<shim_dir>`. Setting `POLARS_MAX_THREADS=1` alone does NOT fix it.
+- Known repo bug: `model=sasrec` fails at startup in `module.summary()` (`SASRec.forward() got an unexpected keyword argument 'item_history'`). `two_tower` and the other candidate-generation models start fine.
+- Example smoke run (completes 10 steps over the full ~1.5M-row Amazon Reviews 2023 "Video_Games" dataset, which is downloaded/cached on first run):
+  `PYTHONPATH=<shim_dir> WANDB_MODE=offline uv run python src/fit.py model=deepfm device.accelerator=cpu data.batch_size=32 device.num_workers=2`
+
+### Running sentiment_analysis training
+
+- `train.py` has no CLI args (hardcoded CPU, 10 epochs, `RichProgressBar`). `make train` = `uv run python train.py`.
+- Two dependencies needed for training are missing from the lock and are pruned by `uv sync`/`make install`: the spaCy model `en_core_web_sm` and `click` (a spaCy runtime import; without it `import spacy` fails). Install them into the venv and run with `UV_NO_SYNC=1` so `uv run` does not prune them:
+  `uv pip install click "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"`
+- The same Linux fork+polars issue applies (dataset uses polars in `__getitem__`), so also force `spawn` as above.
+- First run tokenizes ~50k IMDB reviews with spaCy single-threaded (~15–20 min) and caches to `data/data/*.avro`; subsequent runs are fast.
+
+### vertex-job-runner CLI
+
+- Entry point is `uv run vrun` with NO subcommand (the README's `vrun run` is outdated). Preview merged config without touching GCP via `uv run vrun --dry-run`. A real `uv run vrun` submits a Vertex AI job and needs Google Cloud auth.
