@@ -23,14 +23,14 @@ dependencies = [
 
 [project.optional-dependencies]
 cpu = [
-  "torch==2.11.0",
+  "torch==2.13.0",
   "pyg_lib",
   "torch_scatter",
   "torch_sparse",
   "torch_cluster",
 ]
 gpu = [
-  "torch==2.11.0",
+  "torch==2.13.0",
   "pyg_lib",
   "torch_scatter",
   "torch_sparse",
@@ -39,13 +39,13 @@ gpu = [
 
 [dependency-groups]
 dev = [
-  "notebook~=7.5.5",
+  "notebook~=7.6.2",
   "pytest~=9.1.1",
   "pytest-mock~=3.15.1",
   "deepdiff~=9.1.0",
   "mypy~=2.3.0",
   "ipywidgets>=8.1.5",
-  "tqdm~=4.67.1",
+  "tqdm~=4.70.0",
 ]
 lint = ["ruff~=0.16.0"]
 
