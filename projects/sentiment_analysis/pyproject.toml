@@ -12,7 +12,7 @@ dependencies = [
   "datasets~=4.8.5",
   "spacy~=3.8.14",
   "numpy~=2.5.1",
-  "polars~=1.43.2",
+  "polars~=1.44.2",
   "rich~=13.9.4",
   "tensorboard~=2.21.0",
   "torchinfo~=1.8.0",
@@ -20,8 +20,8 @@ dependencies = [
 
 [dependency-groups]
 dev = ["notebook~=7.6.1", "ipywidgets>=8.1.8", "tqdm~=4.70.0"]
-test = ["pytest~=9.1.1", "pytest-mock~=3.15.1", "deepdiff~=9.1.0"]
-lint = ["ruff~=0.16.0", "mypy~=2.3.0"]
+test = ["pytest~=9.1.1", "pytest-mock~=3.16.0", "deepdiff~=9.1.0"]
+lint = ["ruff~=0.16.0", "mypy~=2.4.0"]
 
 [tool.ruff]
 target-version = "py312"
